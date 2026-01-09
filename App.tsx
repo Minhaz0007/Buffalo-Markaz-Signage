@@ -187,6 +187,7 @@ const App: React.FC = () => {
   const [systemAlert, setSystemAlert] = useState<string>("");
   const [currentTheme, setCurrentTheme] = useState<string>('starry');
   const [maghribOffset, setMaghribOffset] = useState<number>(10); // Default to +10 mins
+  const [autoAlertsEnabled, setAutoAlertsEnabled] = useState<boolean>(true); // Configurable auto-alerts
 
   // Source Data
   const [excelSchedule, setExcelSchedule] = useState<Record<string, ExcelDaySchedule>>({});
@@ -254,7 +255,7 @@ const App: React.FC = () => {
          }
       }
 
-      if (changes.length > 0) {
+      if (changes.length > 0 && autoAlertsEnabled) {
         setSystemAlert(`⚠️ NOTICE: Iqamah changes tomorrow for ${changes.join(', ')}`);
       } else {
         setSystemAlert("");
@@ -265,7 +266,7 @@ const App: React.FC = () => {
     const interval = setInterval(updateTimes, 60000); // Check every minute
     return () => clearInterval(interval);
 
-  }, [excelSchedule, manualOverrides, maghribOffset]);
+  }, [excelSchedule, manualOverrides, maghribOffset, autoAlertsEnabled]);
 
   // Combine system alerts with manually added announcement items
   const effectiveAnnouncement: Announcement = React.useMemo(() => {
@@ -385,6 +386,8 @@ const App: React.FC = () => {
           setCurrentTheme={setCurrentTheme}
           maghribOffset={maghribOffset}
           setMaghribOffset={setMaghribOffset}
+          autoAlertsEnabled={autoAlertsEnabled}
+          setAutoAlertsEnabled={setAutoAlertsEnabled}
         />
         
       </div>

@@ -17,6 +17,8 @@ interface SettingsModalProps {
   setCurrentTheme: (theme: string) => void;
   maghribOffset: number;
   setMaghribOffset: (offset: number) => void;
+  autoAlertsEnabled: boolean;
+  setAutoAlertsEnabled: (enabled: boolean) => void;
 }
 
 // --- Calendar Component ---
@@ -124,7 +126,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   manualOverrides, setManualOverrides,
   announcement, setAnnouncement,
   currentTheme, setCurrentTheme,
-  maghribOffset, setMaghribOffset
+  maghribOffset, setMaghribOffset,
+  autoAlertsEnabled, setAutoAlertsEnabled
 }) => {
   const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization'>('schedule');
   const [uploadStatus, setUploadStatus] = useState<string>("");
@@ -533,6 +536,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <h4 className="text-4xl text-white font-serif mb-8 border-b border-white/10 pb-4">Announcement Configuration</h4>
                           
                           <div className="space-y-10">
+                              {/* Auto Alert Toggle */}
+                              <div className="flex items-center justify-between bg-black/20 p-8 rounded-xl border border-white/5 mb-8">
+                                  <div className="flex items-center gap-6">
+                                      <div className="p-4 bg-mosque-gold/10 rounded-xl">
+                                           <AlertTriangle className={`w-8 h-8 ${autoAlertsEnabled ? 'text-mosque-gold' : 'text-white/20'}`} />
+                                      </div>
+                                      <div>
+                                          <h5 className="text-2xl font-bold text-white">Automated Schedule Alerts</h5>
+                                          <p className="text-lg text-white/50 mt-1">
+                                              Automatically display a scrolling alert when prayer times change tomorrow.
+                                          </p>
+                                      </div>
+                                  </div>
+                                  
+                                  <button
+                                      onClick={() => setAutoAlertsEnabled(!autoAlertsEnabled)}
+                                      className={`w-24 h-12 rounded-full p-1 transition-colors duration-300 relative ${autoAlertsEnabled ? 'bg-mosque-gold' : 'bg-white/10 border border-white/10'}`}
+                                  >
+                                      <div className={`w-10 h-10 rounded-full bg-white shadow-lg transform transition-transform duration-300 ${autoAlertsEnabled ? 'translate-x-12' : 'translate-x-0'}`} />
+                                  </button>
+                              </div>
+
                               {/* Title Config */}
                               <div>
                                   <label className={labelClass}>Header Title</label>

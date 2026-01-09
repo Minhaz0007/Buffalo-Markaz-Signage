@@ -298,7 +298,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
       <div className="h-[10%] bg-white border-t-8 border-mosque-gold relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden">
           
           {/* Header: Absolute overlay on the left - Z-20 to sit on top of scrolling text */}
-          <div className="absolute left-0 top-0 bottom-0 bg-mosque-gold text-mosque-navy px-12 flex items-center justify-center z-20 font-black uppercase tracking-[0.15em] text-5xl shadow-[10px_0_20px_rgba(0,0,0,0.2)] min-w-[500px]">
+          <div className="absolute left-0 top-0 bottom-0 bg-mosque-gold text-mosque-navy px-8 flex items-center justify-center z-20 font-black uppercase tracking-[0.15em] text-4xl shadow-[10px_0_20px_rgba(0,0,0,0.2)] min-w-[380px]">
              {announcement.title}
           </div>
           
