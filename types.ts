@@ -14,10 +14,17 @@ export interface DailyPrayers {
   sunset: string; // Time string used for footer
 }
 
+export interface AnnouncementItem {
+  id: string;
+  text: string;
+  color: string; // Hex code
+  animation: 'none' | 'pulse' | 'blink';
+}
+
 export interface Announcement {
   id: string;
   title: string;
-  items: string[];
+  items: AnnouncementItem[];
 }
 
 export interface Event {

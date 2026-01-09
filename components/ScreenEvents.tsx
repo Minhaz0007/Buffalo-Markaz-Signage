@@ -57,8 +57,8 @@ export const ScreenEvents: React.FC<ScreenEventsProps> = ({ announcement, events
           <div className="bg-white/10 backdrop-blur-md p-10 border-l-8 border-mosque-gold rounded-r-lg shadow-2xl">
             <div className="text-4xl text-white font-serif leading-snug">
               {announcement.items.map((item, index) => (
-                <p key={index} className={index > 0 ? "mt-4" : ""}>
-                  {item}
+                <p key={item.id || index} className={index > 0 ? "mt-4" : ""} style={{ color: item.color === '#FFFFFF' ? undefined : item.color }}>
+                  {item.text}
                 </p>
               ))}
             </div>

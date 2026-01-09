@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { DailyPrayers, Announcement } from '../types';
 import { Sunrise, Sunset } from 'lucide-react';
 import { MOSQUE_NAME } from '../constants';
@@ -29,6 +29,11 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
   const [timeUntilIqamah, setTimeUntilIqamah] = useState<string>("");
   const [nextPrayerName, setNextPrayerName] = useState<string>("NEXT PRAYER");
   const [hijriDate, setHijriDate] = useState<string>("");
+  
+  // Calculate duration based on text length for consistent speed
+  const textLength = announcement.items.reduce((acc, item) => acc + item.text.length, 0);
+  // Base duration: 20s + 1s per 10 characters. Minimum 20s.
+  const marqueeDuration = Math.max(20, 20 + (textLength / 10));
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -297,34 +302,56 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
           
           {/* Ticker: Full width container, text scrolls from right to left, passing BEHIND the header */}
           <div className="absolute inset-0 z-10 flex items-center overflow-hidden">
-            <div className="whitespace-nowrap animate-marquee flex items-center text-mosque-navy text-5xl font-semibold tracking-wide w-full pl-[500px]">
-               {/* Padding Left matches header width to ensure text doesn't overlap initially, 
-                   but the animation handles the movement. */}
-               <span className="mx-8 text-mosque-gold">•</span>
-               {announcement.items.join("   •   ")}
+            <div 
+                className="whitespace-nowrap animate-marquee flex items-center text-mosque-navy text-5xl font-semibold tracking-wide w-full pl-[100%]"
+                style={{ animationDuration: `${marqueeDuration}s` }}
+            >
+               {announcement.items.map((item, idx) => {
+                 // Determine animation class
+                 const animClass = item.animation === 'pulse' ? 'animate-text-pulse' : item.animation === 'blink' ? 'animate-text-blink' : '';
+                 return (
+                   <React.Fragment key={item.id}>
+                     {/* Bullet Point separator inherits color from the item it precedes */}
+                     <span style={{ color: item.color }} className="mx-8">•</span>
+                     <span style={{ color: item.color }} className={animClass}>
+                        {item.text}
+                     </span>
+                   </React.Fragment>
+                 );
+               })}
             </div>
           </div>
       </div>
 
       <style>{`
         @keyframes marquee {
-          0% { transform: translateX(100vw); } 
-          100% { transform: translateX(-100%); }
+          0% { transform: translate3d(0, 0, 0); } 
+          100% { transform: translate3d(-100%, 0, 0); }
         }
-        @keyframes glowPulse {
-          0% { text-shadow: 0 0 10px rgba(212, 175, 55, 0.5), 0 0 20px rgba(212, 175, 55, 0.3); }
-          50% { text-shadow: 0 0 20px rgba(212, 175, 55, 0.8), 0 0 40px rgba(212, 175, 55, 0.6), 0 0 60px rgba(212, 175, 55, 0.4); }
-          100% { text-shadow: 0 0 10px rgba(212, 175, 55, 0.5), 0 0 20px rgba(212, 175, 55, 0.3); }
+        @keyframes textPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(0.98); }
+        }
+        @keyframes textBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
         }
         .animate-marquee {
-          animation: marquee 45s linear infinite; /* Slowed down slightly for better readability with list */
+          animation-name: marquee;
+          animation-timing-function: linear;
+          animation-iteration-count: infinite;
           will-change: transform;
         }
-        .text-shadow {
-          text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        .animate-text-pulse {
+           animation: textPulse 2s infinite ease-in-out;
+           display: inline-block;
+        }
+        .animate-text-blink {
+           animation: textBlink 1s infinite steps(1);
+           display: inline-block;
         }
         .glow {
-          animation: glowPulse 3s infinite ease-in-out;
+          text-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
         }
       `}</style>
     </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ScreenPrayerTimes } from './components/ScreenPrayerTimes';
 import { SettingsModal } from './components/SettingsModal';
-import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride } from './types';
+import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem } from './types';
 import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES, DEFAULT_ANNOUNCEMENT } from './constants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Maximize, Minimize } from 'lucide-react';
@@ -236,10 +236,19 @@ const App: React.FC = () => {
   }, [excelSchedule, manualOverrides]);
 
   // Combine system alerts with manually added announcement items
-  const effectiveAnnouncement: Announcement = {
-    ...announcement,
-    items: systemAlert ? [systemAlert, ...announcement.items] : announcement.items
-  };
+  const effectiveAnnouncement: Announcement = React.useMemo(() => {
+    let items = [...announcement.items];
+    if (systemAlert) {
+      const alertItem: AnnouncementItem = {
+        id: 'sys-alert',
+        text: systemAlert,
+        color: '#F87171', // Red
+        animation: 'pulse'
+      };
+      items = [alertItem, ...items];
+    }
+    return { ...announcement, items };
+  }, [announcement, systemAlert]);
 
   // --- Fullscreen & Shortcuts ---
   const toggleFullscreen = () => {

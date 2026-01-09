@@ -24,8 +24,23 @@ export const DEFAULT_ANNOUNCEMENT: Announcement = {
   id: '1',
   title: 'ANNOUNCEMENTS',
   items: [
-    'Please park responsibly.',
-    'Do not block neighbor driveways during Jumuah prayer.',
-    'Donate generously for the masjid construction.'
+    { 
+      id: '1', 
+      text: 'Please park responsibly.', 
+      color: '#000000', 
+      animation: 'none' 
+    },
+    { 
+      id: '2', 
+      text: 'Do not block neighbor driveways during Jumuah prayer.', 
+      color: '#0B1E3B', // Navy
+      animation: 'pulse' 
+    },
+    { 
+      id: '3', 
+      text: 'Donate generously for the masjid construction.', 
+      color: '#000000', 
+      animation: 'none' 
+    }
   ]
 };
