@@ -154,7 +154,7 @@ const App: React.FC = () => {
   const [displayedPrayerTimes, setDisplayedPrayerTimes] = useState<DailyPrayers>(DEFAULT_PRAYER_TIMES);
   const [displayedJumuahTimes, setDisplayedJumuahTimes] = useState(DEFAULT_JUMUAH_TIMES);
   const [systemAlert, setSystemAlert] = useState<string>("");
-  const [currentTheme, setCurrentTheme] = useState<string>('arabesque');
+  const [currentTheme, setCurrentTheme] = useState<string>('starry');
 
   // Source Data
   const [excelSchedule, setExcelSchedule] = useState<Record<string, ExcelDaySchedule>>({});

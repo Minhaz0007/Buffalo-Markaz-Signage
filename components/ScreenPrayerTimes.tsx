@@ -184,6 +184,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
                 const bgClass = isActive ? 'bg-[#E5E5E5] scale-[1.02] z-10 shadow-y-lg' : 'bg-transparent';
                 const textClass = isActive ? 'text-mosque-navy' : 'text-white';
                 const borderClass = isActive ? 'border-mosque-navy/10' : 'border-white/10';
+                // Only apply transparency darkening to Iqamah if the row is NOT active
+                const iqamahBgClass = isActive ? '' : 'bg-black/5';
                 
                 return (
                   <div key={idx} className={`flex-1 flex items-center ${bgClass} ${textClass} border-b ${borderClass} transition-all duration-500 relative`}>
@@ -200,7 +202,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
                     </div>
                     
                     {/* Iqamah Time */}
-                    <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} bg-black/5`}>
+                    <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} ${iqamahBgClass}`}>
                         <TimeDisplay time={row.iqamah || ''} className={`${isActive ? 'text-9xl font-black' : 'text-8xl font-bold'}`} />
                     </div>
                   </div>
@@ -221,11 +223,11 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
               {/* Clock Section - UNIFIED SIZE */}
               <div className="flex-[4] flex flex-col items-center justify-center border-b border-gray-300 bg-[#E5E5E5] relative overflow-hidden">
                   <div className="flex items-baseline justify-center w-full px-2 mt-4 whitespace-nowrap">
-                     {/* Combined Time Display: HH:MM:SS at same size */}
-                     <span className="text-[9.5rem] leading-none font-serif tracking-tighter text-mosque-navy font-medium drop-shadow-sm tabular-nums">
+                     {/* Combined Time Display: HH:MM:SS increased size ~20% */}
+                     <span className="text-[12rem] leading-[0.8] font-serif tracking-tighter text-mosque-navy font-bold drop-shadow-sm tabular-nums">
                         {hours}:{minutes}:{seconds}
                      </span>
-                     <span className="text-7xl ml-4 font-sans font-bold tracking-wide text-mosque-gold">
+                     <span className="text-8xl ml-4 font-sans font-bold tracking-wide text-mosque-gold">
                         {displayAmPm}
                      </span>
                   </div>
