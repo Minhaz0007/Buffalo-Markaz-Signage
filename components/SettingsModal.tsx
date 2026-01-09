@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save, Clock, Type, Settings as SettingsIcon, Upload, Calendar, Plus, Trash2, Edit2, AlertTriangle } from 'lucide-react';
+import { X, Save, Clock, Type, Settings as SettingsIcon, Upload, Calendar, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare } from 'lucide-react';
 import { Announcement, Event, AppSettings, ExcelDaySchedule, ManualOverride } from '../types';
 import * as XLSX from 'xlsx';
 
@@ -27,7 +27,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   manualOverrides, setManualOverrides,
   announcement, setAnnouncement
 }) => {
-  const [activeTab, setActiveTab] = useState<'prayers' | 'content'>('prayers');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'content'>('schedule');
   const [uploadStatus, setUploadStatus] = useState<string>("");
   
   // State for the expanded prayer configuration
@@ -183,281 +183,313 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // Common styling
   const inputClass = "w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-white/20 focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all duration-300 font-mono text-sm";
   const labelClass = "block text-[10px] uppercase tracking-[0.15em] text-mosque-gold/80 mb-2 font-semibold";
+  const sidebarItemClass = (id: string) => `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 ${activeTab === id ? 'bg-mosque-gold text-mosque-navy font-bold shadow-lg' : 'text-white/60 hover:text-white hover:bg-white/5'}`;
 
   const prayersList = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'jumuah'];
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-8">
-      <div className="bg-mosque-navy w-full max-w-5xl max-h-full rounded-2xl shadow-2xl border border-mosque-gold/30 flex flex-col overflow-hidden relative">
+      <div className="bg-mosque-navy w-full max-w-6xl h-[85vh] rounded-2xl shadow-2xl border border-mosque-gold/30 flex overflow-hidden relative">
         
+        {/* Background Pattern */}
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')] opacity-5 pointer-events-none"></div>
 
-        {/* Header */}
-        <div className="relative z-10 bg-gradient-to-r from-mosque-navy to-mosque-dark p-6 border-b border-white/10 flex justify-between items-center shadow-lg">
-          <h2 className="text-3xl text-mosque-gold font-serif flex items-center gap-3 drop-shadow-sm">
-            <SettingsIcon className="w-6 h-6 text-white/50" /> 
-            <span>Settings</span>
-          </h2>
-          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors hover:rotate-90 duration-300">
-            <X className="w-8 h-8" />
-          </button>
+        {/* Sidebar */}
+        <div className="w-64 bg-black/30 border-r border-white/10 flex flex-col relative z-20 backdrop-blur-md">
+           <div className="p-6 border-b border-white/10">
+              <h2 className="text-xl text-mosque-gold font-serif flex items-center gap-2 drop-shadow-sm">
+                <SettingsIcon className="w-5 h-5 text-white/50" /> 
+                <span>Settings</span>
+              </h2>
+           </div>
+
+           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+              <button onClick={() => setActiveTab('schedule')} className={sidebarItemClass('schedule')}>
+                 <LayoutDashboard className="w-4 h-4" />
+                 <span className="text-sm tracking-wide uppercase">Schedule</span>
+              </button>
+              <button onClick={() => setActiveTab('content')} className={sidebarItemClass('content')}>
+                 <MessageSquare className="w-4 h-4" />
+                 <span className="text-sm tracking-wide uppercase">Content</span>
+              </button>
+           </nav>
+
+           <div className="p-4 border-t border-white/10 text-xs text-center text-white/20">
+              v1.0.0 • Markaz Masjid
+           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="relative z-10 flex border-b border-white/10 bg-black/20">
-          {[
-            { id: 'prayers', icon: Clock, label: 'Schedule & Overrides' },
-            { id: 'content', icon: Type, label: 'Content' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 py-5 flex items-center justify-center gap-3 font-medium tracking-wide text-sm uppercase transition-all duration-300 relative overflow-hidden group
-                ${activeTab === tab.id ? 'text-mosque-navy' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
-            >
-              {activeTab === tab.id && (
-                <div className="absolute inset-0 bg-gradient-to-t from-mosque-gold to-yellow-600"></div>
-              )}
-              <span className="relative z-10 flex items-center gap-2">
-                <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-mosque-navy' : 'text-mosque-gold'}`} /> 
-                {tab.label}
-              </span>
-            </button>
-          ))}
-        </div>
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col relative z-10 bg-gradient-to-br from-mosque-navy/50 to-mosque-dark/50">
+           
+           {/* Header */}
+           <div className="h-16 border-b border-white/10 flex items-center justify-between px-8 bg-black/10">
+               <h3 className="text-white font-serif text-xl tracking-wide">
+                  {activeTab === 'schedule' ? 'Prayer Schedule & Overrides' : 'Announcements & Alerts'}
+               </h3>
+               <button onClick={onClose} className="text-white/40 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all duration-300">
+                  <X className="w-6 h-6" />
+               </button>
+           </div>
 
-        {/* Content */}
-        <div className="relative z-10 p-8 overflow-y-auto flex-1 text-white custom-scrollbar">
-          
-          {activeTab === 'prayers' && (
-            <div className="space-y-8">
+           {/* Scrollable Body */}
+           <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
               
-              {/* 1. Global Excel Import */}
-              <div className="bg-white/5 border border-white/10 rounded-xl p-6 flex items-center justify-between group hover:border-mosque-gold/30 transition-colors">
-                 <div className="flex-1">
-                    <h3 className="text-mosque-gold font-serif text-lg mb-1 flex items-center gap-2">
-                        <Upload className="w-4 h-4" /> Global Schedule Import (Excel)
-                    </h3>
-                    <p className="text-xs text-white/50 max-w-lg leading-relaxed">
-                        Upload the annual prayer schedule. This file serves as the base schedule for the entire year. 
-                        Manual overrides below will take precedence over this data.
-                    </p>
-                    {uploadStatus && (
-                        <div className={`text-xs mt-3 font-mono px-3 py-1 rounded inline-block ${uploadStatus.includes('Error') ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'}`}>
+              {activeTab === 'schedule' && (
+                <div className="space-y-8 max-w-4xl mx-auto">
+                  
+                  {/* Excel Import Section */}
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+                     <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                           <div className="p-2 bg-mosque-gold/10 rounded-lg">
+                              <Upload className="w-5 h-5 text-mosque-gold" />
+                           </div>
+                           <div>
+                              <h4 className="text-white font-bold">Import Annual Schedule</h4>
+                              <p className="text-xs text-white/50 mt-1">Upload .xlsx file to set base prayer times for the year.</p>
+                           </div>
+                        </div>
+                        <label className="cursor-pointer bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider py-2 px-4 rounded transition-colors">
+                           Choose File
+                           <input 
+                              type="file" 
+                              accept=".xlsx, .xls"
+                              onChange={handleFileUpload}
+                              className="hidden"
+                           />
+                        </label>
+                     </div>
+                     {uploadStatus && (
+                        <div className={`text-xs font-mono p-3 rounded bg-black/30 border border-white/5 ${uploadStatus.includes('Error') ? 'text-red-300' : 'text-green-300'}`}>
                             {uploadStatus}
                         </div>
-                    )}
-                 </div>
-                 <div>
-                    <input 
-                        type="file" 
-                        accept=".xlsx, .xls"
-                        onChange={handleFileUpload}
-                        className="text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-mosque-gold file:text-mosque-navy hover:file:bg-white transition-all cursor-pointer"
-                    />
-                 </div>
-              </div>
+                     )}
+                  </div>
 
-              {/* 2. Prayer List for Manual Overrides */}
-              <div>
-                  <h3 className="text-white font-bold uppercase tracking-widest text-xs mb-4 flex items-center gap-2">
-                      <Edit2 className="w-3 h-3 text-mosque-gold" /> Manual Overrides & Configuration
-                  </h3>
-                  
-                  <div className="space-y-3">
-                      {prayersList.map((prayer) => {
-                          const overrides = manualOverrides.filter(o => o.prayerKey === prayer);
-                          const isExpanded = expandedPrayer === prayer;
-                          const activeOverride = overrides.find(o => {
-                              const today = new Date().toISOString().split('T')[0];
-                              return today >= o.startDate && today <= o.endDate;
-                          });
+                  {/* Manual Overrides Section */}
+                  <div>
+                      <div className="flex items-center gap-2 mb-6 border-b border-white/10 pb-2">
+                          <Edit2 className="w-4 h-4 text-mosque-gold" />
+                          <h4 className="text-sm font-bold uppercase tracking-widest text-white/80">Manual Overrides</h4>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 gap-4">
+                          {prayersList.map((prayer) => {
+                              const overrides = manualOverrides.filter(o => o.prayerKey === prayer);
+                              const isExpanded = expandedPrayer === prayer;
+                              const activeOverride = overrides.find(o => {
+                                  const today = new Date().toISOString().split('T')[0];
+                                  return today >= o.startDate && today <= o.endDate;
+                              });
 
-                          return (
-                              <div key={prayer} className={`bg-white/5 rounded-xl border ${isExpanded ? 'border-mosque-gold' : 'border-white/5'} transition-all duration-300 overflow-hidden`}>
-                                  
-                                  {/* Row Header */}
-                                  <div 
-                                      className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/5"
-                                      onClick={() => setExpandedPrayer(isExpanded ? null : prayer)}
-                                  >
-                                      <div className="flex items-center gap-4">
-                                          <div className="w-24 font-bold uppercase text-mosque-gold font-serif text-lg tracking-wide">{prayer}</div>
-                                          
-                                          {/* Status Badge */}
-                                          {activeOverride ? (
-                                              <span className="bg-mosque-gold text-mosque-navy text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                                                  Manual Active
-                                              </span>
-                                          ) : excelSchedule[new Date().toISOString().split('T')[0]] ? (
-                                              <span className="bg-blue-500/20 text-blue-200 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                                                  Excel Sched.
-                                              </span>
-                                          ) : (
-                                              <span className="bg-white/10 text-white/50 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                                                  Default
-                                              </span>
-                                          )}
-                                      </div>
+                              return (
+                                  <div key={prayer} className={`bg-white/5 rounded-xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'border-mosque-gold ring-1 ring-mosque-gold/30' : 'border-white/5 hover:border-white/20'}`}>
+                                      
+                                      {/* Row Header */}
+                                      <div 
+                                          className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/5"
+                                          onClick={() => setExpandedPrayer(isExpanded ? null : prayer)}
+                                      >
+                                          <div className="flex items-center gap-4">
+                                              <div className="w-24 font-bold uppercase text-mosque-gold font-serif text-lg tracking-wide pl-2">{prayer}</div>
+                                              
+                                              {/* Status Badge */}
+                                              {activeOverride ? (
+                                                  <span className="bg-mosque-gold text-mosque-navy text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider shadow-sm">
+                                                      Manual Active
+                                                  </span>
+                                              ) : excelSchedule[new Date().toISOString().split('T')[0]] ? (
+                                                  <span className="bg-blue-500/20 text-blue-200 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">
+                                                      Excel Data
+                                                  </span>
+                                              ) : (
+                                                  <span className="bg-white/10 text-white/50 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">
+                                                      Default
+                                                  </span>
+                                              )}
+                                          </div>
 
-                                      <div className="flex items-center gap-4 text-sm text-white/60">
-                                           {activeOverride ? (
-                                               <span>Current: {activeOverride.start} / {activeOverride.iqamah}</span>
-                                           ) : (
-                                               <span className="opacity-50 text-xs">Click to configure</span>
-                                           )}
-                                           <div className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>▼</div>
-                                      </div>
-                                  </div>
-
-                                  {/* Expanded Config Area */}
-                                  {isExpanded && (
-                                      <div className="p-6 border-t border-white/10 bg-black/20">
-                                          
-                                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                              {/* Add New Override Form */}
-                                              <div className="space-y-4">
-                                                  <h4 className="text-xs uppercase tracking-widest font-bold text-white/70 mb-4 flex items-center gap-2">
-                                                      <Plus className="w-3 h-3" /> Add Custom Schedule
-                                                  </h4>
-                                                  
-                                                  <div className="grid grid-cols-2 gap-4">
-                                                      <div>
-                                                          <label className={labelClass}>Start Date</label>
-                                                          <div className="relative">
-                                                              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-mosque-gold" />
-                                                              <input 
-                                                                  type="date" 
-                                                                  value={newOverride.startDate}
-                                                                  onChange={e => setNewOverride({...newOverride, startDate: e.target.value})}
-                                                                  className={`${inputClass} pl-8`} 
-                                                              />
-                                                          </div>
-                                                      </div>
-                                                      <div>
-                                                          <label className={labelClass}>End Date</label>
-                                                          <div className="relative">
-                                                              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-mosque-gold" />
-                                                              <input 
-                                                                  type="date" 
-                                                                  value={newOverride.endDate}
-                                                                  onChange={e => setNewOverride({...newOverride, endDate: e.target.value})}
-                                                                  className={`${inputClass} pl-8`} 
-                                                              />
-                                                          </div>
-                                                      </div>
-                                                  </div>
-
-                                                  <div className="grid grid-cols-2 gap-4">
-                                                      <div>
-                                                          <label className={labelClass}>{prayer === 'jumuah' ? 'Start' : 'Adhan'}</label>
-                                                          <input 
-                                                              type="text" 
-                                                              placeholder="e.g. 5:00 AM"
-                                                              value={newOverride.start}
-                                                              onChange={e => setNewOverride({...newOverride, start: e.target.value})}
-                                                              className={inputClass} 
-                                                          />
-                                                      </div>
-                                                      <div>
-                                                          <label className={labelClass}>Iqamah</label>
-                                                          <input 
-                                                              type="text" 
-                                                              placeholder="e.g. 5:30 AM"
-                                                              value={newOverride.iqamah}
-                                                              onChange={e => setNewOverride({...newOverride, iqamah: e.target.value})}
-                                                              className={inputClass} 
-                                                          />
-                                                      </div>
-                                                  </div>
-
-                                                  <button 
-                                                      onClick={() => handleAddOverride(prayer)}
-                                                      className="w-full bg-white/10 hover:bg-mosque-gold hover:text-mosque-navy text-white text-xs font-bold uppercase tracking-widest py-3 rounded-lg transition-all"
-                                                  >
-                                                      Apply Override
-                                                  </button>
-                                              </div>
-
-                                              {/* Existing Overrides List */}
-                                              <div className="bg-black/20 rounded-lg p-4 h-full">
-                                                  <h4 className="text-xs uppercase tracking-widest font-bold text-white/70 mb-4">Active Overrides</h4>
-                                                  
-                                                  {overrides.length === 0 ? (
-                                                      <div className="text-white/20 text-xs italic text-center py-8">No overrides configured.</div>
-                                                  ) : (
-                                                      <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
-                                                          {overrides.map(o => (
-                                                              <div key={o.id} className="flex items-center justify-between bg-white/5 p-3 rounded border border-white/5 text-xs">
-                                                                  <div>
-                                                                      <div className="text-mosque-gold font-bold mb-1">
-                                                                          {o.startDate} <span className="text-white/50 mx-1">to</span> {o.endDate}
-                                                                      </div>
-                                                                      <div className="text-white/70">
-                                                                          {o.start} / {o.iqamah}
-                                                                      </div>
-                                                                  </div>
-                                                                  <button 
-                                                                      onClick={() => deleteOverride(o.id)}
-                                                                      className="text-red-400 hover:text-red-300 p-2 hover:bg-white/5 rounded"
-                                                                  >
-                                                                      <Trash2 className="w-3 h-3" />
-                                                                  </button>
-                                                              </div>
-                                                          ))}
-                                                      </div>
-                                                  )}
-                                              </div>
+                                          <div className="flex items-center gap-4 text-sm text-white/60">
+                                               {activeOverride ? (
+                                                   <span className="font-mono text-xs bg-black/20 px-2 py-1 rounded">{activeOverride.start} / {activeOverride.iqamah}</span>
+                                               ) : (
+                                                   <span className="opacity-50 text-xs">Configure</span>
+                                               )}
+                                               <div className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-180 text-mosque-gold' : ''}`}>▼</div>
                                           </div>
                                       </div>
-                                  )}
-                              </div>
-                          );
-                      })}
+
+                                      {/* Expanded Config Area */}
+                                      {isExpanded && (
+                                          <div className="p-6 border-t border-white/10 bg-black/20">
+                                              
+                                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                                  {/* Add New Override Form */}
+                                                  <div className="space-y-4">
+                                                      <h5 className="text-xs uppercase tracking-widest font-bold text-white/70 mb-4 flex items-center gap-2 border-b border-white/5 pb-2">
+                                                          <Plus className="w-3 h-3" /> Add Custom Schedule
+                                                      </h5>
+                                                      
+                                                      <div className="grid grid-cols-2 gap-4">
+                                                          <div>
+                                                              <label className={labelClass}>Start Date</label>
+                                                              <div className="relative">
+                                                                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-mosque-gold" />
+                                                                  <input 
+                                                                      type="date" 
+                                                                      value={newOverride.startDate}
+                                                                      onChange={e => setNewOverride({...newOverride, startDate: e.target.value})}
+                                                                      className={`${inputClass} pl-8`} 
+                                                                  />
+                                                              </div>
+                                                          </div>
+                                                          <div>
+                                                              <label className={labelClass}>End Date</label>
+                                                              <div className="relative">
+                                                                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-mosque-gold" />
+                                                                  <input 
+                                                                      type="date" 
+                                                                      value={newOverride.endDate}
+                                                                      onChange={e => setNewOverride({...newOverride, endDate: e.target.value})}
+                                                                      className={`${inputClass} pl-8`} 
+                                                                  />
+                                                              </div>
+                                                          </div>
+                                                      </div>
+
+                                                      <div className="grid grid-cols-2 gap-4">
+                                                          <div>
+                                                              <label className={labelClass}>{prayer === 'jumuah' ? 'Start Time' : 'Adhan Time'}</label>
+                                                              <input 
+                                                                  type="text" 
+                                                                  placeholder="e.g. 5:00 AM"
+                                                                  value={newOverride.start}
+                                                                  onChange={e => setNewOverride({...newOverride, start: e.target.value})}
+                                                                  className={inputClass} 
+                                                              />
+                                                          </div>
+                                                          <div>
+                                                              <label className={labelClass}>Iqamah Time</label>
+                                                              <input 
+                                                                  type="text" 
+                                                                  placeholder="e.g. 5:30 AM"
+                                                                  value={newOverride.iqamah}
+                                                                  onChange={e => setNewOverride({...newOverride, iqamah: e.target.value})}
+                                                                  className={inputClass} 
+                                                              />
+                                                          </div>
+                                                      </div>
+
+                                                      <button 
+                                                          onClick={() => handleAddOverride(prayer)}
+                                                          className="w-full bg-mosque-navy border border-mosque-gold/50 hover:bg-mosque-gold hover:text-mosque-navy text-mosque-gold hover:border-mosque-gold text-xs font-bold uppercase tracking-widest py-3 rounded-lg transition-all shadow-lg mt-2"
+                                                      >
+                                                          Apply Override
+                                                      </button>
+                                                  </div>
+
+                                                  {/* Existing Overrides List */}
+                                                  <div className="bg-black/20 rounded-lg p-4 h-full border border-white/5">
+                                                      <h5 className="text-xs uppercase tracking-widest font-bold text-white/70 mb-4 border-b border-white/5 pb-2">Active Overrides</h5>
+                                                      
+                                                      {overrides.length === 0 ? (
+                                                          <div className="text-white/20 text-xs italic text-center py-8 flex flex-col items-center gap-2">
+                                                            <AlertTriangle className="w-6 h-6 opacity-20" />
+                                                            No overrides configured.
+                                                          </div>
+                                                      ) : (
+                                                          <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+                                                              {overrides.map(o => (
+                                                                  <div key={o.id} className="flex items-center justify-between bg-white/5 hover:bg-white/10 p-3 rounded border border-white/5 text-xs group transition-colors">
+                                                                      <div>
+                                                                          <div className="text-mosque-gold font-bold mb-1 flex items-center gap-2">
+                                                                              <Calendar className="w-3 h-3 opacity-50" />
+                                                                              {o.startDate} <span className="text-white/30">➔</span> {o.endDate}
+                                                                          </div>
+                                                                          <div className="text-white/70 font-mono ml-5">
+                                                                              {o.start} - {o.iqamah}
+                                                                          </div>
+                                                                      </div>
+                                                                      <button 
+                                                                          onClick={() => deleteOverride(o.id)}
+                                                                          className="text-white/20 hover:text-red-400 p-2 rounded transition-colors"
+                                                                          title="Delete Override"
+                                                                      >
+                                                                          <Trash2 className="w-4 h-4" />
+                                                                      </button>
+                                                                  </div>
+                                                              ))}
+                                                          </div>
+                                                      )}
+                                                  </div>
+                                              </div>
+                                          </div>
+                                      )}
+                                  </div>
+                              );
+                          })}
+                      </div>
                   </div>
-              </div>
+                </div>
+              )}
 
-            </div>
-          )}
+              {activeTab === 'content' && (
+                <div className="max-w-3xl mx-auto space-y-8">
+                   <div className="bg-white/5 p-8 rounded-2xl border border-white/10 shadow-xl">
+                      <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+                         <div className="p-2 bg-mosque-gold/10 rounded-lg">
+                           <Type className="w-5 h-5 text-mosque-gold" />
+                         </div>
+                         <div>
+                           <h4 className="text-lg text-white font-bold">Bottom Ticker</h4>
+                           <p className="text-xs text-white/50">Manage the scrolling announcements bar at the bottom of the screen.</p>
+                         </div>
+                      </div>
 
-          {activeTab === 'content' && (
-            <div className="space-y-6 p-4">
-               <div>
-                  <label className={labelClass}>Ticker Title</label>
-                  <input 
-                    type="text" 
-                    value={announcement.title}
-                    onChange={(e) => setAnnouncement({...announcement, title: e.target.value})}
-                    className={inputClass}
-                    placeholder="e.g., ANNOUNCEMENTS"
-                  />
-               </div>
-               
-               <div>
-                  <label className={labelClass}>Ticker Content</label>
-                  <textarea 
-                    value={announcement.content}
-                    onChange={(e) => setAnnouncement({...announcement, content: e.target.value})}
-                    rows={6}
-                    className={`${inputClass} resize-none leading-relaxed`}
-                    placeholder="Enter the scrolling text for the bottom bar..."
-                  />
-               </div>
-            </div>
-          )}
-        </div>
+                      <div className="space-y-6">
+                        <div>
+                            <label className={labelClass}>Section Title</label>
+                            <input 
+                              type="text" 
+                              value={announcement.title}
+                              onChange={(e) => setAnnouncement({...announcement, title: e.target.value})}
+                              className={inputClass}
+                              placeholder="e.g., ANNOUNCEMENTS"
+                            />
+                            <p className="text-white/20 text-[10px] mt-1">Displayed in the gold box on the left.</p>
+                        </div>
+                        
+                        <div>
+                            <label className={labelClass}>Scrolling Content</label>
+                            <textarea 
+                              value={announcement.content}
+                              onChange={(e) => setAnnouncement({...announcement, content: e.target.value})}
+                              rows={6}
+                              className={`${inputClass} resize-none leading-relaxed p-4`}
+                              placeholder="Enter the scrolling text..."
+                            />
+                            <p className="text-white/30 text-xs mt-2 flex items-center gap-1 justify-end">
+                              <span className="w-1 h-1 bg-mosque-gold rounded-full inline-block"></span>
+                              Separate distinct announcements with punctuation for clarity.
+                            </p>
+                        </div>
+                      </div>
+                   </div>
+                </div>
+              )}
+           </div>
 
-        {/* Footer */}
-        <div className="relative z-10 bg-mosque-dark p-6 border-t border-white/10 flex justify-between items-center">
-          <div className="text-[10px] text-white/30 uppercase tracking-widest">
-              Last saved: {new Date().toLocaleTimeString()}
-          </div>
-          <button 
-            onClick={onClose}
-            className="flex items-center gap-2 bg-gradient-to-r from-yellow-600 to-mosque-gold text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:shadow-mosque-gold/20 hover:-translate-y-0.5 transition-all duration-300 active:scale-95"
-          >
-            <Save className="w-5 h-5" /> Save Configuration
-          </button>
+           {/* Footer Action Bar */}
+           <div className="h-20 bg-black/20 border-t border-white/10 flex items-center justify-end px-8 backdrop-blur-sm z-20">
+              <button 
+                onClick={onClose}
+                className="flex items-center gap-2 bg-gradient-to-r from-yellow-600 to-mosque-gold text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:shadow-mosque-gold/20 hover:-translate-y-0.5 transition-all duration-300 active:scale-95 text-sm uppercase tracking-wider"
+              >
+                <Save className="w-4 h-4" /> Save Configuration
+              </button>
+           </div>
+
         </div>
       </div>
     </div>
