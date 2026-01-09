@@ -8,41 +8,106 @@ import { Settings, Maximize, Minimize } from 'lucide-react';
 
 // --- Background Components ---
 
-const MosqueSilhouetteSVG = () => (
-  <div className="absolute inset-0 z-0 pointer-events-none text-mosque-gold opacity-10 flex items-end">
-    <svg viewBox="0 0 1200 320" className="w-full h-[60%] fill-current" preserveAspectRatio="none">
-        <path d="M0,320 L0,310 H50 Q100,280 150,310 H180 V200 L200,170 L220,200 V310 H350 Q480,150 610,310 H780 V200 L800,170 L820,200 V310 H850 Q900,280 950,310 H1200 V320 Z" />
-        <circle cx="200" cy="170" r="4" />
-        <circle cx="800" cy="170" r="4" />
-        <path d="M480,200 Q610,80 740,200" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.5" />
-    </svg>
-  </div>
-);
+const BackgroundManager = ({ theme }: { theme: string }) => {
+  switch (theme) {
+    case 'lattice':
+      return (
+        <div className="absolute inset-0 z-0 bg-mosque-navy overflow-hidden">
+           <div className="absolute inset-0 bg-[#08152b]"></div>
+           <div className="absolute inset-0 text-mosque-gold opacity-10">
+              <svg width="100%" height="100%">
+                <pattern id="lattice" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+                   <path d="M30 0 L60 30 L30 60 L0 30 Z" fill="none" stroke="currentColor" strokeWidth="1" />
+                   <circle cx="30" cy="30" r="2" fill="currentColor" />
+                   <path d="M0 0 L10 10 M60 0 L50 10 M60 60 L50 50 M0 60 L10 50" stroke="currentColor" strokeWidth="1" />
+                </pattern>
+                <rect width="100%" height="100%" fill="url(#lattice)" />
+              </svg>
+           </div>
+           <div className="absolute inset-0 bg-gradient-to-t from-mosque-navy via-transparent to-mosque-navy opacity-80"></div>
+        </div>
+      );
 
-const BackgroundLayer: React.FC = () => {
-  return (
-    <div className="absolute inset-0 z-0 bg-mosque-navy overflow-hidden">
-       <div className="absolute inset-0 bg-gradient-to-br from-mosque-navy via-[#0F2942] to-black"></div>
-       
-       <motion.div 
-           initial={{ opacity: 0 }}
-           animate={{ opacity: 1 }}
-           transition={{ duration: 1.5 }}
-           className="absolute inset-0"
-       >
-           <MosqueSilhouetteSVG />
-       </motion.div>
-       
-       <div className="absolute inset-0 bg-[radial-gradient(transparent_0%,rgba(0,0,0,0.6)_100%)] pointer-events-none"></div>
-    </div>
-  );
+    case 'arabesque':
+    default:
+      return (
+        <div className="absolute inset-0 z-0 bg-[#0B1E3B] overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#112442] to-[#050F1E]"></div>
+          {/* Uniform Subtle Arabesque */}
+          <div className="absolute inset-0 text-[#E2E8F0] opacity-[0.07]">
+            <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="subtle-arabesque" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+                   {/* Minimalist 8-point geometry */}
+                   <path d="M50 0 L100 50 L50 100 L0 50 Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                   <path d="M50 15 L85 50 L50 85 L15 50 Z" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                   <circle cx="50" cy="50" r="4" fill="currentColor" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#subtle-arabesque)" />
+            </svg>
+          </div>
+          {/* Strong vignette to keep focus on content */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.6)_100%)] pointer-events-none"></div>
+        </div>
+      );
+  }
+};
+
+// --- Scheduler Logic ---
+
+const getScheduleForDate = (
+  dateStr: string, // YYYY-MM-DD
+  excelSchedule: Record<string, ExcelDaySchedule>,
+  manualOverrides: ManualOverride[]
+): { prayers: DailyPrayers, jumuah: { start: string, iqamah: string } } => {
+  
+  // 1. Start with Default
+  let newPrayers = { ...DEFAULT_PRAYER_TIMES };
+  let newJumuah = { ...DEFAULT_JUMUAH_TIMES };
+
+  // 2. Apply Excel (if exists for date)
+  if (excelSchedule[dateStr]) {
+    const day = excelSchedule[dateStr];
+    newPrayers.fajr = { name: 'Fajr', ...day.fajr };
+    newPrayers.dhuhr = { name: 'Dhuhr', ...day.dhuhr };
+    newPrayers.asr = { name: 'Asr', ...day.asr };
+    newPrayers.maghrib = { name: 'Maghrib', ...day.maghrib };
+    newPrayers.isha = { name: 'Isha', ...day.isha };
+    
+    if (day.jumuahIqamah) {
+       newJumuah.iqamah = day.jumuahIqamah;
+    }
+  }
+
+  // 3. Apply Manual Overrides (Highest Priority)
+  manualOverrides.forEach(override => {
+     if (dateStr >= override.startDate && dateStr <= override.endDate) {
+        if (override.prayerKey === 'jumuah') {
+            newJumuah = { start: override.start, iqamah: override.iqamah };
+        } else {
+            // It's a daily prayer
+            const key = override.prayerKey as keyof Omit<DailyPrayers, 'sunrise'|'sunset'>;
+            if (newPrayers[key]) {
+                newPrayers[key] = {
+                    ...newPrayers[key],
+                    start: override.start,
+                    iqamah: override.iqamah
+                };
+            }
+        }
+     }
+  });
+
+  return { prayers: newPrayers, jumuah: newJumuah };
 };
 
 const App: React.FC = () => {
   // --- State ---
-  // Computed display state (derived from schedules)
   const [displayedPrayerTimes, setDisplayedPrayerTimes] = useState<DailyPrayers>(DEFAULT_PRAYER_TIMES);
   const [displayedJumuahTimes, setDisplayedJumuahTimes] = useState(DEFAULT_JUMUAH_TIMES);
+  const [systemAlert, setSystemAlert] = useState<string>("");
+  const [currentTheme, setCurrentTheme] = useState<string>('arabesque');
 
   // Source Data
   const [excelSchedule, setExcelSchedule] = useState<Record<string, ExcelDaySchedule>>({});
@@ -53,60 +118,71 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // --- Logic: Priority Scheduler ---
+  // --- Logic: Priority Scheduler & Alerts ---
   
   useEffect(() => {
     const updateTimes = () => {
-      const today = new Date();
-      const dateKey = today.toISOString().split('T')[0]; // YYYY-MM-DD
+      const now = new Date();
+      const todayKey = now.toISOString().split('T')[0];
       
-      // 1. Start with Default
-      let newPrayers = { ...DEFAULT_PRAYER_TIMES };
-      let newJumuah = { ...DEFAULT_JUMUAH_TIMES };
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowKey = tomorrow.toISOString().split('T')[0];
 
-      // 2. Apply Excel (if exists for today)
-      if (excelSchedule[dateKey]) {
-        const day = excelSchedule[dateKey];
-        newPrayers.fajr = { name: 'Fajr', ...day.fajr };
-        newPrayers.dhuhr = { name: 'Dhuhr', ...day.dhuhr };
-        newPrayers.asr = { name: 'Asr', ...day.asr };
-        newPrayers.maghrib = { name: 'Maghrib', ...day.maghrib };
-        newPrayers.isha = { name: 'Isha', ...day.isha };
-        
-        if (day.jumuahIqamah) {
-           newJumuah.iqamah = day.jumuahIqamah;
-        }
+      // Calculate Schedules
+      const todaySchedule = getScheduleForDate(todayKey, excelSchedule, manualOverrides);
+      const tomorrowSchedule = getScheduleForDate(tomorrowKey, excelSchedule, manualOverrides);
+
+      // Set Display
+      setDisplayedPrayerTimes(todaySchedule.prayers);
+      setDisplayedJumuahTimes(todaySchedule.jumuah);
+
+      // --- Change Detection Logic ---
+      const changes: string[] = [];
+
+      // Helper to clean time string for comparison (removes extra spaces, normalize)
+      const norm = (t?: string) => t?.replace(/\s+/g, '').toUpperCase() || '';
+
+      if (norm(todaySchedule.prayers.fajr.iqamah) !== norm(tomorrowSchedule.prayers.fajr.iqamah)) 
+        changes.push(`Fajr (${tomorrowSchedule.prayers.fajr.iqamah})`);
+      
+      if (norm(todaySchedule.prayers.dhuhr.iqamah) !== norm(tomorrowSchedule.prayers.dhuhr.iqamah)) 
+        changes.push(`Dhuhr (${tomorrowSchedule.prayers.dhuhr.iqamah})`);
+      
+      if (norm(todaySchedule.prayers.asr.iqamah) !== norm(tomorrowSchedule.prayers.asr.iqamah)) 
+        changes.push(`Asr (${tomorrowSchedule.prayers.asr.iqamah})`);
+      
+      if (norm(todaySchedule.prayers.maghrib.iqamah) !== norm(tomorrowSchedule.prayers.maghrib.iqamah)) 
+        changes.push(`Maghrib (${tomorrowSchedule.prayers.maghrib.iqamah})`);
+      
+      if (norm(todaySchedule.prayers.isha.iqamah) !== norm(tomorrowSchedule.prayers.isha.iqamah)) 
+        changes.push(`Isha (${tomorrowSchedule.prayers.isha.iqamah})`);
+
+      // Check Jumuah change (only relevant if tomorrow is Friday)
+      if (tomorrow.getDay() === 5) { // 5 = Friday
+         if (norm(todaySchedule.jumuah.iqamah) !== norm(tomorrowSchedule.jumuah.iqamah)) {
+            changes.push(`Jumu'ah (${tomorrowSchedule.jumuah.iqamah})`);
+         }
       }
 
-      // 3. Apply Manual Overrides (Highest Priority)
-      manualOverrides.forEach(override => {
-         if (dateKey >= override.startDate && dateKey <= override.endDate) {
-            if (override.prayerKey === 'jumuah') {
-                newJumuah = { start: override.start, iqamah: override.iqamah };
-            } else {
-                // It's a daily prayer
-                const key = override.prayerKey as keyof Omit<DailyPrayers, 'sunrise'|'sunset'>;
-                if (newPrayers[key]) {
-                    newPrayers[key] = {
-                        ...newPrayers[key],
-                        start: override.start,
-                        iqamah: override.iqamah
-                    };
-                }
-            }
-         }
-      });
-
-      // 4. Update Display State
-      setDisplayedPrayerTimes(newPrayers);
-      setDisplayedJumuahTimes(newJumuah);
+      if (changes.length > 0) {
+        setSystemAlert(`⚠️ NOTICE: Iqamah changes tomorrow for ${changes.join(', ')}`);
+      } else {
+        setSystemAlert("");
+      }
     };
 
     updateTimes();
-    const interval = setInterval(updateTimes, 60000);
+    const interval = setInterval(updateTimes, 60000); // Check every minute
     return () => clearInterval(interval);
 
   }, [excelSchedule, manualOverrides]);
+
+  // Combine user announcement with system alert
+  const effectiveAnnouncement: Announcement = {
+    ...announcement,
+    content: systemAlert ? `${systemAlert}   ***   ${announcement.content}` : announcement.content
+  };
 
   // --- Fullscreen & Shortcuts ---
   const toggleFullscreen = () => {
@@ -145,7 +221,8 @@ const App: React.FC = () => {
   return (
     <div className="w-screen h-screen bg-black flex items-center justify-center overflow-hidden font-sans antialiased relative">
       <div className="w-full aspect-video max-h-screen relative shadow-2xl overflow-hidden bg-mosque-navy">
-        <BackgroundLayer />
+        
+        <BackgroundManager theme={currentTheme} />
 
         <div className="relative z-10 w-full h-full">
           <AnimatePresence mode="wait">
@@ -157,7 +234,11 @@ const App: React.FC = () => {
               transition={{ duration: 0.6, ease: "easeInOut" }}
               className="w-full h-full"
             >
-              <ScreenPrayerTimes prayers={displayedPrayerTimes} jumuah={displayedJumuahTimes} announcement={announcement} />
+              <ScreenPrayerTimes 
+                prayers={displayedPrayerTimes} 
+                jumuah={displayedJumuahTimes} 
+                announcement={effectiveAnnouncement} 
+              />
             </motion.div>
           </AnimatePresence>
         </div>
@@ -187,6 +268,8 @@ const App: React.FC = () => {
           setManualOverrides={setManualOverrides}
           announcement={announcement}
           setAnnouncement={setAnnouncement}
+          currentTheme={currentTheme}
+          setCurrentTheme={setCurrentTheme}
         />
         
       </div>

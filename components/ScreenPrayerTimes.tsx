@@ -208,22 +208,22 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
                   <div className="text-xl xl:text-2xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/70">{formatDate(currentTime)}</div>
               </div>
 
-              {/* Clock Section - Fitted for HH:MM:SS */}
+              {/* Clock Section - Fitted for HH:MM:SS - Increased Size */}
               <div className="flex-[4] flex flex-col items-center justify-center border-b border-gray-300 bg-[#E5E5E5] relative overflow-hidden">
                   <div className="flex items-baseline justify-center w-full px-2">
-                     <span className="text-[5.5rem] xl:text-[7rem] leading-none font-serif tracking-tighter text-mosque-navy font-medium drop-shadow-sm tabular-nums">
+                     <span className="text-[7rem] xl:text-[9.5rem] leading-none font-serif tracking-tighter text-mosque-navy font-medium drop-shadow-sm tabular-nums">
                         {displayTime}
                      </span>
-                     <span className="text-3xl xl:text-5xl ml-3 font-sans font-bold tracking-wide text-mosque-gold">
+                     <span className="text-4xl xl:text-6xl ml-4 font-sans font-bold tracking-wide text-mosque-gold">
                         {displayAmPm}
                      </span>
                   </div>
                   
-                  <div className="mt-6 flex flex-col items-center w-full">
-                    <span className="text-base xl:text-lg uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-1">
+                  <div className="mt-8 flex flex-col items-center w-full">
+                    <span className="text-lg xl:text-xl uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-2">
                       {nextPrayerName} IN
                     </span>
-                    <span className="font-serif text-5xl xl:text-6xl font-bold text-mosque-navy tabular-nums tracking-tight">
+                    <span className="font-serif text-6xl xl:text-7xl font-bold text-mosque-navy tabular-nums tracking-tight">
                        {timeUntilIqamah}
                     </span>
                   </div>
