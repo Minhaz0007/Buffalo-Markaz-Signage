@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ScreenPrayerTimes } from './components/ScreenPrayerTimes';
 import { SettingsModal } from './components/SettingsModal';
-import { DailyPrayers, Announcement, Event, AppSettings, ExcelDaySchedule, ManualOverride } from './types';
-import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES, DEFAULT_EVENTS, DEFAULT_ANNOUNCEMENT } from './constants';
+import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride } from './types';
+import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES, DEFAULT_ANNOUNCEMENT } from './constants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Maximize, Minimize } from 'lucide-react';
 
@@ -48,15 +48,8 @@ const App: React.FC = () => {
   const [excelSchedule, setExcelSchedule] = useState<Record<string, ExcelDaySchedule>>({});
   const [manualOverrides, setManualOverrides] = useState<ManualOverride[]>([]);
   
-  // Note: Events state kept for SettingsModal compatibility, though not displayed
-  const [events, setEvents] = useState<Event[]>(DEFAULT_EVENTS);
   const [announcement, setAnnouncement] = useState<Announcement>(DEFAULT_ANNOUNCEMENT);
   
-  const [appSettings, setAppSettings] = useState<AppSettings>({
-    autoScroll: false, 
-    scrollDuration: 15
-  });
-
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -194,10 +187,6 @@ const App: React.FC = () => {
           setManualOverrides={setManualOverrides}
           announcement={announcement}
           setAnnouncement={setAnnouncement}
-          events={events}
-          setEvents={setEvents}
-          appSettings={appSettings}
-          setAppSettings={setAppSettings}
         />
         
       </div>

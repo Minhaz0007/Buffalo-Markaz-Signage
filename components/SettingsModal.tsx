@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Save, Clock, Type, Settings as SettingsIcon, Upload, Calendar, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare } from 'lucide-react';
-import { Announcement, Event, AppSettings, ExcelDaySchedule, ManualOverride } from '../types';
+import { X, Save, Settings as SettingsIcon, Upload, Calendar, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Type } from 'lucide-react';
+import { Announcement, ExcelDaySchedule, ManualOverride } from '../types';
 import * as XLSX from 'xlsx';
 
 interface SettingsModalProps {
@@ -15,10 +15,6 @@ interface SettingsModalProps {
 
   announcement: Announcement;
   setAnnouncement: (a: Announcement) => void;
-  events: Event[];
-  setEvents: (e: Event[]) => void;
-  appSettings: AppSettings;
-  setAppSettings: (s: AppSettings) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({

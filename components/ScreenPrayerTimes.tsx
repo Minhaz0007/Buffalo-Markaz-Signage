@@ -144,7 +144,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
       {/* === TOP HEADER: MOSQUE NAME === */}
       <div className="h-[10%] bg-mosque-navy/95 border-b-4 border-mosque-gold/50 flex items-center justify-center relative z-20 shadow-2xl shrink-0">
           <div className="absolute inset-0 bg-black/20"></div>
-          <h1 className="relative z-10 text-4xl xl:text-5xl font-serif text-mosque-gold font-bold uppercase tracking-[0.2em] drop-shadow-lg text-shadow">
+          <h1 className="relative z-10 text-4xl xl:text-5xl font-serif text-mosque-gold font-bold uppercase tracking-[0.2em] drop-shadow-lg glow">
             {MOSQUE_NAME}
           </h1>
       </div>
@@ -155,15 +155,15 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
           {/* === LEFT COLUMN: PRAYER TABLE (60%) === */}
           <div className="w-[60%] flex flex-col border-r-4 border-black/30 relative z-10 shadow-xl h-full">
             {/* Header Row */}
-            <div className="h-16 flex items-end pb-2 bg-mosque-navy/40 border-b border-white/10 shrink-0">
+            <div className="h-20 flex items-end pb-4 bg-mosque-navy/40 border-b border-white/10 shrink-0">
               <div className="w-[34%] text-center border-white/5">
-                  <span className="text-xl xl:text-2xl font-sans font-bold tracking-[0.3em] uppercase text-white/60">Salah</span>
+                  <span className="text-2xl xl:text-3xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Salah</span>
               </div>
               <div className="w-[33%] text-center border-l border-white/5">
-                  <span className="text-xl xl:text-2xl font-sans font-bold tracking-[0.3em] uppercase text-white/60">Starts</span>
+                  <span className="text-2xl xl:text-3xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Starts</span>
               </div>
               <div className="w-[33%] text-center border-l border-white/5">
-                  <span className="text-xl xl:text-2xl font-sans font-bold tracking-[0.3em] uppercase text-white/60">Iqamah</span>
+                  <span className="text-2xl xl:text-3xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Iqamah</span>
               </div>
             </div>
 
@@ -223,7 +223,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
                     <span className="text-base xl:text-lg uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-1">
                       {nextPrayerName} IN
                     </span>
-                    <span className="font-mono text-5xl xl:text-6xl font-bold text-mosque-navy tabular-nums tracking-tight">
+                    <span className="font-serif text-5xl xl:text-6xl font-bold text-mosque-navy tabular-nums tracking-tight">
                        {timeUntilIqamah}
                     </span>
                   </div>
@@ -231,26 +231,26 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
 
               {/* Jumu'ah Section */}
               <div className="flex-[2.5] flex flex-col items-center justify-center py-2 bg-white border-b border-gray-300 shrink-0">
-                <div className="text-2xl xl:text-3xl uppercase tracking-[0.2em] font-sans font-bold text-mosque-navy/80 mb-6 flex items-center gap-6">
+                <div className="text-2xl xl:text-3xl uppercase tracking-[0.2em] font-sans font-bold text-mosque-navy/80 mb-4 flex items-center gap-6">
                   <span className="h-1 w-8 bg-mosque-gold"></span>
                   Jumu'ah
                   <span className="h-1 w-8 bg-mosque-gold"></span>
                 </div>
                 <div className="flex w-full px-4 justify-around">
                     <div className="text-center group">
-                      <div className="text-5xl xl:text-6xl font-serif font-bold mb-2 flex items-baseline text-mosque-navy group-hover:scale-110 transition-transform">
+                      <div className="text-6xl xl:text-7xl font-serif font-bold mb-1 flex items-baseline text-mosque-navy group-hover:scale-110 transition-transform">
                         {jumuah.start.split(' ')[0]}
-                        <span className="text-lg font-sans font-bold ml-1 text-mosque-gold">{jumuah.start.split(' ')[1]}</span>
+                        <span className="text-xl font-sans font-bold ml-1 text-mosque-gold">{jumuah.start.split(' ')[1]}</span>
                       </div>
-                      <div className="text-xs xl:text-sm uppercase tracking-[0.25em] font-sans font-bold text-gray-400">Khutbah</div>
+                      <div className="text-lg xl:text-xl uppercase tracking-[0.2em] font-sans font-bold text-gray-400">Khutbah</div>
                     </div>
                     <div className="w-px h-16 bg-gray-200"></div>
                     <div className="text-center group">
-                      <div className="text-5xl xl:text-6xl font-serif font-bold mb-2 flex items-baseline text-mosque-navy group-hover:scale-110 transition-transform">
+                      <div className="text-6xl xl:text-7xl font-serif font-bold mb-1 flex items-baseline text-mosque-navy group-hover:scale-110 transition-transform">
                         {jumuah.iqamah.split(' ')[0]}
-                        <span className="text-lg font-sans font-bold ml-1 text-mosque-gold">{jumuah.iqamah.split(' ')[1]}</span>
+                        <span className="text-xl font-sans font-bold ml-1 text-mosque-gold">{jumuah.iqamah.split(' ')[1]}</span>
                       </div>
-                      <div className="text-xs xl:text-sm uppercase tracking-[0.25em] font-sans font-bold text-gray-400">Iqamah</div>
+                      <div className="text-lg xl:text-xl uppercase tracking-[0.2em] font-sans font-bold text-gray-400">Iqamah</div>
                     </div>
                 </div>
               </div>
@@ -259,21 +259,21 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
               <div className="bg-mosque-navy text-white p-5 xl:p-6 shadow-inner shrink-0">
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                      <Sunrise className="w-8 h-8 xl:w-10 xl:h-10 text-mosque-gold" strokeWidth={2} />
+                      <Sunrise className="w-10 h-10 xl:w-12 xl:h-12 text-mosque-gold" strokeWidth={2} />
                       <div className="flex flex-col">
-                         <span className="text-xs uppercase tracking-widest opacity-60">Sunrise</span>
-                         <span className="text-3xl xl:text-4xl font-serif font-bold">{prayers.sunrise}</span>
+                         <span className="text-lg xl:text-xl uppercase tracking-widest opacity-60 font-semibold">Sunrise</span>
+                         <span className="text-4xl xl:text-5xl font-serif font-bold">{prayers.sunrise}</span>
                       </div>
                     </div>
                     
-                    <div className="h-10 w-px bg-white/10"></div>
+                    <div className="h-12 w-px bg-white/10"></div>
 
                     <div className="flex items-center gap-4 text-right">
                       <div className="flex flex-col">
-                         <span className="text-xs uppercase tracking-widest opacity-60">Sunset</span>
-                         <span className="text-3xl xl:text-4xl font-serif font-bold">{prayers.sunset}</span>
+                         <span className="text-lg xl:text-xl uppercase tracking-widest opacity-60 font-semibold">Sunset</span>
+                         <span className="text-4xl xl:text-5xl font-serif font-bold">{prayers.sunset}</span>
                       </div>
-                      <Sunset className="w-8 h-8 xl:w-10 xl:h-10 text-mosque-gold" strokeWidth={2} />
+                      <Sunset className="w-10 h-10 xl:w-12 xl:h-12 text-mosque-gold" strokeWidth={2} />
                     </div>
                 </div>
               </div>
@@ -296,12 +296,20 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
           0% { transform: translateX(0); }
           100% { transform: translateX(-100%); }
         }
+        @keyframes glowPulse {
+          0% { text-shadow: 0 0 10px rgba(212, 175, 55, 0.5), 0 0 20px rgba(212, 175, 55, 0.3); }
+          50% { text-shadow: 0 0 20px rgba(212, 175, 55, 0.8), 0 0 40px rgba(212, 175, 55, 0.6), 0 0 60px rgba(212, 175, 55, 0.4); }
+          100% { text-shadow: 0 0 10px rgba(212, 175, 55, 0.5), 0 0 20px rgba(212, 175, 55, 0.3); }
+        }
         .animate-marquee {
           animation: marquee 40s linear infinite;
           padding-left: 100%;
         }
         .text-shadow {
           text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .glow {
+          animation: glowPulse 3s infinite ease-in-out;
         }
       `}</style>
     </div>

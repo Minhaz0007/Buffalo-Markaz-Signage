@@ -14,28 +14,16 @@ export interface DailyPrayers {
   sunset: string; // Time string used for footer
 }
 
-export interface Event {
-  id: string;
-  title: string;
-  date: string;
-}
-
 export interface Announcement {
   id: string;
   title: string;
   content: string;
 }
 
-export interface AppSettings {
-  autoScroll: boolean;
-  scrollDuration: number; // in seconds
-}
-
-export enum ScreenType {
-  PRAYER_TIMES = 'PRAYER_TIMES',
-  EVENTS = 'EVENTS',
-  JUMUAH = 'JUMUAH',
-  DONATE = 'DONATE'
+export interface Event {
+  id: string;
+  title: string;
+  date: string;
 }
 
 // --- Scheduling Types ---
