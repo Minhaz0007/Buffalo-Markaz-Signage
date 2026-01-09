@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock } from 'lucide-react';
 import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem } from '../types';
 import * as XLSX from 'xlsx';
 
@@ -15,6 +15,8 @@ interface SettingsModalProps {
   setAnnouncement: (a: Announcement) => void;
   currentTheme: string;
   setCurrentTheme: (theme: string) => void;
+  maghribOffset: number;
+  setMaghribOffset: (offset: number) => void;
 }
 
 // --- Calendar Component ---
@@ -121,7 +123,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   excelSchedule, setExcelSchedule, 
   manualOverrides, setManualOverrides,
   announcement, setAnnouncement,
-  currentTheme, setCurrentTheme
+  currentTheme, setCurrentTheme,
+  maghribOffset, setMaghribOffset
 }) => {
   const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization'>('schedule');
   const [uploadStatus, setUploadStatus] = useState<string>("");
@@ -326,6 +329,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 
                 {activeTab === 'schedule' && (
                   <div className="space-y-12 max-w-[1400px] mx-auto">
+                    
+                    {/* MAGHRIB CONFIGURATION (NEW) */}
+                    <div className="bg-gradient-to-r from-white/10 to-transparent border border-white/10 rounded-2xl p-10 relative overflow-hidden group">
+                       <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 transition-opacity">
+                          <Moon className="w-40 h-40 text-mosque-gold transform rotate-12" />
+                       </div>
+                       
+                       <div className="relative z-10">
+                          <div className="flex items-center gap-4 mb-6">
+                              <div className="p-3 bg-mosque-gold rounded-lg text-mosque-navy">
+                                 <Clock className="w-8 h-8" />
+                              </div>
+                              <div>
+                                 <h4 className="text-3xl text-white font-bold font-serif tracking-wide">Maghrib Iqamah Rule</h4>
+                                 <p className="text-white/50 text-lg mt-1">Automatically set Iqamah based on Sunset time.</p>
+                              </div>
+                          </div>
+
+                          <div className="flex items-center gap-8 bg-black/40 p-6 rounded-xl border border-white/10 max-w-3xl">
+                             <div className="text-xl font-bold text-mosque-gold uppercase tracking-widest whitespace-nowrap">
+                                Sunset +
+                             </div>
+                             <div className="flex-1">
+                                <select 
+                                  value={maghribOffset}
+                                  onChange={(e) => setMaghribOffset(Number(e.target.value))}
+                                  className="w-full bg-white/5 border border-white/20 text-white text-2xl rounded-lg p-4 outline-none focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold cursor-pointer font-mono"
+                                >
+                                   {[0, 2, 3, 5, 7, 10, 12, 15, 20, 25, 30].map(min => (
+                                     <option key={min} value={min} className="bg-mosque-navy text-white">
+                                        {min} Minutes
+                                     </option>
+                                   ))}
+                                </select>
+                             </div>
+                             <div className="text-xl text-white/50 italic">
+                                = Maghrib Iqamah
+                             </div>
+                          </div>
+                       </div>
+                    </div>
+
+
                     {/* Excel Import */}
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-10">
                        <div className="flex items-center justify-between mb-6">
@@ -379,6 +425,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                     <span className="bg-mosque-gold text-mosque-navy text-xl font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm">Active</span>
                                                 ) : excelSchedule[new Date().toISOString().split('T')[0]] ? (
                                                     <span className="bg-blue-500/20 text-blue-200 text-xl font-bold px-4 py-2 rounded-lg uppercase tracking-wider">Excel</span>
+                                                ) : prayer === 'maghrib' ? (
+                                                    <span className="bg-purple-500/20 text-purple-200 text-xl font-bold px-4 py-2 rounded-lg uppercase tracking-wider">Auto (+{maghribOffset}m)</span>
                                                 ) : (
                                                     <span className="bg-white/10 text-white/50 text-xl font-bold px-4 py-2 rounded-lg uppercase tracking-wider">Default</span>
                                                 )}

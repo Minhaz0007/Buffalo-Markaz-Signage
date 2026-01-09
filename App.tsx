@@ -101,12 +101,37 @@ const BackgroundManager = ({ theme }: { theme: string }) => {
   }
 };
 
+// --- Helper Functions ---
+
+const addMinutesToTime = (timeStr: string, minutesToAdd: number): string => {
+  const match = timeStr.match(/(\d+):(\d+)\s?(AM|PM)/i);
+  if (!match) return timeStr;
+  let [_, h, m, ampm] = match;
+  let hours = parseInt(h);
+  let minutes = parseInt(m);
+
+  if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+  if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+
+  const date = new Date();
+  date.setHours(hours, minutes + minutesToAdd, 0, 0);
+
+  let newHours = date.getHours();
+  const newMinutes = date.getMinutes();
+  const newAmpm = newHours >= 12 ? 'PM' : 'AM';
+  newHours = newHours % 12;
+  if (newHours === 0) newHours = 12;
+
+  return `${newHours}:${newMinutes.toString().padStart(2, '0')} ${newAmpm}`;
+};
+
 // --- Scheduler Logic ---
 
 const getScheduleForDate = (
   dateStr: string, // YYYY-MM-DD
   excelSchedule: Record<string, ExcelDaySchedule>,
-  manualOverrides: ManualOverride[]
+  manualOverrides: ManualOverride[],
+  maghribOffset: number
 ): { prayers: DailyPrayers, jumuah: { start: string, iqamah: string } } => {
   
   // 1. Start with Default
@@ -127,7 +152,13 @@ const getScheduleForDate = (
     }
   }
 
-  // 3. Apply Manual Overrides (Highest Priority)
+  // 3. Apply Maghrib Offset (Before Manual Overrides)
+  // Maghrib Iqamah = Maghrib Start + Offset
+  if (newPrayers.maghrib.start) {
+     newPrayers.maghrib.iqamah = addMinutesToTime(newPrayers.maghrib.start, maghribOffset);
+  }
+
+  // 4. Apply Manual Overrides (Highest Priority)
   manualOverrides.forEach(override => {
      if (dateStr >= override.startDate && dateStr <= override.endDate) {
         if (override.prayerKey === 'jumuah') {
@@ -155,6 +186,7 @@ const App: React.FC = () => {
   const [displayedJumuahTimes, setDisplayedJumuahTimes] = useState(DEFAULT_JUMUAH_TIMES);
   const [systemAlert, setSystemAlert] = useState<string>("");
   const [currentTheme, setCurrentTheme] = useState<string>('starry');
+  const [maghribOffset, setMaghribOffset] = useState<number>(10); // Default to +10 mins
 
   // Source Data
   const [excelSchedule, setExcelSchedule] = useState<Record<string, ExcelDaySchedule>>({});
@@ -199,8 +231,8 @@ const App: React.FC = () => {
       const tomorrowKey = tomorrow.toISOString().split('T')[0];
 
       // Calculate Schedules
-      const todaySchedule = getScheduleForDate(todayKey, excelSchedule, manualOverrides);
-      const tomorrowSchedule = getScheduleForDate(tomorrowKey, excelSchedule, manualOverrides);
+      const todaySchedule = getScheduleForDate(todayKey, excelSchedule, manualOverrides, maghribOffset);
+      const tomorrowSchedule = getScheduleForDate(tomorrowKey, excelSchedule, manualOverrides, maghribOffset);
 
       // Set Display
       setDisplayedPrayerTimes(todaySchedule.prayers);
@@ -233,7 +265,7 @@ const App: React.FC = () => {
     const interval = setInterval(updateTimes, 60000); // Check every minute
     return () => clearInterval(interval);
 
-  }, [excelSchedule, manualOverrides]);
+  }, [excelSchedule, manualOverrides, maghribOffset]);
 
   // Combine system alerts with manually added announcement items
   const effectiveAnnouncement: Announcement = React.useMemo(() => {
@@ -351,6 +383,8 @@ const App: React.FC = () => {
           setAnnouncement={setAnnouncement}
           currentTheme={currentTheme}
           setCurrentTheme={setCurrentTheme}
+          maghribOffset={maghribOffset}
+          setMaghribOffset={setMaghribOffset}
         />
         
       </div>
