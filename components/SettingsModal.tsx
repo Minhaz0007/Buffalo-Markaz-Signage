@@ -125,7 +125,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   announcement, setAnnouncement,
   currentTheme, setCurrentTheme
 }) => {
-  const [activeTab, setActiveTab] = useState<'schedule' | 'content' | 'customization'>('schedule');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization'>('schedule');
   const [uploadStatus, setUploadStatus] = useState<string>("");
   const [expandedPrayer, setExpandedPrayer] = useState<string | null>(null);
   const [newOverride, setNewOverride] = useState<Partial<ManualOverride>>({
@@ -243,9 +243,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                  <LayoutDashboard className="w-4 h-4" />
                  <span className="text-sm tracking-wide uppercase">Schedule</span>
               </button>
-              <button onClick={() => setActiveTab('content')} className={sidebarItemClass('content')}>
+              <button onClick={() => setActiveTab('announcements')} className={sidebarItemClass('announcements')}>
                  <MessageSquare className="w-4 h-4" />
-                 <span className="text-sm tracking-wide uppercase">Content</span>
+                 <span className="text-sm tracking-wide uppercase">Announcements</span>
               </button>
               <button onClick={() => setActiveTab('customization')} className={sidebarItemClass('customization')}>
                  <Palette className="w-4 h-4" />
@@ -259,7 +259,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
            
            <div className="h-16 border-b border-white/10 flex items-center justify-between px-8 bg-black/10 shrink-0">
                <h3 className="text-white font-serif text-xl tracking-wide">
-                  {activeTab === 'schedule' ? 'Prayer Schedule & Overrides' : activeTab === 'content' ? 'Announcements & Alerts' : 'Appearance'}
+                  {activeTab === 'schedule' ? 'Prayer Schedule & Overrides' : activeTab === 'announcements' ? 'Announcements & Alerts' : 'Appearance'}
                </h3>
                <button onClick={onClose} className="text-white/40 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all duration-300">
                   <X className="w-6 h-6" />
@@ -270,7 +270,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               
               {activeTab === 'schedule' && (
                 <div className="space-y-8 max-w-7xl mx-auto">
-                  
                   {/* Excel Import */}
                   <div className="bg-white/5 border border-white/10 rounded-xl p-6">
                      <div className="flex items-start justify-between mb-4">
@@ -313,7 +312,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                               return (
                                   <div key={prayer} className={`bg-white/5 rounded-xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'border-mosque-gold ring-1 ring-mosque-gold/30' : 'border-white/5 hover:border-white/20'}`}>
-                                      
                                       {/* Row Header */}
                                       <div 
                                           className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/5"
@@ -340,10 +338,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                       {/* Expanded Config Area */}
                                       {isExpanded && (
                                           <div className="p-8 border-t border-white/10 bg-black/20">
-                                              
-                                              {/* 12-Column Grid Layout */}
                                               <div className="grid grid-cols-12 gap-8">
-                                                  
                                                   {/* LEFT COLUMN: Input Form */}
                                                   <div className="col-span-12 lg:col-span-8 space-y-6">
                                                       <h5 className="text-xs uppercase tracking-widest font-bold text-white/70 flex items-center gap-2 border-b border-white/5 pb-2">
@@ -351,7 +346,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                       </h5>
                                                       
                                                       <div className="flex flex-col md:flex-row gap-8">
-                                                          {/* Big Calendar */}
                                                           <div className="flex-1 min-w-[350px]">
                                                               <label className={labelClass}>Select Date / Range</label>
                                                               <RangeCalendar 
@@ -360,8 +354,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                                 onChange={(start, end) => setNewOverride({...newOverride, startDate: start, endDate: end})}
                                                               />
                                                           </div>
-
-                                                          {/* Time Inputs */}
                                                           <div className="w-full md:w-[250px] shrink-0 flex flex-col space-y-4">
                                                               <div className="bg-white/5 p-5 rounded-xl border border-white/5 shadow-inner">
                                                                 <h6 className="text-[10px] font-bold uppercase text-white/50 mb-4 text-center">Set Times</h6>
@@ -431,6 +423,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                   </div>
                 </div>
+              )}
+
+              {/* ANNOUNCEMENT CONFIGURATION TAB */}
+              {activeTab === 'announcements' && (
+                 <div className="max-w-4xl mx-auto space-y-8">
+                     <div className="bg-white/5 border border-white/10 rounded-xl p-8">
+                        <h4 className="text-xl text-white font-serif mb-6 border-b border-white/10 pb-2">Announcement Configuration</h4>
+                        
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-xs uppercase tracking-widest text-mosque-gold mb-2 font-bold">Header Title</label>
+                                <input 
+                                    type="text" 
+                                    value={announcement.title}
+                                    onChange={(e) => setAnnouncement({...announcement, title: e.target.value})}
+                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-4 text-white placeholder-white/20 focus:border-mosque-gold outline-none font-bold tracking-widest text-lg"
+                                    placeholder="e.g. ANNOUNCEMENTS"
+                                />
+                                <p className="text-[10px] text-white/30 mt-1">This text appears in the fixed gold box on the left.</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs uppercase tracking-widest text-mosque-gold mb-2 font-bold">Scrolling Message</label>
+                                <textarea 
+                                    value={announcement.content}
+                                    onChange={(e) => setAnnouncement({...announcement, content: e.target.value})}
+                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-4 text-white placeholder-white/20 focus:border-mosque-gold outline-none text-xl min-h-[150px]"
+                                    placeholder="Enter the message to scroll at the bottom..."
+                                />
+                                <p className="text-[10px] text-white/30 mt-1">This text scrolls continuously at the bottom of the screen.</p>
+                            </div>
+                        </div>
+                     </div>
+                 </div>
               )}
 
               {activeTab === 'customization' && (

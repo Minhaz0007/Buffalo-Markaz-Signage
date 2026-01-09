@@ -213,15 +213,12 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
                   <div className="text-3xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/70">{formatDate(currentTime)}</div>
               </div>
 
-              {/* Clock Section - Maximized Size */}
+              {/* Clock Section - UNIFIED SIZE */}
               <div className="flex-[4] flex flex-col items-center justify-center border-b border-gray-300 bg-[#E5E5E5] relative overflow-hidden">
-                  <div className="flex items-baseline justify-center w-full px-2 mt-4">
-                     {/* Split display for seconds to fit better */}
-                     <span className="text-[12rem] leading-none font-serif tracking-tighter text-mosque-navy font-medium drop-shadow-sm tabular-nums">
-                        {hours}:{minutes}
-                     </span>
-                     <span className="text-7xl font-serif text-mosque-navy/70 font-light tabular-nums ml-1">
-                        :{seconds}
+                  <div className="flex items-baseline justify-center w-full px-2 mt-4 whitespace-nowrap">
+                     {/* Combined Time Display: HH:MM:SS at same size */}
+                     <span className="text-[9.5rem] leading-none font-serif tracking-tighter text-mosque-navy font-medium drop-shadow-sm tabular-nums">
+                        {hours}:{minutes}:{seconds}
                      </span>
                      <span className="text-7xl ml-4 font-sans font-bold tracking-wide text-mosque-gold">
                         {displayAmPm}
@@ -238,28 +235,28 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
                   </div>
               </div>
 
-              {/* Jumu'ah Section */}
+              {/* Jumu'ah Section - MAXIMIZED */}
               <div className="flex-[2.5] flex flex-col items-center justify-center py-2 bg-white border-b border-gray-300 shrink-0">
-                <div className="text-4xl uppercase tracking-[0.2em] font-sans font-bold text-mosque-navy/80 mb-6 flex items-center gap-6">
-                  <span className="h-1 w-10 bg-mosque-gold"></span>
+                <div className="text-5xl uppercase tracking-[0.2em] font-sans font-bold text-mosque-navy/80 mb-6 flex items-center gap-6">
+                  <span className="h-1 w-12 bg-mosque-gold"></span>
                   Jumu'ah
-                  <span className="h-1 w-10 bg-mosque-gold"></span>
+                  <span className="h-1 w-12 bg-mosque-gold"></span>
                 </div>
                 <div className="flex w-full px-4 justify-around">
                     <div className="text-center group">
                       <div className="text-8xl font-serif font-bold mb-1 flex items-baseline text-mosque-navy group-hover:scale-110 transition-transform">
                         {jumuah.start.split(' ')[0]}
-                        <span className="text-2xl font-sans font-bold ml-1 text-mosque-gold">{jumuah.start.split(' ')[1]}</span>
+                        <span className="text-3xl font-sans font-bold ml-1 text-mosque-gold">{jumuah.start.split(' ')[1]}</span>
                       </div>
-                      <div className="text-2xl uppercase tracking-[0.2em] font-sans font-bold text-gray-400">Khutbah</div>
+                      <div className="text-3xl uppercase tracking-[0.2em] font-sans font-bold text-gray-400">Khutbah</div>
                     </div>
-                    <div className="w-px h-20 bg-gray-200"></div>
+                    <div className="w-px h-24 bg-gray-200"></div>
                     <div className="text-center group">
                       <div className="text-8xl font-serif font-bold mb-1 flex items-baseline text-mosque-navy group-hover:scale-110 transition-transform">
                         {jumuah.iqamah.split(' ')[0]}
-                        <span className="text-2xl font-sans font-bold ml-1 text-mosque-gold">{jumuah.iqamah.split(' ')[1]}</span>
+                        <span className="text-3xl font-sans font-bold ml-1 text-mosque-gold">{jumuah.iqamah.split(' ')[1]}</span>
                       </div>
-                      <div className="text-2xl uppercase tracking-[0.2em] font-sans font-bold text-gray-400">Iqamah</div>
+                      <div className="text-3xl uppercase tracking-[0.2em] font-sans font-bold text-gray-400">Iqamah</div>
                     </div>
                 </div>
               </div>
@@ -290,19 +287,29 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
       </div>
 
       {/* === BOTTOM FOOTER: ANNOUNCEMENT TICKER === */}
-      <div className="h-[10%] bg-white flex items-center overflow-hidden border-t-8 border-mosque-gold relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0">
-          <div className="bg-mosque-gold text-mosque-navy px-8 h-full flex items-center justify-center z-10 font-black uppercase tracking-[0.15em] text-3xl shadow-2xl whitespace-nowrap min-w-[400px]">
+      {/* Container is relative to allow absolute positioning of the header */}
+      <div className="h-[10%] bg-white border-t-8 border-mosque-gold relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden">
+          
+          {/* Header: Absolute overlay on the left - Z-20 to sit on top of scrolling text */}
+          <div className="absolute left-0 top-0 bottom-0 bg-mosque-gold text-mosque-navy px-12 flex items-center justify-center z-20 font-black uppercase tracking-[0.15em] text-5xl shadow-[10px_0_20px_rgba(0,0,0,0.2)] min-w-[500px]">
              {announcement.title}
           </div>
-          <div className="whitespace-nowrap animate-marquee flex items-center text-mosque-navy text-5xl font-semibold tracking-wide h-full w-full">
-             <span className="mx-8 text-mosque-gold">•</span>
-             {announcement.content} 
+          
+          {/* Ticker: Full width container, text scrolls from right to left, passing BEHIND the header */}
+          <div className="absolute inset-0 z-10 flex items-center overflow-hidden">
+            <div className="whitespace-nowrap animate-marquee flex items-center text-mosque-navy text-5xl font-semibold tracking-wide w-full pl-[500px]">
+               {/* Padding Left matches header width to ensure text doesn't overlap initially, 
+                   but the animation handles the movement. 
+                   Actually, standard marquee logic: start at 100vw. */}
+               <span className="mx-8 text-mosque-gold">•</span>
+               {announcement.content} 
+            </div>
           </div>
       </div>
 
       <style>{`
         @keyframes marquee {
-          0% { transform: translateX(0); }
+          0% { transform: translateX(100vw); } 
           100% { transform: translateX(-100%); }
         }
         @keyframes glowPulse {
@@ -311,8 +318,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
           100% { text-shadow: 0 0 10px rgba(212, 175, 55, 0.5), 0 0 20px rgba(212, 175, 55, 0.3); }
         }
         .animate-marquee {
-          animation: marquee 40s linear infinite;
-          padding-left: 100%;
+          animation: marquee 30s linear infinite;
+          will-change: transform;
         }
         .text-shadow {
           text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
