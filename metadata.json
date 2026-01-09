@@ -1,0 +1,5 @@
+{
+  "name": "Buffalo Markaz Masjid Signage",
+  "description": "Digital signage application for mosques displaying prayer times, announcements, Jumu'ah schedules, and donation information with Gemini-powered daily wisdom.",
+  "requestFramePermissions": []
+}
