@@ -23,5 +23,9 @@ export const DEFAULT_JUMUAH_TIMES = {
 export const DEFAULT_ANNOUNCEMENT: Announcement = {
   id: '1',
   title: 'ANNOUNCEMENTS',
-  content: 'Please park responsibly. Do not block neighbor driveways during Jumuah prayer.'
+  items: [
+    'Please park responsibly.',
+    'Do not block neighbor driveways during Jumuah prayer.',
+    'Donate generously for the masjid construction.'
+  ]
 };

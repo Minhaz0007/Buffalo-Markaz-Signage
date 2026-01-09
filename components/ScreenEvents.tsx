@@ -55,9 +55,13 @@ export const ScreenEvents: React.FC<ScreenEventsProps> = ({ announcement, events
             {announcement.title}
           </div>
           <div className="bg-white/10 backdrop-blur-md p-10 border-l-8 border-mosque-gold rounded-r-lg shadow-2xl">
-            <p className="text-4xl text-white font-serif leading-snug">
-              {announcement.content}
-            </p>
+            <div className="text-4xl text-white font-serif leading-snug">
+              {announcement.items.map((item, index) => (
+                <p key={index} className={index > 0 ? "mt-4" : ""}>
+                  {item}
+                </p>
+              ))}
+            </div>
           </div>
         </div>
       </div>

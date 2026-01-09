@@ -299,10 +299,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
           <div className="absolute inset-0 z-10 flex items-center overflow-hidden">
             <div className="whitespace-nowrap animate-marquee flex items-center text-mosque-navy text-5xl font-semibold tracking-wide w-full pl-[500px]">
                {/* Padding Left matches header width to ensure text doesn't overlap initially, 
-                   but the animation handles the movement. 
-                   Actually, standard marquee logic: start at 100vw. */}
+                   but the animation handles the movement. */}
                <span className="mx-8 text-mosque-gold">•</span>
-               {announcement.content} 
+               {announcement.items.join("   •   ")}
             </div>
           </div>
       </div>
@@ -318,7 +317,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
           100% { text-shadow: 0 0 10px rgba(212, 175, 55, 0.5), 0 0 20px rgba(212, 175, 55, 0.3); }
         }
         .animate-marquee {
-          animation: marquee 30s linear infinite;
+          animation: marquee 45s linear infinite; /* Slowed down slightly for better readability with list */
           will-change: transform;
         }
         .text-shadow {

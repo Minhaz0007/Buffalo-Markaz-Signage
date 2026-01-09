@@ -17,7 +17,7 @@ export interface DailyPrayers {
 export interface Announcement {
   id: string;
   title: string;
-  content: string;
+  items: string[];
 }
 
 export interface Event {

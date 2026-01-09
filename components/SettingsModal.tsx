@@ -70,20 +70,20 @@ const RangeCalendar: React.FC<RangeCalendarProps> = ({ startDate, endDate, onCha
   };
 
   return (
-    <div className="bg-black/40 border border-white/10 rounded-xl p-6 select-none shadow-inner w-full">
-       <div className="flex items-center justify-between mb-6">
-         <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white/10 rounded-full text-white/70 transition-colors"><ChevronLeft className="w-5 h-5" /></button>
-         <div className="font-bold text-white text-lg tracking-widest uppercase font-serif">{monthNames[month]} {year}</div>
-         <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white/10 rounded-full text-white/70 transition-colors"><ChevronRight className="w-5 h-5" /></button>
+    <div className="bg-black/40 border border-white/10 rounded-xl p-8 select-none shadow-inner w-full">
+       <div className="flex items-center justify-between mb-8">
+         <button onClick={() => changeMonth(-1)} className="p-4 hover:bg-white/10 rounded-full text-white/70 transition-colors"><ChevronLeft className="w-8 h-8" /></button>
+         <div className="font-bold text-white text-3xl tracking-widest uppercase font-serif">{monthNames[month]} {year}</div>
+         <button onClick={() => changeMonth(1)} className="p-4 hover:bg-white/10 rounded-full text-white/70 transition-colors"><ChevronRight className="w-8 h-8" /></button>
        </div>
        
-       <div className="grid grid-cols-7 gap-2 mb-2">
+       <div className="grid grid-cols-7 gap-4 mb-4">
          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-           <div key={d} className="text-center text-xs text-white/40 uppercase font-bold tracking-wider">{d}</div>
+           <div key={d} className="text-center text-xl text-white/40 uppercase font-bold tracking-wider">{d}</div>
          ))}
        </div>
        
-       <div className="grid grid-cols-7 gap-2">
+       <div className="grid grid-cols-7 gap-3">
           {Array.from({ length: firstDay }).map((_, i) => <div key={`empty-${i}`} />)}
           {Array.from({ length: daysInMonth }).map((_, i) => {
              const day = i + 1;
@@ -98,14 +98,14 @@ const RangeCalendar: React.FC<RangeCalendarProps> = ({ startDate, endDate, onCha
                <button 
                  key={day} 
                  onClick={() => handleDayClick(day)}
-                 className={`h-12 w-full rounded-lg flex items-center justify-center text-sm transition-all duration-200 ${bgClass}`}
+                 className={`h-16 w-full rounded-lg flex items-center justify-center text-2xl transition-all duration-200 ${bgClass}`}
                >
                  {day}
                </button>
              );
           })}
        </div>
-       <div className="mt-6 flex items-center justify-between text-xs text-white/40 border-t border-white/5 pt-4">
+       <div className="mt-8 flex items-center justify-between text-xl text-white/40 border-t border-white/5 pt-6">
          <span>{isSelectingEnd ? "Select end date..." : "Select start date"}</span>
          {startDate && (
            <span className="font-mono text-mosque-gold">
@@ -134,6 +134,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     start: '',
     iqamah: ''
   });
+  
+  // Announcement State
+  const [newAnnouncementItem, setNewAnnouncementItem] = useState("");
 
   if (!isOpen) return null;
 
@@ -218,38 +221,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const deleteOverride = (id: string) => setManualOverrides(manualOverrides.filter(o => o.id !== id));
 
-  const inputClass = "w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/20 focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all duration-300 font-mono text-sm";
-  const labelClass = "block text-[10px] uppercase tracking-[0.15em] text-mosque-gold/80 mb-2 font-semibold";
-  const sidebarItemClass = (id: string) => `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 ${activeTab === id ? 'bg-mosque-gold text-mosque-navy font-bold shadow-lg' : 'text-white/60 hover:text-white hover:bg-white/5'}`;
+  // Announcement Handlers
+  const addAnnouncementItem = () => {
+    if(!newAnnouncementItem.trim()) return;
+    setAnnouncement({
+      ...announcement,
+      items: [...announcement.items, newAnnouncementItem.trim()]
+    });
+    setNewAnnouncementItem("");
+  };
+
+  const deleteAnnouncementItem = (index: number) => {
+    const newItems = [...announcement.items];
+    newItems.splice(index, 1);
+    setAnnouncement({ ...announcement, items: newItems });
+  };
+
+
+  // --- STYLING CONSTANTS (SCALED FOR TV) ---
+  const inputClass = "w-full bg-black/40 border border-white/10 rounded-xl px-6 h-20 text-3xl text-white placeholder-white/20 focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all duration-300 font-mono";
+  const labelClass = "block text-xl uppercase tracking-[0.15em] text-mosque-gold/80 mb-4 font-semibold";
+  const sidebarItemClass = (id: string) => `w-full flex items-center gap-6 px-8 py-6 rounded-xl transition-all duration-300 ${activeTab === id ? 'bg-mosque-gold text-mosque-navy font-bold shadow-lg' : 'text-white/60 hover:text-white hover:bg-white/5'}`;
 
   const prayersList = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'jumuah'];
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 xl:p-8">
-      <div className="bg-mosque-navy w-full max-w-[1400px] h-[90vh] rounded-2xl shadow-2xl border border-mosque-gold/30 flex overflow-hidden relative">
+    <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center">
+      <div className="bg-mosque-navy w-[1850px] h-[1000px] rounded-3xl shadow-2xl border-2 border-mosque-gold/30 flex overflow-hidden relative">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')] opacity-5 pointer-events-none"></div>
 
-        {/* Sidebar */}
-        <div className="w-64 bg-black/30 border-r border-white/10 flex flex-col relative z-20 backdrop-blur-md shrink-0">
-           <div className="p-6 border-b border-white/10">
-              <h2 className="text-xl text-mosque-gold font-serif flex items-center gap-2 drop-shadow-sm">
-                <SettingsIcon className="w-5 h-5 text-white/50" /> 
+        {/* Sidebar - Wide for TV */}
+        <div className="w-96 bg-black/30 border-r border-white/10 flex flex-col relative z-20 backdrop-blur-md shrink-0">
+           <div className="p-10 border-b border-white/10">
+              <h2 className="text-4xl text-mosque-gold font-serif flex items-center gap-4 drop-shadow-sm">
+                <SettingsIcon className="w-10 h-10 text-white/50" /> 
                 <span>Settings</span>
               </h2>
            </div>
 
-           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+           <nav className="flex-1 p-6 space-y-4 overflow-y-auto">
               <button onClick={() => setActiveTab('schedule')} className={sidebarItemClass('schedule')}>
-                 <LayoutDashboard className="w-4 h-4" />
-                 <span className="text-sm tracking-wide uppercase">Schedule</span>
+                 <LayoutDashboard className="w-8 h-8" />
+                 <span className="text-2xl tracking-wide uppercase">Schedule</span>
               </button>
               <button onClick={() => setActiveTab('announcements')} className={sidebarItemClass('announcements')}>
-                 <MessageSquare className="w-4 h-4" />
-                 <span className="text-sm tracking-wide uppercase">Announcements</span>
+                 <MessageSquare className="w-8 h-8" />
+                 <span className="text-2xl tracking-wide uppercase">Alerts</span>
               </button>
               <button onClick={() => setActiveTab('customization')} className={sidebarItemClass('customization')}>
-                 <Palette className="w-4 h-4" />
-                 <span className="text-sm tracking-wide uppercase">Customization</span>
+                 <Palette className="w-8 h-8" />
+                 <span className="text-2xl tracking-wide uppercase">Theme</span>
               </button>
            </nav>
         </div>
@@ -257,38 +278,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col relative z-10 bg-gradient-to-br from-mosque-navy/50 to-mosque-dark/50">
            
-           <div className="h-16 border-b border-white/10 flex items-center justify-between px-8 bg-black/10 shrink-0">
-               <h3 className="text-white font-serif text-xl tracking-wide">
+           <div className="h-28 border-b border-white/10 flex items-center justify-between px-12 bg-black/10 shrink-0">
+               <h3 className="text-white font-serif text-4xl tracking-wide">
                   {activeTab === 'schedule' ? 'Prayer Schedule & Overrides' : activeTab === 'announcements' ? 'Announcements & Alerts' : 'Appearance'}
                </h3>
-               <button onClick={onClose} className="text-white/40 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all duration-300">
-                  <X className="w-6 h-6" />
+               <button onClick={onClose} className="text-white/40 hover:text-white hover:bg-white/10 p-4 rounded-full transition-all duration-300">
+                  <X className="w-12 h-12" />
                </button>
            </div>
 
-           <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+           <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
               
               {activeTab === 'schedule' && (
-                <div className="space-y-8 max-w-7xl mx-auto">
+                <div className="space-y-12 max-w-[1400px] mx-auto">
                   {/* Excel Import */}
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-                     <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                           <div className="p-2 bg-mosque-gold/10 rounded-lg">
-                              <Upload className="w-5 h-5 text-mosque-gold" />
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-10">
+                     <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-6">
+                           <div className="p-4 bg-mosque-gold/10 rounded-xl">
+                              <Upload className="w-10 h-10 text-mosque-gold" />
                            </div>
                            <div>
-                              <h4 className="text-white font-bold">Import Annual Schedule</h4>
-                              <p className="text-xs text-white/50 mt-1">Upload .xlsx file to set base prayer times for the year.</p>
+                              <h4 className="text-white font-bold text-3xl">Import Annual Schedule</h4>
+                              <p className="text-xl text-white/50 mt-2">Upload .xlsx file to set base prayer times.</p>
                            </div>
                         </div>
-                        <label className="cursor-pointer bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider py-2 px-4 rounded transition-colors">
+                        <label className="cursor-pointer bg-white/10 hover:bg-white/20 text-white text-xl font-bold uppercase tracking-wider py-4 px-8 rounded-xl transition-colors border border-white/10">
                            Choose File
                            <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="hidden" />
                         </label>
                      </div>
                      {uploadStatus && (
-                        <div className={`text-xs font-mono p-3 rounded bg-black/30 border border-white/5 ${uploadStatus.includes('Error') ? 'text-red-300' : 'text-green-300'}`}>
+                        <div className={`text-xl font-mono p-6 rounded-xl bg-black/30 border border-white/5 ${uploadStatus.includes('Error') ? 'text-red-300' : 'text-green-300'}`}>
                             {uploadStatus}
                         </div>
                      )}
@@ -296,12 +317,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   {/* Manual Overrides */}
                   <div>
-                      <div className="flex items-center gap-2 mb-6 border-b border-white/10 pb-2">
-                          <Edit2 className="w-4 h-4 text-mosque-gold" />
-                          <h4 className="text-sm font-bold uppercase tracking-widest text-white/80">Manual Overrides</h4>
+                      <div className="flex items-center gap-4 mb-8 border-b border-white/10 pb-4">
+                          <Edit2 className="w-8 h-8 text-mosque-gold" />
+                          <h4 className="text-2xl font-bold uppercase tracking-widest text-white/80">Manual Overrides</h4>
                       </div>
                       
-                      <div className="grid grid-cols-1 gap-4">
+                      <div className="grid grid-cols-1 gap-6">
                           {prayersList.map((prayer) => {
                               const overrides = manualOverrides.filter(o => o.prayerKey === prayer);
                               const isExpanded = expandedPrayer === prayer;
@@ -311,42 +332,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               });
 
                               return (
-                                  <div key={prayer} className={`bg-white/5 rounded-xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'border-mosque-gold ring-1 ring-mosque-gold/30' : 'border-white/5 hover:border-white/20'}`}>
+                                  <div key={prayer} className={`bg-white/5 rounded-2xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'border-mosque-gold ring-2 ring-mosque-gold/30' : 'border-white/5 hover:border-white/20'}`}>
                                       {/* Row Header */}
                                       <div 
-                                          className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/5"
+                                          className="p-8 flex items-center justify-between cursor-pointer hover:bg-white/5"
                                           onClick={() => setExpandedPrayer(isExpanded ? null : prayer)}
                                       >
-                                          <div className="flex items-center gap-4">
-                                              <div className="w-24 font-bold uppercase text-mosque-gold font-serif text-lg tracking-wide pl-2">{prayer}</div>
+                                          <div className="flex items-center gap-8">
+                                              <div className="w-48 font-bold uppercase text-mosque-gold font-serif text-4xl tracking-wide pl-4">{prayer}</div>
                                               {activeOverride ? (
-                                                  <span className="bg-mosque-gold text-mosque-navy text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider shadow-sm">Active</span>
+                                                  <span className="bg-mosque-gold text-mosque-navy text-xl font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm">Active</span>
                                               ) : excelSchedule[new Date().toISOString().split('T')[0]] ? (
-                                                  <span className="bg-blue-500/20 text-blue-200 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Excel</span>
+                                                  <span className="bg-blue-500/20 text-blue-200 text-xl font-bold px-4 py-2 rounded-lg uppercase tracking-wider">Excel</span>
                                               ) : (
-                                                  <span className="bg-white/10 text-white/50 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Default</span>
+                                                  <span className="bg-white/10 text-white/50 text-xl font-bold px-4 py-2 rounded-lg uppercase tracking-wider">Default</span>
                                               )}
                                           </div>
-                                          <div className="flex items-center gap-4 text-sm text-white/60">
+                                          <div className="flex items-center gap-8 text-2xl text-white/60">
                                                {activeOverride ? (
-                                                   <span className="font-mono text-xs bg-black/20 px-2 py-1 rounded">{activeOverride.start} / {activeOverride.iqamah}</span>
-                                               ) : <span className="opacity-50 text-xs">Configure</span>}
+                                                   <span className="font-mono text-xl bg-black/20 px-4 py-2 rounded-lg">{activeOverride.start} / {activeOverride.iqamah}</span>
+                                               ) : <span className="opacity-50 text-xl">Configure</span>}
                                                <div className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-180 text-mosque-gold' : ''}`}>▼</div>
                                           </div>
                                       </div>
 
                                       {/* Expanded Config Area */}
                                       {isExpanded && (
-                                          <div className="p-8 border-t border-white/10 bg-black/20">
-                                              <div className="grid grid-cols-12 gap-8">
+                                          <div className="p-12 border-t border-white/10 bg-black/20">
+                                              <div className="grid grid-cols-12 gap-12">
                                                   {/* LEFT COLUMN: Input Form */}
-                                                  <div className="col-span-12 lg:col-span-8 space-y-6">
-                                                      <h5 className="text-xs uppercase tracking-widest font-bold text-white/70 flex items-center gap-2 border-b border-white/5 pb-2">
-                                                          <Plus className="w-3 h-3" /> Add Custom Schedule
+                                                  <div className="col-span-12 lg:col-span-8 space-y-8">
+                                                      <h5 className="text-xl uppercase tracking-widest font-bold text-white/70 flex items-center gap-3 border-b border-white/5 pb-4">
+                                                          <Plus className="w-6 h-6" /> Add Custom Schedule
                                                       </h5>
                                                       
-                                                      <div className="flex flex-col md:flex-row gap-8">
-                                                          <div className="flex-1 min-w-[350px]">
+                                                      <div className="flex flex-col gap-8">
+                                                          <div className="w-full">
                                                               <label className={labelClass}>Select Date / Range</label>
                                                               <RangeCalendar 
                                                                 startDate={newOverride.startDate || ''}
@@ -354,10 +375,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                                 onChange={(start, end) => setNewOverride({...newOverride, startDate: start, endDate: end})}
                                                               />
                                                           </div>
-                                                          <div className="w-full md:w-[250px] shrink-0 flex flex-col space-y-4">
-                                                              <div className="bg-white/5 p-5 rounded-xl border border-white/5 shadow-inner">
-                                                                <h6 className="text-[10px] font-bold uppercase text-white/50 mb-4 text-center">Set Times</h6>
-                                                                <div className="space-y-4">
+                                                          <div className="grid grid-cols-2 gap-8 bg-white/5 p-8 rounded-2xl border border-white/5">
                                                                   <div>
                                                                       <label className={labelClass}>{prayer === 'jumuah' ? 'Start Time' : 'Adhan Time'}</label>
                                                                       <input 
@@ -376,37 +394,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                                           className={inputClass} 
                                                                       />
                                                                   </div>
-                                                                </div>
-                                                              </div>
-                                                              <button 
-                                                                  onClick={() => handleAddOverride(prayer)}
-                                                                  className="w-full bg-mosque-navy border border-mosque-gold/50 hover:bg-mosque-gold hover:text-mosque-navy text-mosque-gold hover:border-mosque-gold text-xs font-bold uppercase tracking-widest py-4 rounded-lg transition-all shadow-lg"
-                                                              >
-                                                                  Apply Override
-                                                              </button>
+                                                                  <div className="col-span-2">
+                                                                    <button 
+                                                                        onClick={() => handleAddOverride(prayer)}
+                                                                        className="w-full bg-mosque-navy border-2 border-mosque-gold/50 hover:bg-mosque-gold hover:text-mosque-navy text-mosque-gold text-2xl font-bold uppercase tracking-widest py-6 rounded-xl transition-all shadow-lg"
+                                                                    >
+                                                                        Apply Override
+                                                                    </button>
+                                                                  </div>
                                                           </div>
                                                       </div>
                                                   </div>
 
                                                   {/* RIGHT COLUMN: Active List */}
-                                                  <div className="col-span-12 lg:col-span-4 bg-black/20 rounded-xl p-4 border border-white/5 h-fit max-h-[500px] overflow-hidden flex flex-col">
-                                                      <h5 className="text-xs uppercase tracking-widest font-bold text-white/70 mb-4 border-b border-white/5 pb-2">Active Overrides</h5>
+                                                  <div className="col-span-12 lg:col-span-4 bg-black/20 rounded-2xl p-6 border border-white/5 h-full max-h-[600px] overflow-hidden flex flex-col">
+                                                      <h5 className="text-xl uppercase tracking-widest font-bold text-white/70 mb-6 border-b border-white/5 pb-4">Active Overrides</h5>
                                                       
                                                       {overrides.length === 0 ? (
-                                                          <div className="text-white/20 text-xs italic text-center py-12 flex flex-col items-center gap-2">
-                                                            <AlertTriangle className="w-8 h-8 opacity-20" />
+                                                          <div className="text-white/20 text-xl italic text-center py-24 flex flex-col items-center gap-4">
+                                                            <AlertTriangle className="w-16 h-16 opacity-20" />
                                                             No active overrides.
                                                           </div>
                                                       ) : (
-                                                          <div className="space-y-2 overflow-y-auto custom-scrollbar pr-1 flex-1">
+                                                          <div className="space-y-4 overflow-y-auto custom-scrollbar pr-2 flex-1">
                                                               {overrides.map(o => (
-                                                                  <div key={o.id} className="flex flex-col bg-white/5 hover:bg-white/10 p-3 rounded border border-white/5 text-xs group relative">
-                                                                      <button onClick={() => deleteOverride(o.id)} className="absolute top-2 right-2 text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
-                                                                      <div className="text-mosque-gold font-bold mb-1 flex items-center gap-1.5">
-                                                                          <CalendarIcon className="w-3 h-3 opacity-50" />
+                                                                  <div key={o.id} className="flex flex-col bg-white/5 hover:bg-white/10 p-6 rounded-xl border border-white/5 text-lg group relative">
+                                                                      <button onClick={() => deleteOverride(o.id)} className="absolute top-4 right-4 text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all p-2"><Trash2 className="w-6 h-6" /></button>
+                                                                      <div className="text-mosque-gold font-bold mb-2 flex items-center gap-3">
+                                                                          <CalendarIcon className="w-5 h-5 opacity-50" />
                                                                           {o.startDate === o.endDate ? o.startDate : `${o.startDate} ...`}
                                                                       </div>
-                                                                      <div className="text-white/70 font-mono">
+                                                                      <div className="text-white/70 font-mono text-xl">
                                                                           {o.start} - {o.iqamah}
                                                                       </div>
                                                                   </div>
@@ -427,32 +445,68 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* ANNOUNCEMENT CONFIGURATION TAB */}
               {activeTab === 'announcements' && (
-                 <div className="max-w-4xl mx-auto space-y-8">
-                     <div className="bg-white/5 border border-white/10 rounded-xl p-8">
-                        <h4 className="text-xl text-white font-serif mb-6 border-b border-white/10 pb-2">Announcement Configuration</h4>
+                 <div className="max-w-[1400px] mx-auto space-y-12">
+                     <div className="bg-white/5 border border-white/10 rounded-2xl p-10">
+                        <h4 className="text-4xl text-white font-serif mb-8 border-b border-white/10 pb-4">Announcement Configuration</h4>
                         
-                        <div className="space-y-6">
+                        <div className="space-y-10">
+                            {/* Title Config */}
                             <div>
-                                <label className="block text-xs uppercase tracking-widest text-mosque-gold mb-2 font-bold">Header Title</label>
+                                <label className={labelClass}>Header Title</label>
                                 <input 
                                     type="text" 
                                     value={announcement.title}
                                     onChange={(e) => setAnnouncement({...announcement, title: e.target.value})}
-                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-4 text-white placeholder-white/20 focus:border-mosque-gold outline-none font-bold tracking-widest text-lg"
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-8 h-24 text-4xl font-bold tracking-widest text-white placeholder-white/20 focus:border-mosque-gold outline-none"
                                     placeholder="e.g. ANNOUNCEMENTS"
                                 />
-                                <p className="text-[10px] text-white/30 mt-1">This text appears in the fixed gold box on the left.</p>
+                                <p className="text-lg text-white/30 mt-3 pl-2">This text appears in the fixed gold box on the left.</p>
                             </div>
 
+                            {/* Add New Item */}
                             <div>
-                                <label className="block text-xs uppercase tracking-widest text-mosque-gold mb-2 font-bold">Scrolling Message</label>
-                                <textarea 
-                                    value={announcement.content}
-                                    onChange={(e) => setAnnouncement({...announcement, content: e.target.value})}
-                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-4 text-white placeholder-white/20 focus:border-mosque-gold outline-none text-xl min-h-[150px]"
-                                    placeholder="Enter the message to scroll at the bottom..."
-                                />
-                                <p className="text-[10px] text-white/30 mt-1">This text scrolls continuously at the bottom of the screen.</p>
+                                <label className={labelClass}>Add New Announcement</label>
+                                <div className="flex gap-4">
+                                  <input 
+                                      type="text" 
+                                      value={newAnnouncementItem}
+                                      onChange={(e) => setNewAnnouncementItem(e.target.value)}
+                                      onKeyDown={(e) => e.key === 'Enter' && addAnnouncementItem()}
+                                      className="flex-1 bg-black/40 border border-white/10 rounded-xl px-8 h-24 text-2xl text-white placeholder-white/20 focus:border-mosque-gold outline-none"
+                                      placeholder="Type message here..."
+                                  />
+                                  <button 
+                                    onClick={addAnnouncementItem}
+                                    className="px-12 bg-mosque-gold text-mosque-navy font-bold text-2xl uppercase tracking-widest rounded-xl hover:bg-white transition-colors"
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                            </div>
+
+                            {/* List of Items */}
+                            <div className="bg-black/20 rounded-2xl border border-white/5 p-6 min-h-[400px]">
+                                <h5 className="text-xl uppercase tracking-widest font-bold text-white/50 mb-6 pl-2">Current Sequence (Right to Left)</h5>
+                                {announcement.items.length === 0 ? (
+                                  <div className="text-center py-20 text-white/20 text-2xl italic">No announcements added.</div>
+                                ) : (
+                                  <div className="space-y-4">
+                                    {announcement.items.map((item, idx) => (
+                                      <div key={idx} className="flex items-center justify-between bg-white/5 p-6 rounded-xl border border-white/5 group">
+                                         <div className="flex items-center gap-6">
+                                            <span className="text-mosque-gold font-mono text-xl opacity-50">#{idx + 1}</span>
+                                            <p className="text-white text-2xl leading-relaxed">{item}</p>
+                                         </div>
+                                         <button 
+                                            onClick={() => deleteAnnouncementItem(idx)}
+                                            className="text-white/20 hover:text-red-400 transition-colors p-4"
+                                         >
+                                            <Trash2 className="w-8 h-8" />
+                                         </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                             </div>
                         </div>
                      </div>
@@ -460,17 +514,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
 
               {activeTab === 'customization' && (
-                <div className="max-w-6xl mx-auto">
-                    <div className="mb-8">
-                        <h4 className="text-xl text-white font-serif mb-2">Background Theme</h4>
-                        <p className="text-white/40 text-sm">Select a background style for the main display.</p>
+                <div className="max-w-[1600px] mx-auto">
+                    <div className="mb-12">
+                        <h4 className="text-4xl text-white font-serif mb-4">Background Theme</h4>
+                        <p className="text-white/40 text-2xl">Select a background style for the main display.</p>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
                         {/* Theme Option 1 */}
                         <button 
                            onClick={() => setCurrentTheme('arabesque')}
-                           className={`group relative h-56 rounded-xl border-2 overflow-hidden transition-all duration-300 ${currentTheme === 'arabesque' ? 'border-mosque-gold shadow-[0_0_30px_rgba(212,175,55,0.2)]' : 'border-white/10 hover:border-white/30'}`}
+                           className={`group relative h-80 rounded-2xl border-4 overflow-hidden transition-all duration-300 ${currentTheme === 'arabesque' ? 'border-mosque-gold shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'border-white/10 hover:border-white/30'}`}
                         >
                            <div className="absolute inset-0 bg-[#0B1E3B]">
                                 <div className="absolute inset-0 bg-gradient-to-br from-[#112442] to-[#050F1E]"></div>
@@ -487,16 +541,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 </div>
                                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.6)_100%)]"></div>
                            </div>
-                           <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">
-                              <span className="text-white font-bold flex items-center gap-2 text-lg">Subtle Arabesque {currentTheme === 'arabesque' && <CheckCircle2 className="w-5 h-5 text-mosque-gold"/>}</span>
-                              <span className="text-xs text-white/50 block mt-1">Default elegant geometric pattern</span>
+                           <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 to-transparent">
+                              <span className="text-white font-bold flex items-center gap-4 text-3xl">Subtle Arabesque {currentTheme === 'arabesque' && <CheckCircle2 className="w-8 h-8 text-mosque-gold"/>}</span>
+                              <span className="text-xl text-white/50 block mt-2">Default elegant geometric pattern</span>
                            </div>
                         </button>
 
                          {/* Theme Option 2 */}
                          <button 
                            onClick={() => setCurrentTheme('lattice')}
-                           className={`group relative h-56 rounded-xl border-2 overflow-hidden transition-all duration-300 ${currentTheme === 'lattice' ? 'border-mosque-gold shadow-[0_0_30px_rgba(212,175,55,0.2)]' : 'border-white/10 hover:border-white/30'}`}
+                           className={`group relative h-80 rounded-2xl border-4 overflow-hidden transition-all duration-300 ${currentTheme === 'lattice' ? 'border-mosque-gold shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'border-white/10 hover:border-white/30'}`}
                         >
                            <div className="absolute inset-0 bg-mosque-navy">
                                <div className="absolute inset-0 bg-[#08152b]"></div>
@@ -511,16 +565,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                </div>
                                <div className="absolute inset-0 bg-gradient-to-t from-mosque-navy via-transparent to-mosque-navy opacity-80"></div>
                            </div>
-                           <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">
-                              <span className="text-white font-bold flex items-center gap-2 text-lg">Golden Lattice {currentTheme === 'lattice' && <CheckCircle2 className="w-5 h-5 text-mosque-gold"/>}</span>
-                              <span className="text-xs text-white/50 block mt-1">Modern grid with gold accents</span>
+                           <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 to-transparent">
+                              <span className="text-white font-bold flex items-center gap-4 text-3xl">Golden Lattice {currentTheme === 'lattice' && <CheckCircle2 className="w-8 h-8 text-mosque-gold"/>}</span>
+                              <span className="text-xl text-white/50 block mt-2">Modern grid with gold accents</span>
                            </div>
                         </button>
 
                          {/* Theme Option 3: Starry Nights */}
                          <button 
                            onClick={() => setCurrentTheme('starry')}
-                           className={`group relative h-56 rounded-xl border-2 overflow-hidden transition-all duration-300 ${currentTheme === 'starry' ? 'border-mosque-gold shadow-[0_0_30px_rgba(212,175,55,0.2)]' : 'border-white/10 hover:border-white/30'}`}
+                           className={`group relative h-80 rounded-2xl border-4 overflow-hidden transition-all duration-300 ${currentTheme === 'starry' ? 'border-mosque-gold shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'border-white/10 hover:border-white/30'}`}
                         >
                            <div className="absolute inset-0 bg-[#02040a]">
                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,#0B1E3B_0%,#02040a_50%,#000000_100%)]"></div>
@@ -535,9 +589,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     </svg>
                                </div>
                            </div>
-                           <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">
-                              <span className="text-white font-bold flex items-center gap-2 text-lg">Starry Nights {currentTheme === 'starry' && <CheckCircle2 className="w-5 h-5 text-mosque-gold"/>}</span>
-                              <span className="text-xs text-white/50 block mt-1">Peaceful night sky with animated stars</span>
+                           <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 to-transparent">
+                              <span className="text-white font-bold flex items-center gap-4 text-3xl">Starry Nights {currentTheme === 'starry' && <CheckCircle2 className="w-8 h-8 text-mosque-gold"/>}</span>
+                              <span className="text-xl text-white/50 block mt-2">Peaceful night sky with animated stars</span>
                            </div>
                         </button>
                     </div>

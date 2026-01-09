@@ -9,13 +9,13 @@ import { Settings, Maximize, Minimize } from 'lucide-react';
 // --- Background Components ---
 
 const StarryBackground = React.memo(() => {
-  // Generate a stable set of stars
+  // Generate a stable set of stars - INCREASED COUNT & SIZE
   const stars = React.useMemo(() => {
-    return Array.from({ length: 70 }).map((_, i) => ({
+    return Array.from({ length: 150 }).map((_, i) => ({
       id: i,
       left: Math.random() * 100,
       top: Math.random() * 100,
-      size: Math.random() * 2 + 1, // 1px to 3px
+      size: Math.random() * 3 + 2, // Increased to 2px - 5px range (approx 20% bigger + variance)
       duration: Math.random() * 3 + 2, // 2s to 5s
       delay: Math.random() * 5 // 0s to 5s delay
     }));
@@ -28,8 +28,8 @@ const StarryBackground = React.memo(() => {
        
        <style>{`
          @keyframes star-twinkle {
-           0%, 100% { opacity: 0.2; transform: scale(0.8); }
-           50% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 4px rgba(255, 255, 255, 0.4); }
+           0%, 100% { opacity: 0.3; transform: scale(0.8); }
+           50% { opacity: 0.8; transform: scale(1.1); box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); }
          }
        `}</style>
        
@@ -44,7 +44,7 @@ const StarryBackground = React.memo(() => {
              height: `${star.size}px`,
              animation: `star-twinkle ${star.duration}s ease-in-out infinite`,
              animationDelay: `-${star.delay}s`,
-             opacity: 0.2
+             opacity: 0.4
            }}
          />
        ))}
@@ -235,9 +235,10 @@ const App: React.FC = () => {
 
   }, [excelSchedule, manualOverrides]);
 
+  // Combine system alerts with manually added announcement items
   const effectiveAnnouncement: Announcement = {
     ...announcement,
-    content: systemAlert ? `${systemAlert}   ***   ${announcement.content}` : announcement.content
+    items: systemAlert ? [systemAlert, ...announcement.items] : announcement.items
   };
 
   // --- Fullscreen & Shortcuts ---
