@@ -154,7 +154,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
       {/* === TOP HEADER: MOSQUE NAME === */}
       <div className="h-[10%] bg-mosque-navy/95 border-b-4 border-mosque-gold/50 flex items-center justify-center relative z-20 shadow-2xl shrink-0">
           <div className="absolute inset-0 bg-black/20"></div>
-          <h1 className="relative z-10 text-6xl font-serif text-mosque-gold font-bold uppercase tracking-[0.2em] drop-shadow-lg glow">
+          <h1 className="relative z-10 text-6xl font-serif text-mosque-gold font-bold uppercase tracking-[0.2em] drop-shadow-lg">
             {MOSQUE_NAME}
           </h1>
       </div>

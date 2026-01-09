@@ -330,48 +330,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {activeTab === 'schedule' && (
                   <div className="space-y-12 max-w-[1400px] mx-auto">
                     
-                    {/* MAGHRIB CONFIGURATION (NEW) */}
-                    <div className="bg-gradient-to-r from-white/10 to-transparent border border-white/10 rounded-2xl p-10 relative overflow-hidden group">
-                       <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 transition-opacity">
-                          <Moon className="w-40 h-40 text-mosque-gold transform rotate-12" />
-                       </div>
-                       
-                       <div className="relative z-10">
-                          <div className="flex items-center gap-4 mb-6">
-                              <div className="p-3 bg-mosque-gold rounded-lg text-mosque-navy">
-                                 <Clock className="w-8 h-8" />
-                              </div>
-                              <div>
-                                 <h4 className="text-3xl text-white font-bold font-serif tracking-wide">Maghrib Iqamah Rule</h4>
-                                 <p className="text-white/50 text-lg mt-1">Automatically set Iqamah based on Sunset time.</p>
-                              </div>
-                          </div>
-
-                          <div className="flex items-center gap-8 bg-black/40 p-6 rounded-xl border border-white/10 max-w-3xl">
-                             <div className="text-xl font-bold text-mosque-gold uppercase tracking-widest whitespace-nowrap">
-                                Sunset +
-                             </div>
-                             <div className="flex-1">
-                                <select 
-                                  value={maghribOffset}
-                                  onChange={(e) => setMaghribOffset(Number(e.target.value))}
-                                  className="w-full bg-white/5 border border-white/20 text-white text-2xl rounded-lg p-4 outline-none focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold cursor-pointer font-mono"
-                                >
-                                   {[0, 2, 3, 5, 7, 10, 12, 15, 20, 25, 30].map(min => (
-                                     <option key={min} value={min} className="bg-mosque-navy text-white">
-                                        {min} Minutes
-                                     </option>
-                                   ))}
-                                </select>
-                             </div>
-                             <div className="text-xl text-white/50 italic">
-                                = Maghrib Iqamah
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-
-
                     {/* Excel Import */}
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-10">
                        <div className="flex items-center justify-between mb-6">
@@ -412,6 +370,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     return today >= o.startDate && today <= o.endDate;
                                 });
 
+                                const isMaghrib = prayer === 'maghrib';
+
                                 return (
                                     <div key={prayer} className={`bg-white/5 rounded-2xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'border-mosque-gold ring-2 ring-mosque-gold/30' : 'border-white/5 hover:border-white/20'}`}>
                                         {/* Row Header */}
@@ -421,18 +381,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         >
                                             <div className="flex items-center gap-8">
                                                 <div className="w-48 font-bold uppercase text-mosque-gold font-serif text-4xl tracking-wide pl-4">{prayer}</div>
-                                                {activeOverride ? (
+                                                {isMaghrib ? (
+                                                     <span className="bg-purple-500/20 text-purple-200 text-xl font-bold px-4 py-2 rounded-lg uppercase tracking-wider">Auto (+{maghribOffset}m)</span>
+                                                ) : activeOverride ? (
                                                     <span className="bg-mosque-gold text-mosque-navy text-xl font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm">Active</span>
                                                 ) : excelSchedule[new Date().toISOString().split('T')[0]] ? (
                                                     <span className="bg-blue-500/20 text-blue-200 text-xl font-bold px-4 py-2 rounded-lg uppercase tracking-wider">Excel</span>
-                                                ) : prayer === 'maghrib' ? (
-                                                    <span className="bg-purple-500/20 text-purple-200 text-xl font-bold px-4 py-2 rounded-lg uppercase tracking-wider">Auto (+{maghribOffset}m)</span>
                                                 ) : (
                                                     <span className="bg-white/10 text-white/50 text-xl font-bold px-4 py-2 rounded-lg uppercase tracking-wider">Default</span>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-8 text-2xl text-white/60">
-                                                 {activeOverride ? (
+                                                 {isMaghrib ? (
+                                                    <span className="opacity-50 text-xl">Sunset + {maghribOffset} min</span>
+                                                 ) : activeOverride ? (
                                                      <span className="font-mono text-xl bg-black/20 px-4 py-2 rounded-lg">{activeOverride.start} / {activeOverride.iqamah}</span>
                                                  ) : <span className="opacity-50 text-xl">Configure</span>}
                                                  <div className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-180 text-mosque-gold' : ''}`}>▼</div>
@@ -442,6 +404,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         {/* Expanded Config Area */}
                                         {isExpanded && (
                                             <div className="p-12 border-t border-white/10 bg-black/20">
+                                                
+                                                {/* --- MAGHRIB SPECIAL CONFIG --- */}
+                                                {isMaghrib ? (
+                                                    <div className="flex flex-col gap-8">
+                                                        <div className="flex items-center gap-4 text-mosque-gold mb-2">
+                                                            <Clock className="w-8 h-8" />
+                                                            <h5 className="text-2xl font-bold uppercase tracking-widest">Maghrib Iqamah Calculation</h5>
+                                                        </div>
+                                                        <p className="text-white/60 text-xl max-w-4xl leading-relaxed">
+                                                            Maghrib Iqamah is automatically calculated based on the daily Sunset time. Select the number of minutes to add to Sunset.
+                                                        </p>
+
+                                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-10 max-w-2xl mt-4">
+                                                            <label className={labelClass}>Offset (Minutes)</label>
+                                                            <div className="flex items-center gap-6">
+                                                                <span className="text-2xl font-serif text-white/50">Sunset</span>
+                                                                <span className="text-2xl font-bold text-mosque-gold">+</span>
+                                                                <select 
+                                                                    value={maghribOffset}
+                                                                    onChange={(e) => setMaghribOffset(Number(e.target.value))}
+                                                                    className="flex-1 bg-black/40 border border-white/20 rounded-xl px-6 h-16 text-xl text-white outline-none focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold font-mono cursor-pointer"
+                                                                >
+                                                                    {Array.from({length: 30}, (_, i) => i + 1).map(min => (
+                                                                        <option key={min} value={min} className="bg-mosque-navy">{min} Minutes</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div className="mt-6 pt-6 border-t border-white/5 flex items-center justify-between">
+                                                                <span className="text-white/40 uppercase tracking-widest text-lg">Example Calculation</span>
+                                                                <span className="text-white text-xl font-mono">
+                                                                    If Sunset is 7:00 PM → Iqamah is 7:{String(maghribOffset).padStart(2, '0')} PM
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                /* --- STANDARD PRAYER CONFIG --- */
                                                 <div className="grid grid-cols-12 gap-12">
                                                     {/* LEFT COLUMN: Input Form */}
                                                     <div className="col-span-12 lg:col-span-8 space-y-8">
@@ -516,6 +515,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                         )}
                                                     </div>
                                                 </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
