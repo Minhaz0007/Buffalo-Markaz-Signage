@@ -44,7 +44,8 @@ const StarryBackground = React.memo(() => {
              height: `${star.size}px`,
              animation: `star-twinkle ${star.duration}s ease-in-out infinite`,
              animationDelay: `-${star.delay}s`,
-             opacity: 0.4
+             opacity: 0.4,
+             willChange: 'opacity, transform'
            }}
          />
        ))}
@@ -100,6 +101,33 @@ const BackgroundManager = ({ theme }: { theme: string }) => {
       );
   }
 };
+
+// --- Custom Hooks ---
+
+// Hook for persistent state (Offline capability)
+function usePersistentState<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+  // Initialize state function to avoid reading from LS on every render
+  const [state, setState] = useState<T>(() => {
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.warn(`Error reading localStorage key "${key}":`, error);
+      return initialValue;
+    }
+  });
+
+  // Write to LS whenever state changes
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(state));
+    } catch (error) {
+      console.warn(`Error writing localStorage key "${key}":`, error);
+    }
+  }, [key, state]);
+
+  return [state, setState];
+}
 
 // --- Helper Functions ---
 
@@ -181,26 +209,23 @@ const getScheduleForDate = (
 };
 
 const App: React.FC = () => {
-  // --- State ---
+  // --- State (Persistent for Offline Mode) ---
+  const [excelSchedule, setExcelSchedule] = usePersistentState<Record<string, ExcelDaySchedule>>('schedule_data', {});
+  const [manualOverrides, setManualOverrides] = usePersistentState<ManualOverride[]>('manual_overrides', []);
+  const [announcement, setAnnouncement] = usePersistentState<Announcement>('announcement_config', DEFAULT_ANNOUNCEMENT);
+  const [currentTheme, setCurrentTheme] = usePersistentState<string>('app_theme', 'starry');
+  const [maghribOffset, setMaghribOffset] = usePersistentState<number>('maghrib_offset', 10);
+  const [autoAlertsEnabled, setAutoAlertsEnabled] = usePersistentState<boolean>('auto_alerts', true);
+
+  // --- Ephemeral State ---
   const [displayedPrayerTimes, setDisplayedPrayerTimes] = useState<DailyPrayers>(DEFAULT_PRAYER_TIMES);
   const [displayedJumuahTimes, setDisplayedJumuahTimes] = useState(DEFAULT_JUMUAH_TIMES);
   const [systemAlert, setSystemAlert] = useState<string>("");
-  const [currentTheme, setCurrentTheme] = useState<string>('starry');
-  const [maghribOffset, setMaghribOffset] = useState<number>(10); // Default to +10 mins
-  const [autoAlertsEnabled, setAutoAlertsEnabled] = useState<boolean>(true); // Configurable auto-alerts
-
-  // Source Data
-  const [excelSchedule, setExcelSchedule] = useState<Record<string, ExcelDaySchedule>>({});
-  const [manualOverrides, setManualOverrides] = useState<ManualOverride[]>([]);
-  
-  const [announcement, setAnnouncement] = useState<Announcement>(DEFAULT_ANNOUNCEMENT);
-  
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-
-  // Scaling Logic for Virtual Viewport (1920x1080)
   const [scale, setScale] = useState(1);
 
+  // Scaling Logic for Virtual Viewport (1920x1080)
   useEffect(() => {
     const handleResize = () => {
       const TARGET_WIDTH = 1920;
@@ -210,12 +235,11 @@ const App: React.FC = () => {
       const scaleY = window.innerHeight / TARGET_HEIGHT;
       
       // Use the smaller scale to fit content within the screen (contain)
-      // This ensures 16:9 aspect ratio is preserved and content fits any TV
       setScale(Math.min(scaleX, scaleY));
     };
 
     window.addEventListener('resize', handleResize);
-    handleResize(); // Initial calculation
+    handleResize(); 
 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -318,19 +342,17 @@ const App: React.FC = () => {
   }, [isSettingsOpen]);
 
   return (
-    <div className="w-screen h-screen bg-black flex items-center justify-center overflow-hidden font-sans antialiased">
+    <div className="w-screen h-screen bg-black flex items-center justify-center overflow-hidden font-sans antialiased selection:bg-mosque-gold selection:text-mosque-navy">
       {/* 
         VIRTUAL VIEWPORT CONTAINER 
-        This div is strictly fixed to 1920x1080 px.
-        We use CSS transform to scale it to fit the actual browser window.
-        This guarantees the layout looks exactly the same on a 720p TV or a 4K TV.
+        Hardware accelerated scaling container
       */}
       <div 
         style={{ 
           width: '1920px', 
           height: '1080px',
           transform: `scale(${scale})`,
-          // transformOrigin: 'center center' is default for flex centering, but explicit helps
+          willChange: 'transform'
         }}
         className="relative shadow-2xl overflow-hidden bg-mosque-navy shrink-0"
       >
@@ -344,7 +366,7 @@ const App: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.6, ease: "easeInOut" }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
               className="w-full h-full"
             >
               <ScreenPrayerTimes 
@@ -356,7 +378,7 @@ const App: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        {/* Controls - Kept inside scaled view to maintain relative position */}
+        {/* Controls */}
         <button 
           onClick={() => setIsSettingsOpen(true)}
           className={`absolute bottom-4 right-4 z-50 p-3 bg-black/20 hover:bg-black/80 text-white/30 hover:text-white rounded-full transition-all duration-300 backdrop-blur-sm ${isFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}

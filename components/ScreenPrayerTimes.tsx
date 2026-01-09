@@ -188,22 +188,22 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
                 const iqamahBgClass = isActive ? '' : 'bg-black/5';
                 
                 return (
-                  <div key={idx} className={`flex-1 flex items-center ${bgClass} ${textClass} border-b ${borderClass} transition-all duration-500 relative`}>
+                  <div key={idx} className={`flex-1 flex items-center ${bgClass} ${textClass} border-b ${borderClass} transition-all duration-700 ease-out relative`}>
                     {/* Prayer Name */}
                     <div className="w-[34%] flex items-center justify-center">
-                        <span className={`block font-bold uppercase tracking-wider leading-none ${isActive ? 'text-7xl' : 'text-6xl opacity-90'}`}>
+                        <span className={`block font-bold uppercase tracking-wider leading-none transition-all duration-500 ${isActive ? 'text-7xl scale-110' : 'text-6xl opacity-90'}`}>
                           {row.name}
                         </span>
                     </div>
                     
                     {/* Start Time */}
                     <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass}`}>
-                        <TimeDisplay time={row.start} className={`${isActive ? 'text-9xl font-black' : 'text-8xl font-bold'}`} />
+                        <TimeDisplay time={row.start} className={`transition-all duration-500 ${isActive ? 'text-9xl font-black' : 'text-8xl font-bold'}`} />
                     </div>
                     
                     {/* Iqamah Time */}
                     <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} ${iqamahBgClass}`}>
-                        <TimeDisplay time={row.iqamah || ''} className={`${isActive ? 'text-9xl font-black' : 'text-8xl font-bold'}`} />
+                        <TimeDisplay time={row.iqamah || ''} className={`transition-all duration-500 ${isActive ? 'text-9xl font-black' : 'text-8xl font-bold'}`} />
                     </div>
                   </div>
                 );
@@ -306,7 +306,10 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
           <div className="absolute inset-0 z-10 flex items-center overflow-hidden">
             <div 
                 className="whitespace-nowrap animate-marquee flex items-center text-mosque-navy text-5xl font-semibold tracking-wide w-full pl-[100%]"
-                style={{ animationDuration: `${marqueeDuration}s` }}
+                style={{ 
+                  animationDuration: `${marqueeDuration}s`,
+                  willChange: 'transform' // GPU Hint
+                }}
             >
                {announcement.items.map((item, idx) => {
                  // Determine animation class
@@ -342,7 +345,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
           animation-name: marquee;
           animation-timing-function: linear;
           animation-iteration-count: infinite;
-          will-change: transform;
+          /* Force GPU acceleration */
+          transform: translateZ(0);
         }
         .animate-text-pulse {
            animation: textPulse 2s infinite ease-in-out;
@@ -351,9 +355,6 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
         .animate-text-blink {
            animation: textBlink 1s infinite steps(1);
            display: inline-block;
-        }
-        .glow {
-          text-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
         }
       `}</style>
     </div>
