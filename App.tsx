@@ -8,8 +8,55 @@ import { Settings, Maximize, Minimize } from 'lucide-react';
 
 // --- Background Components ---
 
+const StarryBackground = React.memo(() => {
+  // Generate a stable set of stars
+  const stars = React.useMemo(() => {
+    return Array.from({ length: 70 }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      size: Math.random() * 2 + 1, // 1px to 3px
+      duration: Math.random() * 3 + 2, // 2s to 5s
+      delay: Math.random() * 5 // 0s to 5s delay
+    }));
+  }, []);
+
+  return (
+    <div className="absolute inset-0 z-0 bg-[#02040a] overflow-hidden">
+       {/* Deep gradient sky */}
+       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_#0B1E3B_0%,_#02040a_60%,_#000000_100%)]"></div>
+       
+       <style>{`
+         @keyframes star-twinkle {
+           0%, 100% { opacity: 0.2; transform: scale(0.8); }
+           50% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 4px rgba(255, 255, 255, 0.4); }
+         }
+       `}</style>
+       
+       {stars.map((star) => (
+         <div
+           key={star.id}
+           className="absolute rounded-full bg-white"
+           style={{
+             left: `${star.left}%`,
+             top: `${star.top}%`,
+             width: `${star.size}px`,
+             height: `${star.size}px`,
+             animation: `star-twinkle ${star.duration}s ease-in-out infinite`,
+             animationDelay: `-${star.delay}s`,
+             opacity: 0.2
+           }}
+         />
+       ))}
+    </div>
+  );
+});
+
 const BackgroundManager = ({ theme }: { theme: string }) => {
   switch (theme) {
+    case 'starry':
+      return <StarryBackground />;
+
     case 'lattice':
       return (
         <div className="absolute inset-0 z-0 bg-mosque-navy overflow-hidden">
@@ -118,6 +165,28 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Scaling Logic for Virtual Viewport (1920x1080)
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const TARGET_WIDTH = 1920;
+      const TARGET_HEIGHT = 1080;
+      
+      const scaleX = window.innerWidth / TARGET_WIDTH;
+      const scaleY = window.innerHeight / TARGET_HEIGHT;
+      
+      // Use the smaller scale to fit content within the screen (contain)
+      // This ensures 16:9 aspect ratio is preserved and content fits any TV
+      setScale(Math.min(scaleX, scaleY));
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial calculation
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // --- Logic: Priority Scheduler & Alerts ---
   
   useEffect(() => {
@@ -139,29 +208,17 @@ const App: React.FC = () => {
 
       // --- Change Detection Logic ---
       const changes: string[] = [];
-
-      // Helper to clean time string for comparison (removes extra spaces, normalize)
       const norm = (t?: string) => t?.replace(/\s+/g, '').toUpperCase() || '';
 
-      if (norm(todaySchedule.prayers.fajr.iqamah) !== norm(tomorrowSchedule.prayers.fajr.iqamah)) 
-        changes.push(`Fajr (${tomorrowSchedule.prayers.fajr.iqamah})`);
-      
-      if (norm(todaySchedule.prayers.dhuhr.iqamah) !== norm(tomorrowSchedule.prayers.dhuhr.iqamah)) 
-        changes.push(`Dhuhr (${tomorrowSchedule.prayers.dhuhr.iqamah})`);
-      
-      if (norm(todaySchedule.prayers.asr.iqamah) !== norm(tomorrowSchedule.prayers.asr.iqamah)) 
-        changes.push(`Asr (${tomorrowSchedule.prayers.asr.iqamah})`);
-      
-      if (norm(todaySchedule.prayers.maghrib.iqamah) !== norm(tomorrowSchedule.prayers.maghrib.iqamah)) 
-        changes.push(`Maghrib (${tomorrowSchedule.prayers.maghrib.iqamah})`);
-      
-      if (norm(todaySchedule.prayers.isha.iqamah) !== norm(tomorrowSchedule.prayers.isha.iqamah)) 
-        changes.push(`Isha (${tomorrowSchedule.prayers.isha.iqamah})`);
+      if (norm(todaySchedule.prayers.fajr.iqamah) !== norm(tomorrowSchedule.prayers.fajr.iqamah)) changes.push(`Fajr`);
+      if (norm(todaySchedule.prayers.dhuhr.iqamah) !== norm(tomorrowSchedule.prayers.dhuhr.iqamah)) changes.push(`Dhuhr`);
+      if (norm(todaySchedule.prayers.asr.iqamah) !== norm(tomorrowSchedule.prayers.asr.iqamah)) changes.push(`Asr`);
+      if (norm(todaySchedule.prayers.maghrib.iqamah) !== norm(tomorrowSchedule.prayers.maghrib.iqamah)) changes.push(`Maghrib`);
+      if (norm(todaySchedule.prayers.isha.iqamah) !== norm(tomorrowSchedule.prayers.isha.iqamah)) changes.push(`Isha`);
 
-      // Check Jumuah change (only relevant if tomorrow is Friday)
       if (tomorrow.getDay() === 5) { // 5 = Friday
          if (norm(todaySchedule.jumuah.iqamah) !== norm(tomorrowSchedule.jumuah.iqamah)) {
-            changes.push(`Jumu'ah (${tomorrowSchedule.jumuah.iqamah})`);
+            changes.push(`Jumu'ah`);
          }
       }
 
@@ -178,7 +235,6 @@ const App: React.FC = () => {
 
   }, [excelSchedule, manualOverrides]);
 
-  // Combine user announcement with system alert
   const effectiveAnnouncement: Announcement = {
     ...announcement,
     content: systemAlert ? `${systemAlert}   ***   ${announcement.content}` : announcement.content
@@ -219,8 +275,22 @@ const App: React.FC = () => {
   }, [isSettingsOpen]);
 
   return (
-    <div className="w-screen h-screen bg-black flex items-center justify-center overflow-hidden font-sans antialiased relative">
-      <div className="w-full aspect-video max-h-screen relative shadow-2xl overflow-hidden bg-mosque-navy">
+    <div className="w-screen h-screen bg-black flex items-center justify-center overflow-hidden font-sans antialiased">
+      {/* 
+        VIRTUAL VIEWPORT CONTAINER 
+        This div is strictly fixed to 1920x1080 px.
+        We use CSS transform to scale it to fit the actual browser window.
+        This guarantees the layout looks exactly the same on a 720p TV or a 4K TV.
+      */}
+      <div 
+        style={{ 
+          width: '1920px', 
+          height: '1080px',
+          transform: `scale(${scale})`,
+          // transformOrigin: 'center center' is default for flex centering, but explicit helps
+        }}
+        className="relative shadow-2xl overflow-hidden bg-mosque-navy shrink-0"
+      >
         
         <BackgroundManager theme={currentTheme} />
 
@@ -243,6 +313,7 @@ const App: React.FC = () => {
           </AnimatePresence>
         </div>
 
+        {/* Controls - Kept inside scaled view to maintain relative position */}
         <button 
           onClick={() => setIsSettingsOpen(true)}
           className={`absolute bottom-4 right-4 z-50 p-3 bg-black/20 hover:bg-black/80 text-white/30 hover:text-white rounded-full transition-all duration-300 backdrop-blur-sm ${isFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}

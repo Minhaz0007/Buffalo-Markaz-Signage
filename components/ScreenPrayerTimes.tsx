@@ -75,7 +75,6 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
     
     // If no prayer left today, assuming Fajr tomorrow (simplified logic for display)
     if (!nextPrayer) {
-       // Just to prevent empty state, we can point to Fajr or keep standard text
        setNextPrayerName("FAJR"); 
        setTimeUntilIqamah("--:--:--");
        return;
@@ -100,7 +99,6 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
   };
 
   const formatTimeParts = (date: Date) => {
-    // Returns HH:MM:SS and AM/PM parts
     const timeStr = date.toLocaleTimeString('en-US', { 
         hour: 'numeric', 
         minute: '2-digit', 
@@ -109,7 +107,14 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
     });
     // timeStr format: "10:24:45 AM"
     const parts = timeStr.split(' ');
-    return { time: parts[0], ampm: parts[1] };
+    // Split the time part to separate seconds for styling
+    const timeComponents = parts[0].split(':');
+    return { 
+      hours: timeComponents[0],
+      minutes: timeComponents[1],
+      seconds: timeComponents[2],
+      ampm: parts[1] 
+    };
   };
 
   const rows = [
@@ -136,7 +141,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
   };
   
   const activeIndex = getActiveRowIndex();
-  const { time: displayTime, ampm: displayAmPm } = formatTimeParts(currentTime);
+  const { hours, minutes, seconds, ampm: displayAmPm } = formatTimeParts(currentTime);
 
   return (
     <div className="w-full h-full flex flex-col font-serif text-white overflow-hidden">
@@ -144,7 +149,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
       {/* === TOP HEADER: MOSQUE NAME === */}
       <div className="h-[10%] bg-mosque-navy/95 border-b-4 border-mosque-gold/50 flex items-center justify-center relative z-20 shadow-2xl shrink-0">
           <div className="absolute inset-0 bg-black/20"></div>
-          <h1 className="relative z-10 text-4xl xl:text-5xl font-serif text-mosque-gold font-bold uppercase tracking-[0.2em] drop-shadow-lg glow">
+          <h1 className="relative z-10 text-6xl font-serif text-mosque-gold font-bold uppercase tracking-[0.2em] drop-shadow-lg glow">
             {MOSQUE_NAME}
           </h1>
       </div>
@@ -155,15 +160,15 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
           {/* === LEFT COLUMN: PRAYER TABLE (60%) === */}
           <div className="w-[60%] flex flex-col border-r-4 border-black/30 relative z-10 shadow-xl h-full">
             {/* Header Row */}
-            <div className="h-20 flex items-end pb-4 bg-mosque-navy/40 border-b border-white/10 shrink-0">
+            <div className="h-24 flex items-end pb-4 bg-mosque-navy/40 border-b border-white/10 shrink-0">
               <div className="w-[34%] text-center border-white/5">
-                  <span className="text-2xl xl:text-3xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Salah</span>
+                  <span className="text-4xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Salah</span>
               </div>
               <div className="w-[33%] text-center border-l border-white/5">
-                  <span className="text-2xl xl:text-3xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Starts</span>
+                  <span className="text-4xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Starts</span>
               </div>
               <div className="w-[33%] text-center border-l border-white/5">
-                  <span className="text-2xl xl:text-3xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Iqamah</span>
+                  <span className="text-4xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Iqamah</span>
               </div>
             </div>
 
@@ -179,19 +184,19 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
                   <div key={idx} className={`flex-1 flex items-center ${bgClass} ${textClass} border-b ${borderClass} transition-all duration-500 relative`}>
                     {/* Prayer Name */}
                     <div className="w-[34%] flex items-center justify-center">
-                        <span className={`block font-bold uppercase tracking-wider leading-none ${isActive ? 'text-5xl xl:text-6xl' : 'text-4xl xl:text-5xl opacity-90'}`}>
+                        <span className={`block font-bold uppercase tracking-wider leading-none ${isActive ? 'text-7xl' : 'text-6xl opacity-90'}`}>
                           {row.name}
                         </span>
                     </div>
                     
                     {/* Start Time */}
                     <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass}`}>
-                        <TimeDisplay time={row.start} className={`${isActive ? 'text-7xl xl:text-8xl font-black' : 'text-6xl xl:text-7xl font-bold'}`} />
+                        <TimeDisplay time={row.start} className={`${isActive ? 'text-9xl font-black' : 'text-8xl font-bold'}`} />
                     </div>
                     
                     {/* Iqamah Time */}
                     <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} bg-black/5`}>
-                        <TimeDisplay time={row.iqamah || ''} className={`${isActive ? 'text-7xl xl:text-8xl font-black' : 'text-6xl xl:text-7xl font-bold'}`} />
+                        <TimeDisplay time={row.iqamah || ''} className={`${isActive ? 'text-9xl font-black' : 'text-8xl font-bold'}`} />
                     </div>
                   </div>
                 );
@@ -204,26 +209,30 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
               
               {/* Date Section */}
               <div className="flex-[1.5] flex flex-col items-center justify-center border-b border-gray-300 py-1 space-y-1 bg-white shrink-0">
-                  <div className="text-2xl xl:text-3xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-gold">{hijriDate}</div>
-                  <div className="text-xl xl:text-2xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/70">{formatDate(currentTime)}</div>
+                  <div className="text-4xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-gold">{hijriDate}</div>
+                  <div className="text-3xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/70">{formatDate(currentTime)}</div>
               </div>
 
-              {/* Clock Section - Fitted for HH:MM:SS - Increased Size */}
+              {/* Clock Section - Maximized Size */}
               <div className="flex-[4] flex flex-col items-center justify-center border-b border-gray-300 bg-[#E5E5E5] relative overflow-hidden">
-                  <div className="flex items-baseline justify-center w-full px-2">
-                     <span className="text-[7rem] xl:text-[9.5rem] leading-none font-serif tracking-tighter text-mosque-navy font-medium drop-shadow-sm tabular-nums">
-                        {displayTime}
+                  <div className="flex items-baseline justify-center w-full px-2 mt-4">
+                     {/* Split display for seconds to fit better */}
+                     <span className="text-[12rem] leading-none font-serif tracking-tighter text-mosque-navy font-medium drop-shadow-sm tabular-nums">
+                        {hours}:{minutes}
                      </span>
-                     <span className="text-4xl xl:text-6xl ml-4 font-sans font-bold tracking-wide text-mosque-gold">
+                     <span className="text-7xl font-serif text-mosque-navy/70 font-light tabular-nums ml-1">
+                        :{seconds}
+                     </span>
+                     <span className="text-7xl ml-4 font-sans font-bold tracking-wide text-mosque-gold">
                         {displayAmPm}
                      </span>
                   </div>
                   
                   <div className="mt-8 flex flex-col items-center w-full">
-                    <span className="text-lg xl:text-xl uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-2">
+                    <span className="text-3xl uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-2">
                       {nextPrayerName} IN
                     </span>
-                    <span className="font-serif text-6xl xl:text-7xl font-bold text-mosque-navy tabular-nums tracking-tight">
+                    <span className="font-serif text-9xl font-bold text-mosque-navy tabular-nums tracking-tight leading-none">
                        {timeUntilIqamah}
                     </span>
                   </div>
@@ -231,49 +240,49 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
 
               {/* Jumu'ah Section */}
               <div className="flex-[2.5] flex flex-col items-center justify-center py-2 bg-white border-b border-gray-300 shrink-0">
-                <div className="text-2xl xl:text-3xl uppercase tracking-[0.2em] font-sans font-bold text-mosque-navy/80 mb-4 flex items-center gap-6">
-                  <span className="h-1 w-8 bg-mosque-gold"></span>
+                <div className="text-4xl uppercase tracking-[0.2em] font-sans font-bold text-mosque-navy/80 mb-6 flex items-center gap-6">
+                  <span className="h-1 w-10 bg-mosque-gold"></span>
                   Jumu'ah
-                  <span className="h-1 w-8 bg-mosque-gold"></span>
+                  <span className="h-1 w-10 bg-mosque-gold"></span>
                 </div>
                 <div className="flex w-full px-4 justify-around">
                     <div className="text-center group">
-                      <div className="text-6xl xl:text-7xl font-serif font-bold mb-1 flex items-baseline text-mosque-navy group-hover:scale-110 transition-transform">
+                      <div className="text-8xl font-serif font-bold mb-1 flex items-baseline text-mosque-navy group-hover:scale-110 transition-transform">
                         {jumuah.start.split(' ')[0]}
-                        <span className="text-xl font-sans font-bold ml-1 text-mosque-gold">{jumuah.start.split(' ')[1]}</span>
+                        <span className="text-2xl font-sans font-bold ml-1 text-mosque-gold">{jumuah.start.split(' ')[1]}</span>
                       </div>
-                      <div className="text-lg xl:text-xl uppercase tracking-[0.2em] font-sans font-bold text-gray-400">Khutbah</div>
+                      <div className="text-2xl uppercase tracking-[0.2em] font-sans font-bold text-gray-400">Khutbah</div>
                     </div>
-                    <div className="w-px h-16 bg-gray-200"></div>
+                    <div className="w-px h-20 bg-gray-200"></div>
                     <div className="text-center group">
-                      <div className="text-6xl xl:text-7xl font-serif font-bold mb-1 flex items-baseline text-mosque-navy group-hover:scale-110 transition-transform">
+                      <div className="text-8xl font-serif font-bold mb-1 flex items-baseline text-mosque-navy group-hover:scale-110 transition-transform">
                         {jumuah.iqamah.split(' ')[0]}
-                        <span className="text-xl font-sans font-bold ml-1 text-mosque-gold">{jumuah.iqamah.split(' ')[1]}</span>
+                        <span className="text-2xl font-sans font-bold ml-1 text-mosque-gold">{jumuah.iqamah.split(' ')[1]}</span>
                       </div>
-                      <div className="text-lg xl:text-xl uppercase tracking-[0.2em] font-sans font-bold text-gray-400">Iqamah</div>
+                      <div className="text-2xl uppercase tracking-[0.2em] font-sans font-bold text-gray-400">Iqamah</div>
                     </div>
                 </div>
               </div>
 
               {/* Footer: Sunrise / Sunset */}
-              <div className="bg-mosque-navy text-white p-5 xl:p-6 shadow-inner shrink-0">
+              <div className="bg-mosque-navy text-white p-6 shadow-inner shrink-0">
                 <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <Sunrise className="w-10 h-10 xl:w-12 xl:h-12 text-mosque-gold" strokeWidth={2} />
+                    <div className="flex items-center gap-6">
+                      <Sunrise className="w-16 h-16 text-mosque-gold" strokeWidth={2} />
                       <div className="flex flex-col">
-                         <span className="text-lg xl:text-xl uppercase tracking-widest opacity-60 font-semibold">Sunrise</span>
-                         <span className="text-4xl xl:text-5xl font-serif font-bold">{prayers.sunrise}</span>
+                         <span className="text-2xl uppercase tracking-widest opacity-60 font-semibold">Sunrise</span>
+                         <span className="text-6xl font-serif font-bold">{prayers.sunrise}</span>
                       </div>
                     </div>
                     
-                    <div className="h-12 w-px bg-white/10"></div>
+                    <div className="h-16 w-px bg-white/10"></div>
 
-                    <div className="flex items-center gap-4 text-right">
+                    <div className="flex items-center gap-6 text-right">
                       <div className="flex flex-col">
-                         <span className="text-lg xl:text-xl uppercase tracking-widest opacity-60 font-semibold">Sunset</span>
-                         <span className="text-4xl xl:text-5xl font-serif font-bold">{prayers.sunset}</span>
+                         <span className="text-2xl uppercase tracking-widest opacity-60 font-semibold">Sunset</span>
+                         <span className="text-6xl font-serif font-bold">{prayers.sunset}</span>
                       </div>
-                      <Sunset className="w-10 h-10 xl:w-12 xl:h-12 text-mosque-gold" strokeWidth={2} />
+                      <Sunset className="w-16 h-16 text-mosque-gold" strokeWidth={2} />
                     </div>
                 </div>
               </div>
@@ -281,11 +290,11 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
       </div>
 
       {/* === BOTTOM FOOTER: ANNOUNCEMENT TICKER === */}
-      <div className="h-[8%] xl:h-[10%] bg-white flex items-center overflow-hidden border-t-8 border-mosque-gold relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0">
-          <div className="bg-mosque-gold text-mosque-navy px-8 h-full flex items-center justify-center z-10 font-black uppercase tracking-[0.15em] text-xl xl:text-2xl shadow-2xl whitespace-nowrap min-w-[250px]">
+      <div className="h-[10%] bg-white flex items-center overflow-hidden border-t-8 border-mosque-gold relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0">
+          <div className="bg-mosque-gold text-mosque-navy px-8 h-full flex items-center justify-center z-10 font-black uppercase tracking-[0.15em] text-3xl shadow-2xl whitespace-nowrap min-w-[400px]">
              {announcement.title}
           </div>
-          <div className="whitespace-nowrap animate-marquee flex items-center text-mosque-navy text-3xl xl:text-4xl font-semibold tracking-wide h-full w-full">
+          <div className="whitespace-nowrap animate-marquee flex items-center text-mosque-navy text-5xl font-semibold tracking-wide h-full w-full">
              <span className="mx-8 text-mosque-gold">•</span>
              {announcement.content} 
           </div>

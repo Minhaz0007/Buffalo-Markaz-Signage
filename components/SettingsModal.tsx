@@ -440,7 +440,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <p className="text-white/40 text-sm">Select a background style for the main display.</p>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {/* Theme Option 1 */}
                         <button 
                            onClick={() => setCurrentTheme('arabesque')}
@@ -488,6 +488,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">
                               <span className="text-white font-bold flex items-center gap-2 text-lg">Golden Lattice {currentTheme === 'lattice' && <CheckCircle2 className="w-5 h-5 text-mosque-gold"/>}</span>
                               <span className="text-xs text-white/50 block mt-1">Modern grid with gold accents</span>
+                           </div>
+                        </button>
+
+                         {/* Theme Option 3: Starry Nights */}
+                         <button 
+                           onClick={() => setCurrentTheme('starry')}
+                           className={`group relative h-56 rounded-xl border-2 overflow-hidden transition-all duration-300 ${currentTheme === 'starry' ? 'border-mosque-gold shadow-[0_0_30px_rgba(212,175,55,0.2)]' : 'border-white/10 hover:border-white/30'}`}
+                        >
+                           <div className="absolute inset-0 bg-[#02040a]">
+                               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,#0B1E3B_0%,#02040a_50%,#000000_100%)]"></div>
+                               {/* PREVIEW SVG 3 */}
+                               <div className="absolute inset-0 opacity-70">
+                                    <svg width="100%" height="100%">
+                                        <circle cx="20%" cy="30%" r="1" fill="white" opacity="0.8" />
+                                        <circle cx="50%" cy="20%" r="1.5" fill="white" opacity="0.4" />
+                                        <circle cx="80%" cy="40%" r="1" fill="white" opacity="0.9" />
+                                        <circle cx="30%" cy="70%" r="1.2" fill="white" opacity="0.5" />
+                                        <circle cx="70%" cy="80%" r="1" fill="white" opacity="0.7" />
+                                    </svg>
+                               </div>
+                           </div>
+                           <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">
+                              <span className="text-white font-bold flex items-center gap-2 text-lg">Starry Nights {currentTheme === 'starry' && <CheckCircle2 className="w-5 h-5 text-mosque-gold"/>}</span>
+                              <span className="text-xs text-white/50 block mt-1">Peaceful night sky with animated stars</span>
                            </div>
                         </button>
                     </div>
