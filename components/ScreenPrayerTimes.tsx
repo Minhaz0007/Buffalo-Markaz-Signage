@@ -145,8 +145,6 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
     };
     
     // Find first prayer where Iqamah is in the future.
-    // Explicitly filter out Jumuah from being "active" in the daily cycle highlighting
-    // unless you want it highlighted on Friday. For now, keep it simple for daily rotation.
     return rows.findIndex((row, idx) => !row.isJumuah && parseToMinutes(row.iqamah || '') > currentMinutes);
   };
   
@@ -202,28 +200,20 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
                     timeColor = 'text-mosque-gold';
                 }
 
-                // Only apply transparency darkening to Iqamah if the row is NOT active
                 const iqamahBgClass = isActive ? '' : 'bg-black/5';
-                
-                // Font Sizes (Scaled down for 6 rows)
                 const nameSize = isActive ? 'text-6xl' : 'text-5xl';
                 const timeSize = isActive ? 'text-8xl font-black' : 'text-7xl font-bold';
 
                 return (
                   <div key={idx} className={`flex-1 flex items-center ${bgClass} border-b ${borderClass} transition-all duration-700 ease-out relative`}>
-                    {/* Prayer Name */}
                     <div className="w-[34%] flex items-center justify-center">
                         <span className={`block font-bold uppercase tracking-wider leading-none transition-all duration-500 ${nameSize} ${nameColor}`}>
                           {row.name}
                         </span>
                     </div>
-                    
-                    {/* Start Time */}
                     <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass}`}>
                         <TimeDisplay time={row.start} className={`transition-all duration-500 ${timeSize} ${timeColor}`} />
                     </div>
-                    
-                    {/* Iqamah Time */}
                     <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} ${iqamahBgClass}`}>
                         <TimeDisplay time={row.iqamah || ''} className={`transition-all duration-500 ${timeSize} ${timeColor}`} />
                     </div>
@@ -234,18 +224,11 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
           </div>
 
           {/* === RIGHT COLUMN: INFO PANEL (40%) === */}
-          <div className="w-[40%] bg-[#F0F0F0] text-mosque-navy flex flex-col z-10 shadow-2xl h-full">
+          <div className="w-[40%] bg-[#E5E5E5] text-mosque-navy flex flex-col z-10 shadow-2xl h-full relative">
               
-              {/* Date Section - Expanded Space */}
-              <div className="flex-[2] flex flex-col items-center justify-center border-b border-gray-300 py-1 space-y-2 bg-white shrink-0">
-                  <div className="text-5xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-gold">{hijriDate}</div>
-                  <div className="text-4xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/70">{formatDate(currentTime)}</div>
-              </div>
-
-              {/* Clock Section - Dominant Space */}
-              <div className="flex-[4] flex flex-col items-center justify-center border-b border-gray-300 bg-[#E5E5E5] relative overflow-hidden">
+              {/* 1. Clock Section - Top */}
+              <div className="flex-[3.5] flex flex-col items-center justify-center border-b border-mosque-navy/5 relative overflow-hidden pt-8 z-10">
                   <div className="flex items-baseline justify-center w-full px-2 mt-4 whitespace-nowrap">
-                     {/* Combined Time Display: HH:MM:SS */}
                      <span className="text-[13rem] leading-[0.8] font-serif tracking-tighter text-mosque-navy font-bold drop-shadow-sm tabular-nums">
                         {hours}:{minutes}:{seconds}
                      </span>
@@ -254,8 +237,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
                      </span>
                   </div>
                   
-                  <div className="mt-12 flex flex-col items-center w-full">
-                    <span className="text-4xl uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-4">
+                  <div className="mt-8 flex flex-col items-center w-full">
+                    <span className="text-4xl uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-2">
                       {nextPrayerName} IN
                     </span>
                     <span className="font-serif text-[7rem] font-bold text-mosque-navy tabular-nums tracking-tight leading-none">
@@ -264,26 +247,35 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
                   </div>
               </div>
 
-              {/* Footer: Sunrise / Sunset - Expanded Space */}
-              <div className="flex-[2] bg-mosque-navy text-white p-8 shadow-inner shrink-0 flex flex-col justify-center">
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-8">
-                      <Sunrise className="w-20 h-20 text-mosque-gold" strokeWidth={2} />
-                      <div className="flex flex-col">
-                         <span className="text-3xl uppercase tracking-widest opacity-60 font-semibold mb-1">Sunrise</span>
-                         <span className="text-7xl font-serif font-bold">{prayers.sunrise}</span>
-                      </div>
+              {/* 2. Date Section - Middle */}
+              <div className="flex-[1.5] flex flex-col items-center justify-center border-b border-mosque-navy/5 py-1 space-y-2 shrink-0 bg-white/50 backdrop-blur-sm z-10">
+                  <div className="text-5xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-gold drop-shadow-sm">{hijriDate}</div>
+                  <div className="text-4xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/80">{formatDate(currentTime)}</div>
+              </div>
+
+              {/* 3. Footer: Sunrise / Sunset - Bottom - Redesigned to Match Clock */}
+              <div className="flex-[3] p-8 shrink-0 flex flex-col justify-center relative pb-12 z-10">
+                <div className="flex items-center justify-around h-full px-8">
+                    
+                    {/* Sunrise Item */}
+                    <div className="flex flex-col items-center justify-center">
+                      <Sunrise className="w-24 h-24 text-mosque-gold mb-6 drop-shadow-md" strokeWidth={1.5} />
+                      <span className="text-3xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-2">Sunrise</span>
+                      <span className="text-8xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunrise.replace(/AM|PM/, '').trim()}</span>
+                      <span className="text-xl font-bold text-mosque-gold tracking-widest uppercase mt-1">AM</span>
                     </div>
                     
-                    <div className="h-24 w-px bg-white/10"></div>
+                    {/* Vertical Divider */}
+                    <div className="h-48 w-px bg-gradient-to-b from-transparent via-mosque-navy/20 to-transparent"></div>
 
-                    <div className="flex items-center gap-8 text-right">
-                      <div className="flex flex-col">
-                         <span className="text-3xl uppercase tracking-widest opacity-60 font-semibold mb-1">Sunset</span>
-                         <span className="text-7xl font-serif font-bold">{prayers.sunset}</span>
-                      </div>
-                      <Sunset className="w-20 h-20 text-mosque-gold" strokeWidth={2} />
+                    {/* Sunset Item */}
+                    <div className="flex flex-col items-center justify-center">
+                      <Sunset className="w-24 h-24 text-mosque-gold mb-6 drop-shadow-md" strokeWidth={1.5} />
+                      <span className="text-3xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-2">Sunset</span>
+                      <span className="text-8xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunset.replace(/AM|PM/, '').trim()}</span>
+                      <span className="text-xl font-bold text-mosque-gold tracking-widest uppercase mt-1">PM</span>
                     </div>
+
                 </div>
               </div>
           </div>
