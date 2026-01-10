@@ -253,7 +253,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
                   <div className="text-4xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/80">{formatDate(currentTime)}</div>
               </div>
 
-              {/* 3. Footer: Sunrise / Sunset - Bottom - Redesigned to Match Clock */}
+              {/* 3. Footer: Sunrise / Sunset - Bottom */}
               <div className="flex-[3] p-8 shrink-0 flex flex-col justify-center relative pb-12 z-10">
                 <div className="flex items-center justify-around h-full px-8">
                     
