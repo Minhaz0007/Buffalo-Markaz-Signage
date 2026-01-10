@@ -561,6 +561,78 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 )}
 
+                {activeTab === 'announcements' && (
+                  <div className="max-w-[1400px] mx-auto space-y-12">
+                    {/* Auto Alerts Toggle */}
+                    <div className="flex items-center justify-between bg-white/5 p-8 rounded-2xl border border-white/10">
+                       <div className="flex items-center gap-6">
+                          <div className={`p-4 rounded-xl ${autoAlertsEnabled ? 'bg-mosque-gold text-mosque-navy' : 'bg-white/5 text-white/40'}`}>
+                             <AlertTriangle className="w-10 h-10" />
+                          </div>
+                          <div>
+                             <h4 className="text-3xl text-white font-bold">Automatic Iqamah Change Alerts</h4>
+                             <p className="text-white/50 text-xl mt-2">Automatically display a red alert when prayer times change tomorrow.</p>
+                          </div>
+                       </div>
+                       <button 
+                          onClick={() => setAutoAlertsEnabled(!autoAlertsEnabled)}
+                          className={`w-24 h-12 rounded-full relative transition-colors duration-300 ${autoAlertsEnabled ? 'bg-mosque-gold' : 'bg-white/10'}`}
+                       >
+                          <div className={`absolute top-1 bottom-1 w-10 bg-mosque-navy rounded-full transition-all duration-300 shadow-lg ${autoAlertsEnabled ? 'right-1' : 'left-1'}`}></div>
+                       </button>
+                    </div>
+
+                    {/* Custom Ticker Items */}
+                    <div>
+                        <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
+                            <h4 className="text-2xl font-bold uppercase tracking-widest text-white/80">Ticker Messages</h4>
+                            <button 
+                                onClick={() => openEditor()}
+                                className="flex items-center gap-3 bg-mosque-gold text-mosque-navy px-6 py-3 rounded-lg font-bold uppercase tracking-wider hover:bg-white transition-colors"
+                            >
+                                <Plus className="w-6 h-6" /> Add New
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4">
+                            {announcement.items.length === 0 ? (
+                                <div className="text-white/30 text-2xl text-center py-20 italic bg-white/5 rounded-2xl border border-white/5">
+                                    No custom messages active.
+                                </div>
+                            ) : (
+                                announcement.items.map(item => (
+                                    <div key={item.id} className="bg-white/5 rounded-2xl border border-white/10 p-6 flex items-center justify-between group hover:border-white/20 transition-all">
+                                        <div className="flex items-center gap-6">
+                                            <div className="w-16 h-16 rounded-full border-2 border-white/10 flex items-center justify-center shrink-0" style={{ backgroundColor: item.color }}>
+                                                {item.animation === 'pulse' && <Zap className="w-6 h-6 text-white/80" />}
+                                                {item.animation === 'blink' && <AlertTriangle className="w-6 h-6 text-white/80" />}
+                                                {item.animation === 'none' && <Type className="w-6 h-6 text-white/80" />}
+                                            </div>
+                                            <div>
+                                                <div className="text-2xl text-white font-serif font-bold leading-tight mb-1">{item.text}</div>
+                                                <div className="text-white/40 uppercase tracking-wider text-sm flex gap-4">
+                                                    <span>Color: {item.color}</span>
+                                                    <span>•</span>
+                                                    <span>Animation: {item.animation}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => openEditor(item)} className="p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
+                                                <Edit2 className="w-6 h-6" />
+                                            </button>
+                                            <button onClick={() => deleteAnnouncementItem(item.id)} className="p-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-full transition-colors">
+                                                <Trash2 className="w-6 h-6" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                  </div>
+                )}
+
                 {activeTab === 'slideshow' && (
                     <div className="max-w-[1400px] mx-auto space-y-12">
                         {/* Master Toggle */}

@@ -330,18 +330,18 @@ const App: React.FC = () => {
         {/* Controls */}
         <button 
           onClick={() => setIsSettingsOpen(true)}
-          className={`absolute bottom-4 right-4 z-50 p-3 bg-black/20 hover:bg-black/80 text-white/30 hover:text-white rounded-full transition-all duration-300 backdrop-blur-sm ${isFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+          className={`absolute bottom-4 right-4 z-50 p-4 bg-mosque-navy hover:bg-mosque-gold text-mosque-gold hover:text-mosque-navy border-2 border-mosque-gold rounded-full transition-all duration-300 shadow-2xl ${isFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
           title="Settings"
         >
-          <Settings className="w-6 h-6" />
+          <Settings className="w-8 h-8" />
         </button>
 
         <button 
           onClick={toggleFullscreen}
-          className={`absolute bottom-20 right-4 z-50 p-3 bg-black/20 hover:bg-black/80 text-white/30 hover:text-white rounded-full transition-all duration-300 backdrop-blur-sm ${isFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+          className={`absolute bottom-24 right-4 z-50 p-4 bg-mosque-navy hover:bg-mosque-gold text-mosque-gold hover:text-mosque-navy border-2 border-mosque-gold rounded-full transition-all duration-300 shadow-2xl ${isFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
           title="Toggle Full Screen (Ctrl + F)"
         >
-          {isFullscreen ? <Minimize className="w-6 h-6" /> : <Maximize className="w-6 h-6" />}
+          {isFullscreen ? <Minimize className="w-8 h-8" /> : <Maximize className="w-8 h-8" />}
         </button>
 
         <SettingsModal 
