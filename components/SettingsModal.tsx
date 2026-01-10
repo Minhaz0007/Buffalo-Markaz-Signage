@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers } from 'lucide-react';
-import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig } from '../types';
+import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers, Lock } from 'lucide-react';
+import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig, AutoAlertSettings } from '../types';
 import * as XLSX from 'xlsx';
 
 // --- Types ---
@@ -17,12 +17,15 @@ interface SettingsModalProps {
   setCurrentTheme: (theme: string) => void;
   maghribOffset: number;
   setMaghribOffset: (offset: number) => void;
-  autoAlertsEnabled: boolean;
-  setAutoAlertsEnabled: (enabled: boolean) => void;
+  
+  autoAlertSettings: AutoAlertSettings;
+  setAutoAlertSettings: (settings: AutoAlertSettings) => void;
+  
+  tickerBg: 'white' | 'navy';
+  setTickerBg: (bg: 'white' | 'navy') => void;
+
   slidesConfig: SlideConfig[];
   setSlidesConfig: (config: SlideConfig[]) => void;
-  isSlideshowEnabled: boolean;
-  setIsSlideshowEnabled: (enabled: boolean) => void;
 }
 
 // --- Calendar Component ---
@@ -131,9 +134,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   announcement, setAnnouncement,
   currentTheme, setCurrentTheme,
   maghribOffset, setMaghribOffset,
-  autoAlertsEnabled, setAutoAlertsEnabled,
-  slidesConfig, setSlidesConfig,
-  isSlideshowEnabled, setIsSlideshowEnabled
+  autoAlertSettings, setAutoAlertSettings,
+  tickerBg, setTickerBg,
+  slidesConfig, setSlidesConfig
 }) => {
   const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization' | 'slideshow'>('schedule');
   const [uploadStatus, setUploadStatus] = useState<string>("");
@@ -153,6 +156,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Slideshow Editor State
   const [expandedSlideId, setExpandedSlideId] = useState<string | null>(null);
+  // Auto Alert Expand State
+  const [isAutoAlertExpanded, setIsAutoAlertExpanded] = useState(false);
 
   if (!isOpen) return null;
 
@@ -364,8 +369,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 
                 {activeTab === 'schedule' && (
                   <div className="space-y-12 max-w-[1400px] mx-auto">
-                    
-                    {/* Excel Import */}
+                     {/* Schedule content omitted for brevity, logic remains the same */}
+                     {/* Excel Import */}
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-10">
                        <div className="flex items-center justify-between mb-6">
                           <div className="flex items-center gap-6">
@@ -563,23 +568,107 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 {activeTab === 'announcements' && (
                   <div className="max-w-[1400px] mx-auto space-y-12">
-                    {/* Auto Alerts Toggle */}
+                    
+                    {/* Ticker Background Config */}
                     <div className="flex items-center justify-between bg-white/5 p-8 rounded-2xl border border-white/10">
-                       <div className="flex items-center gap-6">
-                          <div className={`p-4 rounded-xl ${autoAlertsEnabled ? 'bg-mosque-gold text-mosque-navy' : 'bg-white/5 text-white/40'}`}>
-                             <AlertTriangle className="w-10 h-10" />
-                          </div>
-                          <div>
-                             <h4 className="text-3xl text-white font-bold">Automatic Iqamah Change Alerts</h4>
-                             <p className="text-white/50 text-xl mt-2">Automatically display a red alert when prayer times change tomorrow.</p>
-                          </div>
+                        <div>
+                             <h4 className="text-3xl text-white font-bold">Ticker Background</h4>
+                             <p className="text-white/50 text-xl mt-2">Select the background color for the bottom announcement bar.</p>
+                        </div>
+                        <div className="flex bg-black/30 p-2 rounded-xl border border-white/10">
+                             <button 
+                                onClick={() => setTickerBg('white')}
+                                className={`px-8 py-3 rounded-lg text-xl font-bold transition-all ${tickerBg === 'white' ? 'bg-white text-mosque-navy shadow-lg' : 'text-white/50 hover:text-white'}`}
+                             >
+                                White
+                             </button>
+                             <button 
+                                onClick={() => setTickerBg('navy')}
+                                className={`px-8 py-3 rounded-lg text-xl font-bold transition-all ${tickerBg === 'navy' ? 'bg-mosque-navy text-mosque-gold shadow-lg ring-1 ring-mosque-gold' : 'text-white/50 hover:text-white'}`}
+                             >
+                                Navy
+                             </button>
+                        </div>
+                    </div>
+
+                    {/* Auto Alerts Config */}
+                    <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
+                       <div className="p-8 flex items-center justify-between cursor-pointer hover:bg-white/5" onClick={() => setIsAutoAlertExpanded(!isAutoAlertExpanded)}>
+                           <div className="flex items-center gap-6">
+                              <div className={`p-4 rounded-xl ${autoAlertSettings.enabled ? 'bg-mosque-gold text-mosque-navy' : 'bg-white/5 text-white/40'}`}>
+                                 <AlertTriangle className="w-10 h-10" />
+                              </div>
+                              <div>
+                                 <h4 className="text-3xl text-white font-bold">Automatic Iqamah Change Alerts</h4>
+                                 <p className="text-white/50 text-xl mt-2">Automatically display an alert when prayer times change tomorrow.</p>
+                              </div>
+                           </div>
+                           <div className="flex items-center gap-6">
+                               <button 
+                                  onClick={(e) => { e.stopPropagation(); setAutoAlertSettings({ ...autoAlertSettings, enabled: !autoAlertSettings.enabled }); }}
+                                  className={`w-24 h-12 rounded-full relative transition-colors duration-300 ${autoAlertSettings.enabled ? 'bg-mosque-gold' : 'bg-white/10'}`}
+                               >
+                                  <div className={`absolute top-1 bottom-1 w-10 bg-mosque-navy rounded-full transition-all duration-300 shadow-lg ${autoAlertSettings.enabled ? 'right-1' : 'left-1'}`}></div>
+                               </button>
+                               <div className={`transform transition-transform duration-300 ${isAutoAlertExpanded ? 'rotate-180 text-mosque-gold' : 'text-white/50'}`}>▼</div>
+                           </div>
                        </div>
-                       <button 
-                          onClick={() => setAutoAlertsEnabled(!autoAlertsEnabled)}
-                          className={`w-24 h-12 rounded-full relative transition-colors duration-300 ${autoAlertsEnabled ? 'bg-mosque-gold' : 'bg-white/10'}`}
-                       >
-                          <div className={`absolute top-1 bottom-1 w-10 bg-mosque-navy rounded-full transition-all duration-300 shadow-lg ${autoAlertsEnabled ? 'right-1' : 'left-1'}`}></div>
-                       </button>
+                       
+                       {isAutoAlertExpanded && (
+                           <div className="p-8 border-t border-white/10 bg-black/20 space-y-8 animate-in slide-in-from-top-4">
+                                <div>
+                                   <label className={labelClass}>Alert Message Template</label>
+                                   <p className="text-white/40 mb-3 text-sm">Use <span className="text-mosque-gold font-mono">{`{prayers}`}</span> as a placeholder for the list of changing prayers.</p>
+                                   <input 
+                                      type="text" 
+                                      value={autoAlertSettings.template}
+                                      onChange={(e) => setAutoAlertSettings({ ...autoAlertSettings, template: e.target.value })}
+                                      className={inputClass}
+                                   />
+                                </div>
+                                <div className="grid grid-cols-2 gap-10">
+                                   <div>
+                                      <label className={labelClass}>Alert Color</label>
+                                      <div className="flex gap-4">
+                                         {THEME_COLORS.map(c => (
+                                            <button 
+                                               key={c}
+                                               onClick={() => setAutoAlertSettings({ ...autoAlertSettings, color: c })}
+                                               className={`w-12 h-12 rounded-full border-2 ${autoAlertSettings.color === c ? 'border-white scale-110' : 'border-transparent opacity-50'}`}
+                                               style={{ backgroundColor: c }}
+                                            />
+                                         ))}
+                                          {/* Custom Color Input for Alerts */}
+                                          <div className="relative">
+                                            <input 
+                                                type="color" 
+                                                value={autoAlertSettings.color}
+                                                onChange={(e) => setAutoAlertSettings({ ...autoAlertSettings, color: e.target.value })}
+                                                className="w-12 h-12 opacity-0 absolute inset-0 cursor-pointer"
+                                            />
+                                            <div className="w-12 h-12 rounded-full border border-white/20 bg-gradient-to-br from-gray-700 to-black flex items-center justify-center pointer-events-none">
+                                                <Plus className="w-4 h-4 text-white/50" />
+                                            </div>
+                                          </div>
+                                      </div>
+                                   </div>
+                                   <div>
+                                      <label className={labelClass}>Animation Style</label>
+                                      <div className="flex gap-4">
+                                          {['none', 'pulse', 'blink'].map((anim) => (
+                                              <button
+                                                  key={anim}
+                                                  onClick={() => setAutoAlertSettings({ ...autoAlertSettings, animation: anim as any })}
+                                                  className={`px-6 py-3 rounded-xl font-bold uppercase tracking-widest border-2 transition-all ${autoAlertSettings.animation === anim ? 'bg-mosque-gold text-mosque-navy border-mosque-gold' : 'bg-black/20 text-white/50 border-transparent hover:border-white/20'}`}
+                                              >
+                                                  {anim}
+                                              </button>
+                                          ))}
+                                      </div>
+                                   </div>
+                                </div>
+                           </div>
+                       )}
                     </div>
 
                     {/* Custom Ticker Items */}
@@ -635,23 +724,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 {activeTab === 'slideshow' && (
                     <div className="max-w-[1400px] mx-auto space-y-12">
-                        {/* Master Toggle */}
-                        <div className="flex items-center justify-between bg-white/5 p-8 rounded-2xl border border-white/10">
+                        {/* Intro / Info Block */}
+                        <div className="bg-white/5 p-8 rounded-2xl border border-white/10">
                            <div className="flex items-center gap-6">
-                              <div className={`p-4 rounded-xl ${isSlideshowEnabled ? 'bg-green-500/20 text-green-400' : 'bg-white/5 text-white/40'}`}>
-                                 {isSlideshowEnabled ? <PlayCircle className="w-10 h-10" /> : <StopCircle className="w-10 h-10" />}
+                              <div className="p-4 rounded-xl bg-mosque-gold/20 text-mosque-gold">
+                                 <Layers className="w-10 h-10" />
                               </div>
                               <div>
-                                 <h4 className="text-3xl text-white font-bold">Enable Right Panel Slideshow</h4>
-                                 <p className="text-white/50 text-xl mt-2">When enabled, the right panel will cycle through selected slides.</p>
+                                 <h4 className="text-3xl text-white font-bold">Right Panel Slideshow</h4>
+                                 <p className="text-white/50 text-xl mt-2">Activate multiple slides to cycle through content. The Main Clock will always be included.</p>
                               </div>
                            </div>
-                           <button 
-                              onClick={() => setIsSlideshowEnabled(!isSlideshowEnabled)}
-                              className={`w-24 h-12 rounded-full relative transition-colors duration-300 ${isSlideshowEnabled ? 'bg-mosque-gold' : 'bg-white/10'}`}
-                           >
-                              <div className={`absolute top-1 bottom-1 w-10 bg-mosque-navy rounded-full transition-all duration-300 shadow-lg ${isSlideshowEnabled ? 'right-1' : 'left-1'}`}></div>
-                           </button>
                         </div>
 
                         {/* Slide List */}
@@ -660,23 +743,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                            
                            {slidesConfig.map(slide => {
                               const isExpanded = expandedSlideId === slide.id;
+                              const isLocked = slide.type === 'CLOCK'; // Lock Main Clock
                               
                               return (
                                  <div key={slide.id} className={`bg-white/5 rounded-2xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'border-mosque-gold ring-2 ring-mosque-gold/30' : 'border-white/5'}`}>
                                     {/* Header */}
                                     <div className="p-8 flex items-center justify-between">
                                        <div className="flex items-center gap-6">
-                                          <input 
-                                             type="checkbox" 
-                                             checked={slide.enabled}
-                                             onChange={(e) => updateSlideConfig(slide.id, { enabled: e.target.checked })}
-                                             className="w-8 h-8 rounded border-white/30 bg-black/20 text-mosque-gold focus:ring-mosque-gold cursor-pointer"
-                                          />
+                                          {isLocked ? (
+                                              <div className="w-8 h-8 flex items-center justify-center bg-mosque-gold/20 rounded border border-mosque-gold/50 text-mosque-gold" title="Always Active">
+                                                  <Lock className="w-5 h-5" />
+                                              </div>
+                                          ) : (
+                                              <input 
+                                                type="checkbox" 
+                                                checked={slide.enabled}
+                                                onChange={(e) => updateSlideConfig(slide.id, { enabled: e.target.checked })}
+                                                className="w-8 h-8 rounded border-white/30 bg-black/20 text-mosque-gold focus:ring-mosque-gold cursor-pointer"
+                                              />
+                                          )}
                                           <div>
                                              <div className="text-3xl font-bold text-white font-serif">{slide.type === 'CLOCK' ? 'Main Clock & Prayer Info' : slide.type === 'ANNOUNCEMENT' ? 'Special Announcement' : '7-Day Prayer Schedule'}</div>
                                              <div className="text-white/40 text-lg mt-1 flex items-center gap-4">
                                                 <span>{slide.duration} Seconds</span>
-                                                {slide.enabled && <span className="bg-green-500/20 text-green-400 px-3 py-0.5 rounded text-sm uppercase font-bold tracking-wide">Active</span>}
+                                                {(slide.enabled || isLocked) && <span className="bg-green-500/20 text-green-400 px-3 py-0.5 rounded text-sm uppercase font-bold tracking-wide">Active</span>}
                                              </div>
                                           </div>
                                        </div>
@@ -749,7 +839,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                     </div>
                 )}
-
+                
                 {activeTab === 'customization' && (
                   <div className="max-w-[1600px] mx-auto">
                       <div className="mb-12">

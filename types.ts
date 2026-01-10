@@ -94,3 +94,11 @@ export interface ScheduleSlideConfig extends BaseSlideConfig {
 }
 
 export type SlideConfig = ClockSlideConfig | AnnouncementSlideConfig | ScheduleSlideConfig;
+
+// --- Config Types ---
+export interface AutoAlertSettings {
+  enabled: boolean;
+  template: string;
+  color: string;
+  animation: 'none' | 'pulse' | 'blink';
+}

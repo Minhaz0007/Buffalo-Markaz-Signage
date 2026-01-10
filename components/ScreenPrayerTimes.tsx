@@ -10,10 +10,10 @@ interface ScreenPrayerTimesProps {
   jumuah: { start: string; iqamah: string };
   announcement: Announcement;
   slidesConfig: SlideConfig[];
-  isSlideshowEnabled: boolean;
   excelSchedule: Record<string, ExcelDaySchedule>;
   manualOverrides: ManualOverride[];
   maghribOffset: number;
+  tickerBg: 'white' | 'navy';
 }
 
 const GeometricCorner = ({ className, rotate }: { className?: string, rotate?: number }) => (
@@ -61,7 +61,7 @@ const GeometricCorner = ({ className, rotate }: { className?: string, rotate?: n
 
 const ElegantFrame = () => {
   return (
-    <div className="absolute inset-0 z-0 pointer-events-none p-4">
+    <div className="absolute inset-0 z-50 pointer-events-none p-4">
        {/* Subtle full border connecting corners visually */}
        <div className="absolute inset-4 border border-mosque-gold/20 z-0"></div>
        
@@ -195,7 +195,13 @@ const ScheduleSlide = ({ config, excelSchedule, manualOverrides, maghribOffset }
     const scheduleData = useMemo(() => {
         const days = [];
         const start = new Date();
-        for(let i = 0; i < config.daysToShow; i++) {
+        // Start from Tomorrow (exclude today)
+        start.setDate(start.getDate() + 1);
+        
+        // Show next 7 days statically
+        const daysToDisplay = 7; 
+        
+        for(let i = 0; i < daysToDisplay; i++) {
            const d = new Date(start);
            d.setDate(start.getDate() + i);
            const dateKey = d.toISOString().split('T')[0];
@@ -217,49 +223,42 @@ const ScheduleSlide = ({ config, excelSchedule, manualOverrides, maghribOffset }
        <div className="w-full h-full bg-mosque-navy text-white flex flex-col overflow-hidden relative">
           {/* Header */}
           <div className="h-24 bg-mosque-gold/10 border-b border-mosque-gold/30 flex items-center shrink-0 z-20 shadow-lg">
-             <div className="w-[18%] text-center text-mosque-gold font-bold uppercase tracking-widest text-xl">Date</div>
-             {['Fajr', 'Sun', 'Dhuhr', 'Asr', 'Mag', 'Isha'].map(p => (
-                 <div key={p} className="flex-1 text-center text-white/70 font-bold uppercase tracking-widest text-xl">{p}</div>
+             <div className="w-[16%] text-center text-mosque-gold font-bold uppercase tracking-widest text-xl">Date</div>
+             {['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map(p => (
+                 <div key={p} className="flex-1 text-center text-white/80 font-bold uppercase tracking-wide text-base lg:text-lg">{p}</div>
              ))}
           </div>
 
-          {/* Scrolling Content */}
-          <div className="flex-1 relative overflow-hidden">
-             <div className="absolute top-0 left-0 right-0 animate-scroll-up-continuous">
-                {/* Duplicate the list to create seamless loop effect if needed, but for 7 days usually simple scroll or marquee is fine. 
-                    Given "continuously upwards scrolling", usually implies a marquee.
-                    We will repeat the list twice.
-                */}
-                {[...scheduleData, ...scheduleData].map((day, idx) => (
-                    <div key={`${day.dateDisplay}-${idx}`} className="h-32 border-b border-white/5 flex items-center hover:bg-white/5 transition-colors">
-                        <div className="w-[18%] flex flex-col items-center justify-center border-r border-white/5 h-full bg-black/10">
-                           <span className="text-3xl font-bold text-mosque-gold">{day.dateDisplay}</span>
-                           <span className="text-sm uppercase tracking-wider opacity-60">{day.dayName}</span>
-                        </div>
-                        
-                        {[day.prayers.fajr, { start: day.prayers.sunrise }, day.prayers.dhuhr, day.prayers.asr, day.prayers.maghrib, day.prayers.isha].map((p: any, i) => (
-                           <div key={i} className="flex-1 flex flex-col items-center justify-center h-full border-r border-white/5 last:border-0">
-                               {/* Start Time (Small) */}
-                               <span className="text-lg opacity-50 mb-1 font-mono">{fmt(p.start)}</span>
-                               {/* Iqamah Time (Large) - Sunrise has no iqamah */}
-                               {p.iqamah && (
-                                  <span className="text-3xl font-bold font-serif">{fmt(p.iqamah)}</span>
-                               )}
-                           </div>
-                        ))}
-                    </div>
-                ))}
-             </div>
+          {/* Static Content - Flex Layout to fill space */}
+          <div className="flex-1 flex flex-col">
+              {scheduleData.map((day, idx) => (
+                  <div key={`${day.dateDisplay}-${idx}`} className="flex-1 border-b border-white/5 flex items-center hover:bg-white/5 transition-colors">
+                      {/* Date Column */}
+                      <div className="w-[16%] flex flex-col items-center justify-center border-r border-white/5 h-full bg-black/20">
+                         <span className="text-3xl font-bold text-mosque-gold whitespace-nowrap">{day.dateDisplay}</span>
+                         <span className="text-lg font-bold uppercase tracking-widest text-white/50 mt-1">{day.dayName}</span>
+                      </div>
+                      
+                      {[day.prayers.fajr, { start: day.prayers.sunrise, isSunrise: true }, day.prayers.dhuhr, day.prayers.asr, day.prayers.maghrib, day.prayers.isha].map((p: any, i) => (
+                         <div key={i} className="flex-1 flex flex-col items-center justify-center h-full border-r border-white/5 last:border-0 relative">
+                             {p.isSunrise ? (
+                                // Sunrise: Show start time large
+                                <span className="text-4xl font-bold font-serif text-mosque-gold tracking-tight">{fmt(p.start)}</span>
+                             ) : (
+                                <>
+                                    {/* Start Time */}
+                                    <span className="text-xl text-white/60 mb-1 font-sans font-medium tracking-tight">{fmt(p.start)}</span>
+                                    {/* Iqamah Time */}
+                                    {p.iqamah && (
+                                        <span className="text-4xl font-bold font-serif tracking-tight leading-none text-white">{fmt(p.iqamah)}</span>
+                                    )}
+                                </>
+                             )}
+                         </div>
+                      ))}
+                  </div>
+              ))}
           </div>
-          <style>{`
-            @keyframes scroll-up-continuous {
-               0% { transform: translateY(0); }
-               100% { transform: translateY(-50%); }
-            }
-            .animate-scroll-up-continuous {
-               animation: scroll-up-continuous ${config.daysToShow * 5}s linear infinite; /* Dynamic duration based on list length */
-            }
-          `}</style>
        </div>
     );
 };
@@ -268,30 +267,44 @@ const ScheduleSlide = ({ config, excelSchedule, manualOverrides, maghribOffset }
 
 export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ 
     prayers, jumuah, announcement, 
-    slidesConfig, isSlideshowEnabled, 
-    excelSchedule, manualOverrides, maghribOffset 
+    slidesConfig, 
+    excelSchedule, manualOverrides, maghribOffset,
+    tickerBg 
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timeUntilIqamah, setTimeUntilIqamah] = useState<string>("");
   const [nextPrayerName, setNextPrayerName] = useState<string>("NEXT PRAYER");
   const [hijriDate, setHijriDate] = useState<string>("");
+  const [isIqamahFreeze, setIsIqamahFreeze] = useState(false);
   
-  // Slideshow Logic
-  const activeSlides = useMemo(() => isSlideshowEnabled ? slidesConfig.filter(s => s.enabled) : [], [slidesConfig, isSlideshowEnabled]);
+  // Slideshow Logic: If more than one slide is active, we cycle.
+  const activeSlides = useMemo(() => slidesConfig.filter(s => s.enabled), [slidesConfig]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
+  // Determine if we should be cycling slides
+  const isSlideshowActive = activeSlides.length > 1;
+
   useEffect(() => {
-    if (!isSlideshowEnabled || activeSlides.length === 0) {
+    // If freeze mode is active or only one slide (or zero), do not cycle
+    if (!isSlideshowActive || isIqamahFreeze) {
         return; 
     }
 
-    const duration = activeSlides[currentSlideIndex].duration * 1000;
+    // Safety check: if index out of bounds (e.g. slide removed), reset to 0
+    if (currentSlideIndex >= activeSlides.length) {
+        setCurrentSlideIndex(0);
+        return;
+    }
+
+    const activeSlide = activeSlides[currentSlideIndex];
+    const duration = (activeSlide?.duration || 10) * 1000;
+    
     const timer = setTimeout(() => {
         setCurrentSlideIndex((prev) => (prev + 1) % activeSlides.length);
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [currentSlideIndex, isSlideshowEnabled, activeSlides]);
+  }, [currentSlideIndex, isSlideshowActive, activeSlides, isIqamahFreeze]);
 
 
   // Calculate duration based on text length for consistent speed
@@ -340,6 +353,19 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     ];
 
     let nextPrayer = prayersList.find(p => p.time && p.time > now);
+    
+    // Check if we are in the 5-minute pre-Iqamah window
+    let freeze = false;
+    if (nextPrayer && nextPrayer.time) {
+        const diffMs = nextPrayer.time.getTime() - now.getTime();
+        const diffMinutes = diffMs / (1000 * 60);
+        // Freeze if within 5 minutes of Iqamah
+        if (diffMinutes <= 5 && diffMinutes > 0) {
+            freeze = true;
+        }
+    }
+    setIsIqamahFreeze(freeze);
+
     if (!nextPrayer) {
        setNextPrayerName("FAJR"); 
        setTimeUntilIqamah("--:--:--");
@@ -401,15 +427,26 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     hijriDate={hijriDate} formatDate={formatDate} currentTime={currentTime} prayers={prayers}
   />;
 
-  if (isSlideshowEnabled && activeSlides.length > 0) {
+  // Use slideshow content ONLY if slideshow active, slides exist, AND we are not in the "Iqamah Freeze" window
+  if (isSlideshowActive && activeSlides.length > 0 && !isIqamahFreeze) {
       const activeSlide = activeSlides[currentSlideIndex];
-      if (activeSlide.type === 'ANNOUNCEMENT') {
-          RightPanelContent = <AnnouncementSlide config={activeSlide as AnnouncementSlideConfig} />;
-      } else if (activeSlide.type === 'SCHEDULE') {
-          RightPanelContent = <ScheduleSlide config={activeSlide as ScheduleSlideConfig} excelSchedule={excelSchedule} manualOverrides={manualOverrides} maghribOffset={maghribOffset} />;
+      // Safety check: activeSlide might be undefined if currentSlideIndex is stale/invalid
+      if (activeSlide) {
+        if (activeSlide.type === 'ANNOUNCEMENT') {
+            RightPanelContent = <AnnouncementSlide config={activeSlide as AnnouncementSlideConfig} />;
+        } else if (activeSlide.type === 'SCHEDULE') {
+            RightPanelContent = <ScheduleSlide config={activeSlide as ScheduleSlideConfig} excelSchedule={excelSchedule} manualOverrides={manualOverrides} maghribOffset={maghribOffset} />;
+        }
       }
-      // ClockSlide is the default fallback above
+      // ClockSlide is the default fallback above or if activeSlide is invalid
   }
+
+  // Ticker style based on tickerBg prop
+  const tickerContainerClass = tickerBg === 'navy' 
+      ? 'bg-mosque-navy border-t-4 border-mosque-gold' 
+      : 'bg-white border-t-8 border-mosque-gold';
+  
+  const tickerTextClass = tickerBg === 'navy' ? 'text-white' : 'text-mosque-navy';
 
   return (
     <div className="w-full h-full flex flex-col font-serif text-white overflow-hidden">
@@ -478,11 +515,12 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
           {/* === RIGHT COLUMN: SLIDESHOW CONTAINER (40%) === */}
           <div className="w-[40%] bg-[#E5E5E5] text-mosque-navy flex flex-col z-10 shadow-2xl h-full relative overflow-hidden">
+              {/* Frame now moved to top level of this container with z-50 to ensure it overlays everything including colored announcements */}
               <ElegantFrame />
               <div className="w-full h-full relative z-10">
                  <AnimatePresence mode="wait">
                     <motion.div
-                       key={isSlideshowEnabled ? activeSlides[currentSlideIndex]?.id : 'static-clock'}
+                       key={(!isSlideshowActive || isIqamahFreeze) ? 'static-clock' : activeSlides[currentSlideIndex]?.id}
                        initial={{ opacity: 0, x: 20 }}
                        animate={{ opacity: 1, x: 0 }}
                        exit={{ opacity: 0, x: -20 }}
@@ -497,13 +535,13 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       </div>
 
       {/* === BOTTOM FOOTER: ANNOUNCEMENT TICKER === */}
-      <div className="h-[10%] bg-white border-t-8 border-mosque-gold relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden">
+      <div className={`h-[10%] ${tickerContainerClass} relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden transition-colors duration-500`}>
           <div className="absolute left-0 top-0 bottom-0 bg-mosque-gold text-mosque-navy px-8 flex items-center justify-center z-20 font-black uppercase tracking-[0.15em] text-4xl shadow-[10px_0_20px_rgba(0,0,0,0.2)] min-w-[380px]">
              {announcement.title}
           </div>
           <div className="absolute inset-0 z-10 flex items-center overflow-hidden">
             <div 
-                className="whitespace-nowrap animate-marquee flex items-center text-mosque-navy text-5xl font-semibold tracking-wide w-full pl-[100%]"
+                className={`whitespace-nowrap animate-marquee flex items-center ${tickerTextClass} text-5xl font-semibold tracking-wide w-full pl-[100%]`}
                 style={{ animationDuration: `${marqueeDuration}s`, willChange: 'transform' }}
             >
                {announcement.items.map((item) => (

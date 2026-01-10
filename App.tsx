@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ScreenPrayerTimes } from './components/ScreenPrayerTimes';
 import { SettingsModal } from './components/SettingsModal';
-import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig } from './types';
+import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AutoAlertSettings } from './types';
 import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES, DEFAULT_ANNOUNCEMENT } from './constants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Maximize, Minimize } from 'lucide-react';
@@ -145,8 +145,15 @@ const DEFAULT_SLIDES: SlideConfig[] = [
       fontSize: 'large'
     }
   },
-  { id: 'schedule-list', type: 'SCHEDULE', enabled: false, duration: 20, daysToShow: 7 }
+  { id: 'schedule-list', type: 'SCHEDULE', enabled: false, duration: 10, daysToShow: 7 }
 ];
+
+const DEFAULT_AUTO_ALERTS: AutoAlertSettings = {
+  enabled: true,
+  template: "⚠️ NOTICE: Iqamah changes tomorrow for {prayers}",
+  color: "#ef4444", // Red-500
+  animation: "pulse"
+};
 
 const App: React.FC = () => {
   // --- State (Persistent for Offline Mode) ---
@@ -155,11 +162,13 @@ const App: React.FC = () => {
   const [announcement, setAnnouncement] = usePersistentState<Announcement>('announcement_config', DEFAULT_ANNOUNCEMENT);
   const [currentTheme, setCurrentTheme] = usePersistentState<string>('app_theme', 'starry');
   const [maghribOffset, setMaghribOffset] = usePersistentState<number>('maghrib_offset', 10);
-  const [autoAlertsEnabled, setAutoAlertsEnabled] = usePersistentState<boolean>('auto_alerts', true);
+  
+  // New Configs
+  const [autoAlertSettings, setAutoAlertSettings] = usePersistentState<AutoAlertSettings>('auto_alert_settings', DEFAULT_AUTO_ALERTS);
+  const [tickerBg, setTickerBg] = usePersistentState<'white' | 'navy'>('ticker_bg', 'white');
   
   // Slideshow State
   const [slidesConfig, setSlidesConfig] = usePersistentState<SlideConfig[]>('slides_config', DEFAULT_SLIDES);
-  const [isSlideshowEnabled, setIsSlideshowEnabled] = usePersistentState<boolean>('slideshow_enabled', false);
 
   // --- Ephemeral State ---
   const [displayedPrayerTimes, setDisplayedPrayerTimes] = useState<DailyPrayers>(DEFAULT_PRAYER_TIMES);
@@ -223,8 +232,10 @@ const App: React.FC = () => {
          }
       }
 
-      if (changes.length > 0 && autoAlertsEnabled) {
-        setSystemAlert(`⚠️ NOTICE: Iqamah changes tomorrow for ${changes.join(', ')}`);
+      if (changes.length > 0 && autoAlertSettings.enabled) {
+        // Use the custom template
+        const alertText = autoAlertSettings.template.replace('{prayers}', changes.join(', '));
+        setSystemAlert(alertText);
       } else {
         setSystemAlert("");
       }
@@ -234,7 +245,7 @@ const App: React.FC = () => {
     const interval = setInterval(updateTimes, 60000); // Check every minute
     return () => clearInterval(interval);
 
-  }, [excelSchedule, manualOverrides, maghribOffset, autoAlertsEnabled]);
+  }, [excelSchedule, manualOverrides, maghribOffset, autoAlertSettings]);
 
   // Combine system alerts with manually added announcement items
   const effectiveAnnouncement: Announcement = React.useMemo(() => {
@@ -243,13 +254,13 @@ const App: React.FC = () => {
       const alertItem: AnnouncementItem = {
         id: 'sys-alert',
         text: systemAlert,
-        color: '#F87171', // Red
-        animation: 'pulse'
+        color: autoAlertSettings.color,
+        animation: autoAlertSettings.animation
       };
       items = [alertItem, ...items];
     }
     return { ...announcement, items };
-  }, [announcement, systemAlert]);
+  }, [announcement, systemAlert, autoAlertSettings]);
 
   // --- Fullscreen & Shortcuts ---
   const toggleFullscreen = () => {
@@ -318,10 +329,10 @@ const App: React.FC = () => {
                 jumuah={displayedJumuahTimes} 
                 announcement={effectiveAnnouncement}
                 slidesConfig={slidesConfig}
-                isSlideshowEnabled={isSlideshowEnabled}
                 excelSchedule={excelSchedule}
                 manualOverrides={manualOverrides}
                 maghribOffset={maghribOffset}
+                tickerBg={tickerBg}
               />
             </motion.div>
           </AnimatePresence>
@@ -357,12 +368,12 @@ const App: React.FC = () => {
           setCurrentTheme={setCurrentTheme}
           maghribOffset={maghribOffset}
           setMaghribOffset={setMaghribOffset}
-          autoAlertsEnabled={autoAlertsEnabled}
-          setAutoAlertsEnabled={setAutoAlertsEnabled}
+          autoAlertSettings={autoAlertSettings}
+          setAutoAlertSettings={setAutoAlertSettings}
+          tickerBg={tickerBg}
+          setTickerBg={setTickerBg}
           slidesConfig={slidesConfig}
           setSlidesConfig={setSlidesConfig}
-          isSlideshowEnabled={isSlideshowEnabled}
-          setIsSlideshowEnabled={setIsSlideshowEnabled}
         />
         
       </div>
