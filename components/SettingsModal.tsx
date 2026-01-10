@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock } from 'lucide-react';
-import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem } from '../types';
+import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers } from 'lucide-react';
+import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig } from '../types';
 import * as XLSX from 'xlsx';
 
 // --- Types ---
@@ -19,6 +19,10 @@ interface SettingsModalProps {
   setMaghribOffset: (offset: number) => void;
   autoAlertsEnabled: boolean;
   setAutoAlertsEnabled: (enabled: boolean) => void;
+  slidesConfig: SlideConfig[];
+  setSlidesConfig: (config: SlideConfig[]) => void;
+  isSlideshowEnabled: boolean;
+  setIsSlideshowEnabled: (enabled: boolean) => void;
 }
 
 // --- Calendar Component ---
@@ -127,9 +131,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   announcement, setAnnouncement,
   currentTheme, setCurrentTheme,
   maghribOffset, setMaghribOffset,
-  autoAlertsEnabled, setAutoAlertsEnabled
+  autoAlertsEnabled, setAutoAlertsEnabled,
+  slidesConfig, setSlidesConfig,
+  isSlideshowEnabled, setIsSlideshowEnabled
 }) => {
-  const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization'>('schedule');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization' | 'slideshow'>('schedule');
   const [uploadStatus, setUploadStatus] = useState<string>("");
   const [expandedPrayer, setExpandedPrayer] = useState<string | null>(null);
   const [newOverride, setNewOverride] = useState<Partial<ManualOverride>>({
@@ -144,6 +150,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [newItem, setNewItem] = useState<Omit<AnnouncementItem, 'id'>>(defaultItemState);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  // Slideshow Editor State
+  const [expandedSlideId, setExpandedSlideId] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -275,8 +284,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setAnnouncement({ ...announcement, items: newItems });
   };
 
+  // --- Slideshow Handlers ---
+  const updateSlideConfig = (id: string, updates: Partial<SlideConfig> | Partial<AnnouncementSlideConfig['styles']>) => {
+    const newConfig = slidesConfig.map(slide => {
+      if (slide.id === id) {
+        // Special handling for nested styles in announcement
+        if (slide.type === 'ANNOUNCEMENT' && 'backgroundColor' in updates) {
+           return { ...slide, styles: { ...(slide as AnnouncementSlideConfig).styles, ...updates } };
+        }
+        return { ...slide, ...updates };
+      }
+      return slide;
+    });
+    setSlidesConfig(newConfig as SlideConfig[]);
+  };
+
   // High contrast colors suitable for WHITE background ticker
   const THEME_COLORS = ['#000000', '#0B1E3B', '#B91C1C', '#15803D', '#D4AF37']; 
+  // Slide BG Colors
+  const SLIDE_BG_COLORS = ['#0B1E3B', '#1e293b', '#000000', '#7c2d12', '#14532d'];
 
   // --- STYLING CONSTANTS (SCALED FOR TV) ---
   const inputClass = "w-full bg-black/40 border border-white/10 rounded-xl px-6 h-20 text-3xl text-white placeholder-white/20 focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all duration-300 font-mono";
@@ -313,6 +339,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                    <Palette className="w-8 h-8" />
                    <span className="text-2xl tracking-wide uppercase">Theme</span>
                 </button>
+                <button onClick={() => setActiveTab('slideshow')} className={sidebarItemClass('slideshow')}>
+                   <Layers className="w-8 h-8" />
+                   <span className="text-2xl tracking-wide uppercase">Slideshow</span>
+                </button>
              </nav>
           </div>
 
@@ -321,7 +351,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
              
              <div className="h-28 border-b border-white/10 flex items-center justify-between px-12 bg-black/10 shrink-0">
                  <h3 className="text-white font-serif text-4xl tracking-wide">
-                    {activeTab === 'schedule' ? 'Prayer Schedule & Overrides' : activeTab === 'announcements' ? 'Announcements & Alerts' : 'Appearance'}
+                    {activeTab === 'schedule' ? 'Prayer Schedule & Overrides' : 
+                     activeTab === 'announcements' ? 'Announcements & Alerts' : 
+                     activeTab === 'slideshow' ? 'Right Panel Slideshow' : 'Appearance'}
                  </h3>
                  <button onClick={onClose} className="text-white/40 hover:text-white hover:bg-white/10 p-4 rounded-full transition-all duration-300">
                     <X className="w-12 h-12" />
@@ -529,132 +561,148 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 )}
 
-                {/* ANNOUNCEMENT CONFIGURATION TAB */}
-                {activeTab === 'announcements' && (
-                   <div className="max-w-[1400px] mx-auto space-y-12">
-                       <div className="bg-white/5 border border-white/10 rounded-2xl p-10">
-                          <h4 className="text-4xl text-white font-serif mb-8 border-b border-white/10 pb-4">Announcement Configuration</h4>
-                          
-                          <div className="space-y-10">
-                              {/* Auto Alert Toggle */}
-                              <div className="flex items-center justify-between bg-black/20 p-8 rounded-xl border border-white/5 mb-8">
-                                  <div className="flex items-center gap-6">
-                                      <div className="p-4 bg-mosque-gold/10 rounded-xl">
-                                           <AlertTriangle className={`w-8 h-8 ${autoAlertsEnabled ? 'text-mosque-gold' : 'text-white/20'}`} />
-                                      </div>
-                                      <div>
-                                          <h5 className="text-2xl font-bold text-white">Automated Schedule Alerts</h5>
-                                          <p className="text-lg text-white/50 mt-1">
-                                              Automatically display a scrolling alert when prayer times change tomorrow.
-                                          </p>
-                                      </div>
-                                  </div>
-                                  
-                                  <button
-                                      onClick={() => setAutoAlertsEnabled(!autoAlertsEnabled)}
-                                      className={`w-24 h-12 rounded-full p-1 transition-colors duration-300 relative ${autoAlertsEnabled ? 'bg-mosque-gold' : 'bg-white/10 border border-white/10'}`}
-                                  >
-                                      <div className={`w-10 h-10 rounded-full bg-white shadow-lg transform transition-transform duration-300 ${autoAlertsEnabled ? 'translate-x-12' : 'translate-x-0'}`} />
-                                  </button>
+                {activeTab === 'slideshow' && (
+                    <div className="max-w-[1400px] mx-auto space-y-12">
+                        {/* Master Toggle */}
+                        <div className="flex items-center justify-between bg-white/5 p-8 rounded-2xl border border-white/10">
+                           <div className="flex items-center gap-6">
+                              <div className={`p-4 rounded-xl ${isSlideshowEnabled ? 'bg-green-500/20 text-green-400' : 'bg-white/5 text-white/40'}`}>
+                                 {isSlideshowEnabled ? <PlayCircle className="w-10 h-10" /> : <StopCircle className="w-10 h-10" />}
                               </div>
-
-                              {/* Title Config */}
                               <div>
-                                  <label className={labelClass}>Header Title</label>
-                                  <input 
-                                      type="text" 
-                                      value={announcement.title}
-                                      onChange={(e) => setAnnouncement({...announcement, title: e.target.value})}
-                                      className="w-full bg-black/40 border border-white/10 rounded-xl px-8 h-24 text-4xl font-bold tracking-widest text-white placeholder-white/20 focus:border-mosque-gold outline-none"
-                                      placeholder="e.g. ANNOUNCEMENTS"
-                                  />
-                                  <p className="text-lg text-white/30 mt-3 pl-2">This text appears in the fixed gold box on the left.</p>
+                                 <h4 className="text-3xl text-white font-bold">Enable Right Panel Slideshow</h4>
+                                 <p className="text-white/50 text-xl mt-2">When enabled, the right panel will cycle through selected slides.</p>
                               </div>
+                           </div>
+                           <button 
+                              onClick={() => setIsSlideshowEnabled(!isSlideshowEnabled)}
+                              className={`w-24 h-12 rounded-full relative transition-colors duration-300 ${isSlideshowEnabled ? 'bg-mosque-gold' : 'bg-white/10'}`}
+                           >
+                              <div className={`absolute top-1 bottom-1 w-10 bg-mosque-navy rounded-full transition-all duration-300 shadow-lg ${isSlideshowEnabled ? 'right-1' : 'left-1'}`}></div>
+                           </button>
+                        </div>
 
-                              {/* Add New Button */}
-                              <div className="flex justify-start">
-                                <button 
-                                  onClick={() => openEditor()}
-                                  className="flex items-center gap-4 bg-mosque-gold text-mosque-navy font-bold text-2xl uppercase tracking-widest px-8 py-4 rounded-xl hover:bg-white transition-colors shadow-lg"
-                                >
-                                  <Plus className="w-8 h-8" />
-                                  Add New Announcement
-                                </button>
-                              </div>
-
-                              {/* List of Items */}
-                              <div className="bg-black/20 rounded-2xl border border-white/5 p-6 min-h-[400px]">
-                                  <h5 className="text-xl uppercase tracking-widest font-bold text-white/50 mb-6 pl-2">Current Sequence (Right to Left)</h5>
-                                  {announcement.items.length === 0 ? (
-                                    <div className="text-center py-20 text-white/20 text-2xl italic">No announcements added.</div>
-                                  ) : (
-                                    <div className="space-y-4">
-                                      {announcement.items.map((item, idx) => (
-                                        <div key={item.id} className="flex items-center justify-between bg-white/5 p-6 rounded-xl border border-white/5 group hover:bg-white/10 transition-colors">
-                                           <div className="flex items-center gap-8">
-                                              <span className="text-mosque-gold font-mono text-xl opacity-50">#{idx + 1}</span>
-                                              
-                                              {/* Preview Circle */}
-                                              <div 
-                                                  className={`w-4 h-4 rounded-full ${item.animation === 'pulse' ? 'animate-pulse' : item.animation === 'blink' ? 'opacity-50' : ''}`}
-                                                  style={{ backgroundColor: item.color }}
-                                              />
-                                              
-                                              <p className="text-2xl leading-relaxed font-medium" style={{ color: item.color }}>
-                                                  {item.text} 
-                                                  <span className="text-white/30 text-base ml-4 font-normal normal-case border border-white/10 px-2 py-1 rounded">
-                                                      {item.animation !== 'none' && `${item.animation}`}
-                                                  </span>
-                                              </p>
-                                           </div>
-                                           <div className="flex items-center gap-4">
-                                               <button 
-                                                  onClick={() => openEditor(item)}
-                                                  className="text-white/40 hover:text-mosque-gold transition-colors p-4 bg-black/20 rounded-lg hover:bg-black/40"
-                                               >
-                                                  <Edit2 className="w-6 h-6" />
-                                               </button>
-                                               <button 
-                                                  onClick={() => deleteAnnouncementItem(item.id)}
-                                                  className="text-white/40 hover:text-red-400 transition-colors p-4 bg-black/20 rounded-lg hover:bg-black/40"
-                                               >
-                                                  <Trash2 className="w-6 h-6" />
-                                               </button>
-                                           </div>
-                                        </div>
-                                      ))}
+                        {/* Slide List */}
+                        <div className="space-y-6">
+                           <h4 className="text-2xl font-bold uppercase tracking-widest text-white/80 border-b border-white/10 pb-4">Available Slides</h4>
+                           
+                           {slidesConfig.map(slide => {
+                              const isExpanded = expandedSlideId === slide.id;
+                              
+                              return (
+                                 <div key={slide.id} className={`bg-white/5 rounded-2xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'border-mosque-gold ring-2 ring-mosque-gold/30' : 'border-white/5'}`}>
+                                    {/* Header */}
+                                    <div className="p-8 flex items-center justify-between">
+                                       <div className="flex items-center gap-6">
+                                          <input 
+                                             type="checkbox" 
+                                             checked={slide.enabled}
+                                             onChange={(e) => updateSlideConfig(slide.id, { enabled: e.target.checked })}
+                                             className="w-8 h-8 rounded border-white/30 bg-black/20 text-mosque-gold focus:ring-mosque-gold cursor-pointer"
+                                          />
+                                          <div>
+                                             <div className="text-3xl font-bold text-white font-serif">{slide.type === 'CLOCK' ? 'Main Clock & Prayer Info' : slide.type === 'ANNOUNCEMENT' ? 'Special Announcement' : '7-Day Prayer Schedule'}</div>
+                                             <div className="text-white/40 text-lg mt-1 flex items-center gap-4">
+                                                <span>{slide.duration} Seconds</span>
+                                                {slide.enabled && <span className="bg-green-500/20 text-green-400 px-3 py-0.5 rounded text-sm uppercase font-bold tracking-wide">Active</span>}
+                                             </div>
+                                          </div>
+                                       </div>
+                                       <button onClick={() => setExpandedSlideId(isExpanded ? null : slide.id)} className="bg-white/5 hover:bg-white/10 text-white px-6 py-3 rounded-lg font-bold uppercase tracking-wider text-sm transition-colors">
+                                          {isExpanded ? 'Collapse' : 'Configure'}
+                                       </button>
                                     </div>
-                                  )}
-                              </div>
-                          </div>
-                       </div>
-                   </div>
+
+                                    {/* Config Body */}
+                                    {isExpanded && (
+                                       <div className="p-10 border-t border-white/10 bg-black/20 space-y-10 animate-in slide-in-from-top-4 duration-300">
+                                          
+                                          {/* Common: Duration */}
+                                          <div className="max-w-md">
+                                             <label className={labelClass}>Display Duration (Seconds)</label>
+                                             <input 
+                                                type="number" 
+                                                value={slide.duration}
+                                                onChange={(e) => updateSlideConfig(slide.id, { duration: parseInt(e.target.value) || 10 })}
+                                                className={inputClass}
+                                             />
+                                          </div>
+
+                                          {/* Type Specific: Announcement */}
+                                          {slide.type === 'ANNOUNCEMENT' && (
+                                             <div className="space-y-8 border-t border-white/5 pt-8">
+                                                <div>
+                                                   <label className={labelClass}>Announcement Text</label>
+                                                   <textarea 
+                                                      value={(slide as AnnouncementSlideConfig).content}
+                                                      onChange={(e) => updateSlideConfig(slide.id, { content: e.target.value })}
+                                                      className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-3xl text-white placeholder-white/20 focus:border-mosque-gold outline-none min-h-[160px] resize-none"
+                                                   />
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-2 gap-10">
+                                                   <div>
+                                                      <label className={labelClass}>Background Color</label>
+                                                      <div className="flex gap-4">
+                                                         {SLIDE_BG_COLORS.map(c => (
+                                                            <button 
+                                                               key={c}
+                                                               onClick={() => updateSlideConfig(slide.id, { backgroundColor: c })}
+                                                               className={`w-12 h-12 rounded-full border-2 ${ (slide as AnnouncementSlideConfig).styles.backgroundColor === c ? 'border-white scale-110' : 'border-transparent opacity-50'}`}
+                                                               style={{ backgroundColor: c }}
+                                                            />
+                                                         ))}
+                                                      </div>
+                                                   </div>
+                                                   <div>
+                                                      <label className={labelClass}>Text Animation</label>
+                                                      <select 
+                                                         value={(slide as AnnouncementSlideConfig).styles.textAnimation}
+                                                         onChange={(e) => updateSlideConfig(slide.id, { textAnimation: e.target.value as any })}
+                                                         className="bg-black/40 border border-white/20 rounded-xl px-4 py-3 text-white text-xl w-full"
+                                                      >
+                                                         <option value="none">None</option>
+                                                         <option value="gradient-flow">Gradient Flow</option>
+                                                         <option value="pulse">Pulse</option>
+                                                      </select>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                          )}
+                                       </div>
+                                    )}
+                                 </div>
+                              );
+                           })}
+                        </div>
+                    </div>
                 )}
 
                 {activeTab === 'customization' && (
                   <div className="max-w-[1600px] mx-auto">
                       <div className="mb-12">
                           <h4 className="text-4xl text-white font-serif mb-4">Background Theme</h4>
-                          <p className="text-white/40 text-2xl">Select a background style for the main display.</p>
+                          <p className="text-white/40 text-2xl">Select a background style for the display.</p>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                          {/* Theme Options (Same as before) */}
+                          {/* Theme Options */}
                           <button 
                              onClick={() => setCurrentTheme('arabesque')}
                              className={`group relative h-80 rounded-2xl border-4 overflow-hidden transition-all duration-300 ${currentTheme === 'arabesque' ? 'border-mosque-gold shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'border-white/10 hover:border-white/30'}`}
                           >
                              <div className="absolute inset-0 bg-[#0B1E3B]">
                                   <div className="absolute inset-0 bg-gradient-to-br from-[#112442] to-[#050F1E]"></div>
-                                  <div className="absolute inset-0 text-[#E2E8F0] opacity-10">
-                                      <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                                          <defs>
-                                              <pattern id="preview-arabesque" x="0" y="0" width="50" height="50" patternUnits="userSpaceOnUse">
-                                              <path d="M25 0 L50 25 L25 50 L0 25 Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                                              </pattern>
-                                          </defs>
-                                          <rect width="100%" height="100%" fill="url(#preview-arabesque)" />
-                                      </svg>
+                                  <div className="absolute inset-0 opacity-[0.1]">
+                                    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                                      <defs>
+                                        <pattern id="preview-arabesque" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                                          <path d="M20 0 L40 20 L20 40 L0 20 Z" fill="none" stroke="white" strokeWidth="1" />
+                                          <circle cx="20" cy="20" r="2" fill="white" />
+                                        </pattern>
+                                      </defs>
+                                      <rect width="100%" height="100%" fill="url(#preview-arabesque)" />
+                                    </svg>
                                   </div>
                                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.6)_100%)]"></div>
                              </div>
@@ -663,21 +711,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 <span className="text-xl text-white/50 block mt-2">Default elegant geometric pattern</span>
                              </div>
                           </button>
-                           {/* ... other themes ... */}
+
                            <button 
                            onClick={() => setCurrentTheme('lattice')}
                            className={`group relative h-80 rounded-2xl border-4 overflow-hidden transition-all duration-300 ${currentTheme === 'lattice' ? 'border-mosque-gold shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'border-white/10 hover:border-white/30'}`}
                         >
                            <div className="absolute inset-0 bg-mosque-navy">
                                <div className="absolute inset-0 bg-[#08152b]"></div>
-                               {/* PREVIEW SVG 2 */}
-                               <div className="absolute inset-0 text-mosque-gold opacity-20">
-                                    <svg width="100%" height="100%">
-                                        <pattern id="preview-lattice" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-                                            <path d="M20 0 L40 20 L20 40 L0 20 Z" fill="none" stroke="currentColor" strokeWidth="1" />
-                                        </pattern>
-                                        <rect width="100%" height="100%" fill="url(#preview-lattice)" />
-                                    </svg>
+                               <div className="absolute inset-0 opacity-20 text-mosque-gold">
+                                  <svg width="100%" height="100%">
+                                    <pattern id="preview-lattice" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
+                                      <path d="M15 0 L30 15 L15 30 L0 15 Z" fill="none" stroke="currentColor" strokeWidth="1" />
+                                    </pattern>
+                                    <rect width="100%" height="100%" fill="url(#preview-lattice)" />
+                                  </svg>
                                </div>
                                <div className="absolute inset-0 bg-gradient-to-t from-mosque-navy via-transparent to-mosque-navy opacity-80"></div>
                            </div>
@@ -686,21 +733,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <span className="text-xl text-white/50 block mt-2">Modern grid with gold accents</span>
                            </div>
                         </button>
+                        
                          <button 
                            onClick={() => setCurrentTheme('starry')}
                            className={`group relative h-80 rounded-2xl border-4 overflow-hidden transition-all duration-300 ${currentTheme === 'starry' ? 'border-mosque-gold shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'border-white/10 hover:border-white/30'}`}
                         >
                            <div className="absolute inset-0 bg-[#02040a]">
                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,#0B1E3B_0%,#02040a_50%,#000000_100%)]"></div>
-                               {/* PREVIEW SVG 3 */}
-                               <div className="absolute inset-0 opacity-70">
-                                    <svg width="100%" height="100%">
-                                        <circle cx="20%" cy="30%" r="1" fill="white" opacity="0.8" />
-                                        <circle cx="50%" cy="20%" r="1.5" fill="white" opacity="0.4" />
-                                        <circle cx="80%" cy="40%" r="1" fill="white" opacity="0.9" />
-                                        <circle cx="30%" cy="70%" r="1.2" fill="white" opacity="0.5" />
-                                        <circle cx="70%" cy="80%" r="1" fill="white" opacity="0.7" />
-                                    </svg>
+                               <div className="absolute inset-0">
+                                  {Array.from({ length: 20 }).map((_, i) => (
+                                    <div 
+                                      key={i} 
+                                      className="absolute bg-white rounded-full opacity-60"
+                                      style={{
+                                        top: `${Math.random() * 100}%`,
+                                        left: `${Math.random() * 100}%`,
+                                        width: `${Math.random() * 3}px`,
+                                        height: `${Math.random() * 3}px`,
+                                      }}
+                                    />
+                                  ))}
+                               </div>
+                               <div className="absolute inset-0 flex items-center justify-center opacity-50">
+                                   <Moon className="w-16 h-16 text-white" />
                                </div>
                            </div>
                            <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 to-transparent">

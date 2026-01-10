@@ -1,3 +1,4 @@
+
 export interface PrayerTime {
   name: string;
   start: string;
@@ -60,3 +61,36 @@ export interface ManualOverride {
   start: string;
   iqamah: string;
 }
+
+// --- Slideshow Types ---
+
+export type SlideType = 'CLOCK' | 'ANNOUNCEMENT' | 'SCHEDULE';
+
+export interface BaseSlideConfig {
+  id: string;
+  type: SlideType;
+  enabled: boolean;
+  duration: number; // Seconds
+}
+
+export interface ClockSlideConfig extends BaseSlideConfig {
+  type: 'CLOCK';
+}
+
+export interface AnnouncementSlideConfig extends BaseSlideConfig {
+  type: 'ANNOUNCEMENT';
+  content: string;
+  styles: {
+    backgroundColor: string; // Hex or 'gradient-...' class token logic
+    textColor: string;
+    textAnimation: 'none' | 'gradient-flow' | 'pulse' | 'typewriter';
+    fontSize: 'normal' | 'large' | 'huge';
+  };
+}
+
+export interface ScheduleSlideConfig extends BaseSlideConfig {
+  type: 'SCHEDULE';
+  daysToShow: number;
+}
+
+export type SlideConfig = ClockSlideConfig | AnnouncementSlideConfig | ScheduleSlideConfig;

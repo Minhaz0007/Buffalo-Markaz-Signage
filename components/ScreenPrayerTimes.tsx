@@ -1,13 +1,77 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { DailyPrayers, Announcement } from '../types';
+import React, { useEffect, useState, useMemo } from 'react';
+import { DailyPrayers, Announcement, SlideConfig, AnnouncementSlideConfig, ScheduleSlideConfig, ExcelDaySchedule, ManualOverride } from '../types';
 import { Sunrise, Sunset } from 'lucide-react';
 import { MOSQUE_NAME } from '../constants';
+import { AnimatePresence, motion } from 'framer-motion';
+import { getScheduleForDate } from '../utils/scheduler';
 
 interface ScreenPrayerTimesProps {
   prayers: DailyPrayers;
   jumuah: { start: string; iqamah: string };
   announcement: Announcement;
+  slidesConfig: SlideConfig[];
+  isSlideshowEnabled: boolean;
+  excelSchedule: Record<string, ExcelDaySchedule>;
+  manualOverrides: ManualOverride[];
+  maghribOffset: number;
 }
+
+const GeometricCorner = ({ className, rotate }: { className?: string, rotate?: number }) => (
+  <div className={`absolute w-24 h-24 pointer-events-none ${className}`} style={{ zIndex: 0 }}>
+    <svg width="100%" height="100%" viewBox="0 0 100 100" style={{ transform: `rotate(${rotate || 0}deg)` }} className="overflow-visible">
+      <defs>
+        <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+           <stop offset="0%" stopColor="#D4AF37" />
+           <stop offset="50%" stopColor="#FCD34D" />
+           <stop offset="100%" stopColor="#B45309" />
+        </linearGradient>
+        <filter id="cornerShadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="2" dy="2" stdDeviation="2" floodColor="#000000" floodOpacity="0.4" />
+        </filter>
+      </defs>
+      
+      {/* 1. Main Outer Line */}
+      <path 
+        d="M 2,100 L 2,2 L 100,2" 
+        fill="none" 
+        stroke="url(#goldGradient)" 
+        strokeWidth="3" 
+        strokeLinecap="butt"
+        filter="url(#cornerShadow)"
+      />
+      
+      {/* 2. Inner Parallel Line (Thinner & Transparent) */}
+      <path 
+        d="M 12,100 L 12,12 L 100,12" 
+        fill="none" 
+        stroke="url(#goldGradient)" 
+        strokeWidth="1.5" 
+        filter="url(#cornerShadow)"
+      />
+
+      {/* 3. Corner Accent Block (Anchor) */}
+      <rect x="0" y="0" width="14" height="14" fill="url(#goldGradient)" filter="url(#cornerShadow)" />
+      
+      {/* 4. Decorative Dot */}
+      <circle cx="20" cy="20" r="3" fill="url(#goldGradient)" filter="url(#cornerShadow)" />
+
+    </svg>
+  </div>
+);
+
+const ElegantFrame = () => {
+  return (
+    <div className="absolute inset-0 z-0 pointer-events-none p-4">
+       {/* Subtle full border connecting corners visually */}
+       <div className="absolute inset-4 border border-mosque-gold/20 z-0"></div>
+       
+       <GeometricCorner className="top-0 left-0" rotate={0} />
+       <GeometricCorner className="top-0 right-0" rotate={90} />
+       <GeometricCorner className="bottom-0 right-0" rotate={180} />
+       <GeometricCorner className="bottom-0 left-0" rotate={270} />
+    </div>
+  );
+};
 
 const TimeDisplay = ({ time, className = "", smallSuffix = true }: { time: string, className?: string, smallSuffix?: boolean }) => {
   if (!time) return null;
@@ -24,15 +88,214 @@ const TimeDisplay = ({ time, className = "", smallSuffix = true }: { time: strin
   );
 };
 
-export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, jumuah, announcement }) => {
+/* --- SLIDES COMPONENT DEFINITIONS --- */
+
+const ClockSlide = ({ hours, minutes, seconds, displayAmPm, nextPrayerName, timeUntilIqamah, hijriDate, formatDate, currentTime, prayers }: any) => {
+    return (
+        <div className="w-full h-full flex flex-col relative z-10 p-6 animate-in fade-in duration-700">
+            {/* 1. Clock Section - Top */}
+            <div className="flex-[4] flex flex-col items-center justify-center border-b border-mosque-navy/10 relative overflow-hidden">
+                <div className="flex items-baseline justify-center w-full px-2 mt-4 whitespace-nowrap">
+                    <span className="text-[11.5rem] leading-[0.75] font-serif tracking-tighter text-mosque-navy font-bold drop-shadow-sm tabular-nums">
+                        {hours}:{minutes}:{seconds}
+                    </span>
+                    <span className="text-8xl ml-6 font-sans font-bold uppercase tracking-widest text-mosque-gold">
+                        {displayAmPm}
+                    </span>
+                </div>
+                
+                <div className="mt-8 flex flex-col items-center w-full">
+                    <span className="text-4xl uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-0">
+                    {nextPrayerName} IN
+                    </span>
+                    <span className="font-serif text-[9.5rem] font-bold text-mosque-navy tabular-nums tracking-tight leading-none">
+                    {timeUntilIqamah}
+                    </span>
+                </div>
+            </div>
+
+            {/* 2. Date Section - Middle */}
+            <div className="flex-[1] flex flex-col items-center justify-center border-b border-mosque-navy/10 py-1 space-y-2 shrink-0 bg-white/30 backdrop-blur-sm rounded-lg my-2 shadow-inner">
+                <div className="text-5xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-gold drop-shadow-sm">{hijriDate}</div>
+                <div className="text-4xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/80">{formatDate(currentTime)}</div>
+            </div>
+
+            {/* 3. Footer: Sunrise / Sunset - Bottom */}
+            <div className="flex-[3] shrink-0 flex flex-col justify-center relative">
+                <div className="flex items-center justify-around h-full">
+                    
+                    {/* Sunrise Item */}
+                    <div className="flex flex-col items-center justify-center">
+                    <Sunrise className="w-24 h-24 text-mosque-gold mb-4 drop-shadow-md" strokeWidth={1.5} />
+                    <span className="text-3xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-1">Sunrise</span>
+                    <span className="text-8xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunrise.replace(/AM|PM/, '').trim()}</span>
+                    <span className="text-5xl font-bold text-mosque-gold tracking-widest uppercase mt-2">AM</span>
+                    </div>
+                    
+                    {/* Vertical Divider */}
+                    <div className="h-40 w-px bg-gradient-to-b from-transparent via-mosque-navy/20 to-transparent"></div>
+
+                    {/* Sunset Item */}
+                    <div className="flex flex-col items-center justify-center">
+                    <Sunset className="w-24 h-24 text-mosque-gold mb-4 drop-shadow-md" strokeWidth={1.5} />
+                    <span className="text-3xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-1">Sunset</span>
+                    <span className="text-8xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunset.replace(/AM|PM/, '').trim()}</span>
+                    <span className="text-5xl font-bold text-mosque-gold tracking-widest uppercase mt-2">PM</span>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    );
+}
+
+const AnnouncementSlide = ({ config }: { config: AnnouncementSlideConfig }) => {
+    const { styles, content } = config;
+    
+    // Gradient animation class
+    const animationClass = styles.textAnimation === 'gradient-flow' 
+       ? 'bg-gradient-to-r from-mosque-gold via-white to-mosque-gold bg-300% animate-gradient-text text-transparent bg-clip-text' 
+       : styles.textAnimation === 'pulse' 
+       ? 'animate-pulse' 
+       : 'text-white';
+    
+    const fontSizeClass = styles.fontSize === 'huge' ? 'text-7xl leading-snug' 
+                      : styles.fontSize === 'large' ? 'text-6xl leading-snug' 
+                      : 'text-4xl leading-relaxed';
+
+    return (
+        <div 
+           className="w-full h-full flex items-center justify-center p-12 text-center relative overflow-hidden"
+           style={{ backgroundColor: styles.backgroundColor }}
+        >
+            <style>{`
+               @keyframes gradient-text {
+                 0% { background-position: 0% 50%; }
+                 50% { background-position: 100% 50%; }
+                 100% { background-position: 0% 50%; }
+               }
+               .animate-gradient-text {
+                 animation: gradient-text 3s ease infinite;
+               }
+               .bg-300% { background-size: 300% 300%; }
+            `}</style>
+            
+            {/* Background Texture if solid color is dark */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')]"></div>
+            
+            <div className={`font-serif font-bold ${fontSizeClass} whitespace-pre-line drop-shadow-md z-10`} style={{ color: styles.textAnimation === 'gradient-flow' ? undefined : styles.textColor }}>
+               <span className={animationClass}>{content}</span>
+            </div>
+        </div>
+    );
+};
+
+const ScheduleSlide = ({ config, excelSchedule, manualOverrides, maghribOffset }: { config: ScheduleSlideConfig, excelSchedule: any, manualOverrides: any, maghribOffset: number }) => {
+    
+    const scheduleData = useMemo(() => {
+        const days = [];
+        const start = new Date();
+        for(let i = 0; i < config.daysToShow; i++) {
+           const d = new Date(start);
+           d.setDate(start.getDate() + i);
+           const dateKey = d.toISOString().split('T')[0];
+           const { prayers } = getScheduleForDate(dateKey, excelSchedule, manualOverrides, maghribOffset);
+           
+           days.push({
+              dateDisplay: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+              prayers
+           });
+        }
+        return days;
+    }, [config.daysToShow, excelSchedule, manualOverrides, maghribOffset]);
+
+    // Simple Time formatter just for this table
+    const fmt = (t: string) => t.replace(/(AM|PM)/, '').trim();
+
+    return (
+       <div className="w-full h-full bg-mosque-navy text-white flex flex-col overflow-hidden relative">
+          {/* Header */}
+          <div className="h-24 bg-mosque-gold/10 border-b border-mosque-gold/30 flex items-center shrink-0 z-20 shadow-lg">
+             <div className="w-[18%] text-center text-mosque-gold font-bold uppercase tracking-widest text-xl">Date</div>
+             {['Fajr', 'Sun', 'Dhuhr', 'Asr', 'Mag', 'Isha'].map(p => (
+                 <div key={p} className="flex-1 text-center text-white/70 font-bold uppercase tracking-widest text-xl">{p}</div>
+             ))}
+          </div>
+
+          {/* Scrolling Content */}
+          <div className="flex-1 relative overflow-hidden">
+             <div className="absolute top-0 left-0 right-0 animate-scroll-up-continuous">
+                {/* Duplicate the list to create seamless loop effect if needed, but for 7 days usually simple scroll or marquee is fine. 
+                    Given "continuously upwards scrolling", usually implies a marquee.
+                    We will repeat the list twice.
+                */}
+                {[...scheduleData, ...scheduleData].map((day, idx) => (
+                    <div key={`${day.dateDisplay}-${idx}`} className="h-32 border-b border-white/5 flex items-center hover:bg-white/5 transition-colors">
+                        <div className="w-[18%] flex flex-col items-center justify-center border-r border-white/5 h-full bg-black/10">
+                           <span className="text-3xl font-bold text-mosque-gold">{day.dateDisplay}</span>
+                           <span className="text-sm uppercase tracking-wider opacity-60">{day.dayName}</span>
+                        </div>
+                        
+                        {[day.prayers.fajr, { start: day.prayers.sunrise }, day.prayers.dhuhr, day.prayers.asr, day.prayers.maghrib, day.prayers.isha].map((p: any, i) => (
+                           <div key={i} className="flex-1 flex flex-col items-center justify-center h-full border-r border-white/5 last:border-0">
+                               {/* Start Time (Small) */}
+                               <span className="text-lg opacity-50 mb-1 font-mono">{fmt(p.start)}</span>
+                               {/* Iqamah Time (Large) - Sunrise has no iqamah */}
+                               {p.iqamah && (
+                                  <span className="text-3xl font-bold font-serif">{fmt(p.iqamah)}</span>
+                               )}
+                           </div>
+                        ))}
+                    </div>
+                ))}
+             </div>
+          </div>
+          <style>{`
+            @keyframes scroll-up-continuous {
+               0% { transform: translateY(0); }
+               100% { transform: translateY(-50%); }
+            }
+            .animate-scroll-up-continuous {
+               animation: scroll-up-continuous ${config.daysToShow * 5}s linear infinite; /* Dynamic duration based on list length */
+            }
+          `}</style>
+       </div>
+    );
+};
+
+/* --- MAIN COMPONENT --- */
+
+export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ 
+    prayers, jumuah, announcement, 
+    slidesConfig, isSlideshowEnabled, 
+    excelSchedule, manualOverrides, maghribOffset 
+}) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timeUntilIqamah, setTimeUntilIqamah] = useState<string>("");
   const [nextPrayerName, setNextPrayerName] = useState<string>("NEXT PRAYER");
   const [hijriDate, setHijriDate] = useState<string>("");
   
+  // Slideshow Logic
+  const activeSlides = useMemo(() => isSlideshowEnabled ? slidesConfig.filter(s => s.enabled) : [], [slidesConfig, isSlideshowEnabled]);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+
+  useEffect(() => {
+    if (!isSlideshowEnabled || activeSlides.length === 0) {
+        return; 
+    }
+
+    const duration = activeSlides[currentSlideIndex].duration * 1000;
+    const timer = setTimeout(() => {
+        setCurrentSlideIndex((prev) => (prev + 1) % activeSlides.length);
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [currentSlideIndex, isSlideshowEnabled, activeSlides]);
+
+
   // Calculate duration based on text length for consistent speed
   const textLength = announcement.items.reduce((acc, item) => acc + item.text.length, 0);
-  // Base duration: 20s + 1s per 10 characters. Minimum 20s.
   const marqueeDuration = Math.max(20, 20 + (textLength / 10));
 
   useEffect(() => {
@@ -77,8 +340,6 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
     ];
 
     let nextPrayer = prayersList.find(p => p.time && p.time > now);
-    
-    // If no prayer left today, assuming Fajr tomorrow (simplified logic for display)
     if (!nextPrayer) {
        setNextPrayerName("FAJR"); 
        setTimeUntilIqamah("--:--:--");
@@ -88,14 +349,10 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
     if (nextPrayer && nextPrayer.time) {
       setNextPrayerName(nextPrayer.name.toUpperCase());
       const diffMs = nextPrayer.time.getTime() - now.getTime();
-      
       const hours = Math.floor(diffMs / (1000 * 60 * 60));
       const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-      
-      setTimeUntilIqamah(
-        `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-      );
+      setTimeUntilIqamah(`${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
     }
   };
 
@@ -104,22 +361,10 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
   };
 
   const formatTimeParts = (date: Date) => {
-    const timeStr = date.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit', 
-        second: '2-digit',
-        hour12: true 
-    });
-    // timeStr format: "10:24:45 AM"
+    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
     const parts = timeStr.split(' ');
-    // Split the time part to separate seconds for styling
     const timeComponents = parts[0].split(':');
-    return { 
-      hours: timeComponents[0],
-      minutes: timeComponents[1],
-      seconds: timeComponents[2],
-      ampm: parts[1] 
-    };
+    return { hours: timeComponents[0], minutes: timeComponents[1], seconds: timeComponents[2], ampm: parts[1] };
   };
 
   const rows = [
@@ -128,7 +373,6 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
     { name: 'Asr', start: prayers.asr.start, iqamah: prayers.asr.iqamah },
     { name: 'Maghrib', start: prayers.maghrib.start, iqamah: prayers.maghrib.iqamah },
     { name: 'Isha', start: prayers.isha.start, iqamah: prayers.isha.iqamah },
-    // Jumu'ah added as the 6th row
     { name: 'Jumu\'ah', start: jumuah.start, iqamah: jumuah.iqamah, isJumuah: true },
   ];
 
@@ -143,13 +387,29 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
        if (modifier === 'AM' && hours === 12) hours = 0;
        return hours * 60 + minutes;
     };
-    
-    // Find first prayer where Iqamah is in the future.
     return rows.findIndex((row, idx) => !row.isJumuah && parseToMinutes(row.iqamah || '') > currentMinutes);
   };
   
   const activeIndex = getActiveRowIndex();
   const { hours, minutes, seconds, ampm: displayAmPm } = formatTimeParts(currentTime);
+
+  // --- Determine Active Content for Right Panel ---
+  
+  let RightPanelContent = <ClockSlide 
+    hours={hours} minutes={minutes} seconds={seconds} displayAmPm={displayAmPm}
+    nextPrayerName={nextPrayerName} timeUntilIqamah={timeUntilIqamah}
+    hijriDate={hijriDate} formatDate={formatDate} currentTime={currentTime} prayers={prayers}
+  />;
+
+  if (isSlideshowEnabled && activeSlides.length > 0) {
+      const activeSlide = activeSlides[currentSlideIndex];
+      if (activeSlide.type === 'ANNOUNCEMENT') {
+          RightPanelContent = <AnnouncementSlide config={activeSlide as AnnouncementSlideConfig} />;
+      } else if (activeSlide.type === 'SCHEDULE') {
+          RightPanelContent = <ScheduleSlide config={activeSlide as ScheduleSlideConfig} excelSchedule={excelSchedule} manualOverrides={manualOverrides} maghribOffset={maghribOffset} />;
+      }
+      // ClockSlide is the default fallback above
+  }
 
   return (
     <div className="w-full h-full flex flex-col font-serif text-white overflow-hidden">
@@ -185,21 +445,14 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
               {rows.map((row, idx) => {
                 const isActive = idx === activeIndex;
                 const isJumuah = !!row.isJumuah;
-                
-                // Active State Styling
                 const bgClass = isActive ? 'bg-[#E5E5E5] scale-[1.02] z-10 shadow-y-lg' : 'bg-transparent';
                 const borderClass = isActive ? 'border-mosque-navy/10' : 'border-white/10';
-                
-                // Text Colors
                 let nameColor = isActive ? 'text-mosque-navy' : 'text-white opacity-90';
                 let timeColor = isActive ? 'text-mosque-navy' : 'text-white';
-
-                // Override for Jumuah
                 if (isJumuah) {
                     nameColor = 'text-mosque-gold';
                     timeColor = 'text-mosque-gold';
                 }
-
                 const iqamahBgClass = isActive ? '' : 'bg-black/5';
                 const nameSize = isActive ? 'text-6xl' : 'text-5xl';
                 const timeSize = isActive ? 'text-8xl font-black' : 'text-7xl font-bold';
@@ -223,127 +476,55 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ prayers, j
             </div>
           </div>
 
-          {/* === RIGHT COLUMN: INFO PANEL (40%) === */}
-          <div className="w-[40%] bg-[#E5E5E5] text-mosque-navy flex flex-col z-10 shadow-2xl h-full relative">
-              
-              {/* 1. Clock Section - Top */}
-              <div className="flex-[3.5] flex flex-col items-center justify-center border-b border-mosque-navy/5 relative overflow-hidden pt-8 z-10">
-                  <div className="flex items-baseline justify-center w-full px-2 mt-4 whitespace-nowrap">
-                     <span className="text-[13rem] leading-[0.8] font-serif tracking-tighter text-mosque-navy font-bold drop-shadow-sm tabular-nums">
-                        {hours}:{minutes}:{seconds}
-                     </span>
-                     <span className="text-8xl ml-4 font-sans font-bold tracking-wide text-mosque-gold">
-                        {displayAmPm}
-                     </span>
-                  </div>
-                  
-                  <div className="mt-8 flex flex-col items-center w-full">
-                    <span className="text-4xl uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-2">
-                      {nextPrayerName} IN
-                    </span>
-                    <span className="font-serif text-[7rem] font-bold text-mosque-navy tabular-nums tracking-tight leading-none">
-                       {timeUntilIqamah}
-                    </span>
-                  </div>
-              </div>
-
-              {/* 2. Date Section - Middle */}
-              <div className="flex-[1.5] flex flex-col items-center justify-center border-b border-mosque-navy/5 py-1 space-y-2 shrink-0 bg-white/50 backdrop-blur-sm z-10">
-                  <div className="text-5xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-gold drop-shadow-sm">{hijriDate}</div>
-                  <div className="text-4xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/80">{formatDate(currentTime)}</div>
-              </div>
-
-              {/* 3. Footer: Sunrise / Sunset - Bottom */}
-              <div className="flex-[3] p-8 shrink-0 flex flex-col justify-center relative pb-12 z-10">
-                <div className="flex items-center justify-around h-full px-8">
-                    
-                    {/* Sunrise Item */}
-                    <div className="flex flex-col items-center justify-center">
-                      <Sunrise className="w-24 h-24 text-mosque-gold mb-6 drop-shadow-md" strokeWidth={1.5} />
-                      <span className="text-3xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-2">Sunrise</span>
-                      <span className="text-8xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunrise.replace(/AM|PM/, '').trim()}</span>
-                      <span className="text-xl font-bold text-mosque-gold tracking-widest uppercase mt-1">AM</span>
-                    </div>
-                    
-                    {/* Vertical Divider */}
-                    <div className="h-48 w-px bg-gradient-to-b from-transparent via-mosque-navy/20 to-transparent"></div>
-
-                    {/* Sunset Item */}
-                    <div className="flex flex-col items-center justify-center">
-                      <Sunset className="w-24 h-24 text-mosque-gold mb-6 drop-shadow-md" strokeWidth={1.5} />
-                      <span className="text-3xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-2">Sunset</span>
-                      <span className="text-8xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunset.replace(/AM|PM/, '').trim()}</span>
-                      <span className="text-xl font-bold text-mosque-gold tracking-widest uppercase mt-1">PM</span>
-                    </div>
-
-                </div>
+          {/* === RIGHT COLUMN: SLIDESHOW CONTAINER (40%) === */}
+          <div className="w-[40%] bg-[#E5E5E5] text-mosque-navy flex flex-col z-10 shadow-2xl h-full relative overflow-hidden">
+              <ElegantFrame />
+              <div className="w-full h-full relative z-10">
+                 <AnimatePresence mode="wait">
+                    <motion.div
+                       key={isSlideshowEnabled ? activeSlides[currentSlideIndex]?.id : 'static-clock'}
+                       initial={{ opacity: 0, x: 20 }}
+                       animate={{ opacity: 1, x: 0 }}
+                       exit={{ opacity: 0, x: -20 }}
+                       transition={{ duration: 0.5 }}
+                       className="w-full h-full"
+                    >
+                       {RightPanelContent}
+                    </motion.div>
+                 </AnimatePresence>
               </div>
           </div>
       </div>
 
       {/* === BOTTOM FOOTER: ANNOUNCEMENT TICKER === */}
-      {/* Container is relative to allow absolute positioning of the header */}
       <div className="h-[10%] bg-white border-t-8 border-mosque-gold relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden">
-          
-          {/* Header: Absolute overlay on the left - Z-20 to sit on top of scrolling text */}
           <div className="absolute left-0 top-0 bottom-0 bg-mosque-gold text-mosque-navy px-8 flex items-center justify-center z-20 font-black uppercase tracking-[0.15em] text-4xl shadow-[10px_0_20px_rgba(0,0,0,0.2)] min-w-[380px]">
              {announcement.title}
           </div>
-          
-          {/* Ticker: Full width container, text scrolls from right to left, passing BEHIND the header */}
           <div className="absolute inset-0 z-10 flex items-center overflow-hidden">
             <div 
                 className="whitespace-nowrap animate-marquee flex items-center text-mosque-navy text-5xl font-semibold tracking-wide w-full pl-[100%]"
-                style={{ 
-                  animationDuration: `${marqueeDuration}s`,
-                  willChange: 'transform' // GPU Hint
-                }}
+                style={{ animationDuration: `${marqueeDuration}s`, willChange: 'transform' }}
             >
-               {announcement.items.map((item, idx) => {
-                 // Determine animation class
-                 const animClass = item.animation === 'pulse' ? 'animate-text-pulse' : item.animation === 'blink' ? 'animate-text-blink' : '';
-                 return (
+               {announcement.items.map((item) => (
                    <React.Fragment key={item.id}>
-                     {/* Bullet Point separator inherits color from the item it precedes */}
                      <span style={{ color: item.color }} className="mx-8">•</span>
-                     <span style={{ color: item.color }} className={animClass}>
+                     <span style={{ color: item.color }} className={item.animation === 'pulse' ? 'animate-text-pulse' : item.animation === 'blink' ? 'animate-text-blink' : ''}>
                         {item.text}
                      </span>
                    </React.Fragment>
-                 );
-               })}
+               ))}
             </div>
           </div>
       </div>
 
       <style>{`
-        @keyframes marquee {
-          0% { transform: translate3d(0, 0, 0); } 
-          100% { transform: translate3d(-100%, 0, 0); }
-        }
-        @keyframes textPulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.6; transform: scale(0.98); }
-        }
-        @keyframes textBlink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
-        .animate-marquee {
-          animation-name: marquee;
-          animation-timing-function: linear;
-          animation-iteration-count: infinite;
-          /* Force GPU acceleration */
-          transform: translateZ(0);
-        }
-        .animate-text-pulse {
-           animation: textPulse 2s infinite ease-in-out;
-           display: inline-block;
-        }
-        .animate-text-blink {
-           animation: textBlink 1s infinite steps(1);
-           display: inline-block;
-        }
+        @keyframes marquee { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
+        @keyframes textPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.98); } }
+        @keyframes textBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .animate-marquee { animation-name: marquee; animation-timing-function: linear; animation-iteration-count: infinite; transform: translateZ(0); }
+        .animate-text-pulse { animation: textPulse 2s infinite ease-in-out; display: inline-block; }
+        .animate-text-blink { animation: textBlink 1s infinite steps(1); display: inline-block; }
       `}</style>
     </div>
   );
