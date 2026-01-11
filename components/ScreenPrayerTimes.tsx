@@ -490,8 +490,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                 
                 // Jumuah Styling Logic - Gold Gradient
                 if (isJumuah) {
-                    nameColor = 'bg-gradient-to-r from-[#D4AF37] via-[#FFFFFF] to-[#D4AF37] bg-[length:200%_auto] animate-text-shine text-transparent bg-clip-text';
-                    timeColor = 'bg-gradient-to-r from-[#D4AF37] via-[#FFFFFF] to-[#D4AF37] bg-[length:200%_auto] animate-text-shine text-transparent bg-clip-text';
+                    const goldGradient = 'bg-[linear-gradient(to_right,#D4AF37,#FFFFFF,#D4AF37,#FFFFFF,#D4AF37)]';
+                    nameColor = `${goldGradient} bg-[length:200%_auto] animate-text-shine text-transparent bg-clip-text`;
+                    timeColor = `${goldGradient} bg-[length:200%_auto] animate-text-shine text-transparent bg-clip-text`;
                 }
 
                 const iqamahBgClass = isActive ? '' : 'bg-black/5';
