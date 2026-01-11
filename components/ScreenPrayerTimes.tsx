@@ -314,10 +314,11 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     return () => clearTimeout(timer);
   }, [currentSlideIndex, isSlideshowActive, activeSlides, isIqamahFreeze, isAlertActive, alertSettings.mode]);
 
-
-  // Calculate duration based on text length for consistent speed
-  const textLength = announcement.items.reduce((acc, item) => acc + item.text.length, 0);
-  const marqueeDuration = Math.max(20, 20 + (textLength / 10));
+  // Calculate consistent marquee duration based on estimated content width
+  const tickerItemsCharCount = announcement.items.reduce((acc, item) => acc + item.text.length, 0);
+  const estimatedContentWidth = Math.max(1500, tickerItemsCharCount * 30); // 1500px min width (screen width approx), or approx 30px per char
+  // Speed: 100px per second. Duration = Width / Speed
+  const marqueeDuration = estimatedContentWidth / 100;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -485,6 +486,25 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   
   const tickerTextClass = tickerBg === 'navy' ? 'text-white' : 'text-mosque-navy';
 
+  // Helper to render items for the seamless loop
+  const renderTickerItems = () => (
+     <div className={`flex items-center px-4 whitespace-nowrap ${tickerTextClass}`}>
+        {announcement.items.map((item) => (
+           <React.Fragment key={item.id}>
+             <span style={{ color: item.color }} className="mx-8 text-4xl">•</span>
+             <span className="animate-subtle-pulse inline-block">
+                <span 
+                    style={{ color: item.color }} 
+                    className={`text-5xl font-semibold tracking-wide inline-block ${item.animation === 'pulse' ? 'animate-text-pulse' : item.animation === 'blink' ? 'animate-text-blink' : ''}`}
+                >
+                    {item.text}
+                </span>
+             </span>
+           </React.Fragment>
+        ))}
+     </div>
+  );
+
   return (
     <div className="w-full h-full flex flex-col font-serif text-white overflow-hidden">
       
@@ -585,38 +605,56 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       </div>
 
       {/* === BOTTOM FOOTER: ANNOUNCEMENT TICKER === */}
-      <div className={`h-[10%] ${tickerContainerClass} relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden transition-colors duration-500`}>
+      <div className={`h-[10%] ${tickerContainerClass} relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden transition-colors duration-500 flex`}>
           <div className="absolute left-0 top-0 bottom-0 bg-mosque-gold text-mosque-navy px-8 flex items-center justify-center z-20 font-black uppercase tracking-[0.15em] text-4xl shadow-[10px_0_20px_rgba(0,0,0,0.2)] min-w-[380px]">
              {announcement.title}
           </div>
-          <div className="absolute inset-0 z-10 flex items-center overflow-hidden">
-            <div 
-                className={`whitespace-nowrap animate-marquee flex items-center ${tickerTextClass} text-5xl font-semibold tracking-wide w-full pl-[100%]`}
-                style={{ animationDuration: `${marqueeDuration}s`, willChange: 'transform' }}
-            >
-               {announcement.items.map((item) => (
-                   <React.Fragment key={item.id}>
-                     <span style={{ color: item.color }} className="mx-8">•</span>
-                     <span style={{ color: item.color }} className={item.animation === 'pulse' ? 'animate-text-pulse' : item.animation === 'blink' ? 'animate-text-blink' : ''}>
-                        {item.text}
-                     </span>
-                   </React.Fragment>
-               ))}
-            </div>
+          
+          {/* Seamless Marquee Container using Duplicated Content */}
+          <div className="flex-1 flex overflow-hidden relative z-10 items-center">
+               <div 
+                   className="flex animate-scroll items-center shrink-0 min-w-full"
+                   style={{ animationDuration: `${marqueeDuration}s` }}
+               >
+                  {renderTickerItems()}
+               </div>
+               <div 
+                   className="flex animate-scroll items-center shrink-0 min-w-full"
+                   style={{ animationDuration: `${marqueeDuration}s` }}
+               >
+                  {renderTickerItems()}
+               </div>
           </div>
       </div>
 
       <style>{`
-        @keyframes marquee { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
-        @keyframes textPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.98); } }
+        @keyframes scroll {
+          0% { transform: translate3d(0, 0, 0); }
+          100% { transform: translate3d(-100%, 0, 0); }
+        }
+        .animate-scroll {
+           animation: scroll linear infinite;
+        }
+
+        /* Subtle global pulse */
+        @keyframes subtle-pulse {
+           0%, 100% { opacity: 1; transform: scale(1); }
+           50% { opacity: 0.85; transform: scale(0.99); }
+        }
+        .animate-subtle-pulse {
+           animation: subtle-pulse 4s ease-in-out infinite;
+        }
+
+        /* Existing Animations */
+        @keyframes textPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.95); } }
         @keyframes textBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         @keyframes text-shine {
             0% { background-position: 0% 50%; }
             100% { background-position: 100% 50%; }
         }
-        .animate-marquee { animation-name: marquee; animation-timing-function: linear; animation-iteration-count: infinite; transform: translateZ(0); }
-        .animate-text-pulse { animation: textPulse 2s infinite ease-in-out; display: inline-block; }
-        .animate-text-blink { animation: textBlink 1s infinite steps(1); display: inline-block; }
+        
+        .animate-text-pulse { animation: textPulse 1.5s infinite ease-in-out; }
+        .animate-text-blink { animation: textBlink 1s infinite steps(1); }
         .animate-text-shine {
             animation: text-shine 3s linear infinite;
         }
