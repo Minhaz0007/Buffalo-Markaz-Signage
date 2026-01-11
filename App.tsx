@@ -236,13 +236,14 @@ const App: React.FC = () => {
       setDisplayedJumuahTimes(todaySchedule.jumuah);
 
       // --- Change Detection Logic ---
+      // NOTE: Maghrib is excluded because it changes daily (tied to sunset + offset)
       const changes: string[] = [];
       const norm = (t?: string) => t?.replace(/\s+/g, '').toUpperCase() || '';
 
       if (norm(todaySchedule.prayers.fajr.iqamah) !== norm(tomorrowSchedule.prayers.fajr.iqamah)) changes.push(`Fajr`);
       if (norm(todaySchedule.prayers.dhuhr.iqamah) !== norm(tomorrowSchedule.prayers.dhuhr.iqamah)) changes.push(`Dhuhr`);
       if (norm(todaySchedule.prayers.asr.iqamah) !== norm(tomorrowSchedule.prayers.asr.iqamah)) changes.push(`Asr`);
-      if (norm(todaySchedule.prayers.maghrib.iqamah) !== norm(tomorrowSchedule.prayers.maghrib.iqamah)) changes.push(`Maghrib`);
+      // SKIP MAGHRIB - it changes daily by design (sunset + offset), no alert needed
       if (norm(todaySchedule.prayers.isha.iqamah) !== norm(tomorrowSchedule.prayers.isha.iqamah)) changes.push(`Isha`);
 
       if (tomorrow.getDay() === 5) { // 5 = Friday
