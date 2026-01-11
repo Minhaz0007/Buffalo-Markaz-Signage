@@ -50,6 +50,7 @@ export const getScheduleForDate = (
   }
 
   // 2. Apply Excel (if exists for date)
+  let hasExcelMaghrib = false;
   if (excelSchedule[dateStr]) {
     const day = excelSchedule[dateStr];
     newPrayers.fajr = { name: 'Fajr', ...day.fajr };
@@ -57,14 +58,20 @@ export const getScheduleForDate = (
     newPrayers.asr = { name: 'Asr', ...day.asr };
     newPrayers.maghrib = { name: 'Maghrib', ...day.maghrib };
     newPrayers.isha = { name: 'Isha', ...day.isha };
-    
+
+    // Track if Excel provided Maghrib iqamah
+    if (day.maghrib.iqamah) {
+      hasExcelMaghrib = true;
+    }
+
     if (day.jumuahIqamah) {
        newJumuah.iqamah = day.jumuahIqamah;
     }
   }
 
-  // 3. Apply Maghrib Offset (Before Manual Overrides)
-  if (newPrayers.maghrib.start) {
+  // 3. Apply Maghrib Offset (Only if NOT from Excel)
+  // This ensures Excel Maghrib times are not overridden by the offset calculation
+  if (newPrayers.maghrib.start && !hasExcelMaghrib) {
      newPrayers.maghrib.iqamah = addMinutesToTime(newPrayers.maghrib.start, maghribOffset);
   }
 

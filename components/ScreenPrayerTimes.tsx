@@ -100,12 +100,12 @@ const ClockSlide = ({ hours, minutes, seconds, displayAmPm, nextPrayerName, time
     return (
         <div className="w-full h-full flex flex-col relative z-10 p-6 animate-in fade-in duration-700">
             {/* 1. Clock Section - Top */}
-            <div className="flex-[4] flex flex-col items-center justify-center border-b border-mosque-navy/10 relative overflow-hidden">
-                <div className="flex items-baseline justify-center w-full px-2 mt-4 whitespace-nowrap">
-                    <span className="text-[11.5rem] leading-[0.75] font-serif tracking-tighter text-mosque-navy font-bold drop-shadow-sm tabular-nums">
+            <div className="flex-[4] flex flex-col items-center justify-center border-b border-mosque-navy/10 relative">
+                <div className="flex items-baseline justify-center w-full px-4 mt-4 whitespace-nowrap overflow-visible">
+                    <span className="text-[9.5rem] leading-[0.8] font-serif tracking-tight text-mosque-navy font-bold drop-shadow-sm tabular-nums">
                         {hours}:{minutes}:{seconds}
                     </span>
-                    <span className="text-8xl ml-6 font-sans font-bold uppercase tracking-widest text-mosque-gold">
+                    <span className="text-7xl ml-4 font-sans font-bold uppercase tracking-widest text-mosque-gold">
                         {displayAmPm}
                     </span>
                 </div>
