@@ -13,11 +13,13 @@ import {
   loadAnnouncementItemsFromDatabase,
   loadSlideshowConfigFromDatabase,
   loadGlobalSettingsFromDatabase,
+  saveExcelScheduleToDatabase,
   saveManualOverridesToDatabase,
   saveAnnouncementItemsToDatabase,
   saveSlideshowConfigToDatabase,
   saveGlobalSettingsToDatabase,
 } from './utils/database';
+import { isSupabaseConfigured } from './utils/supabase';
 
 // --- Background Components ---
 
@@ -245,10 +247,24 @@ const App: React.FC = () => {
 
       setIsDataLoaded(true);
       console.log('✅ All data loaded from Supabase');
+
+      // Warn if Supabase is not configured
+      if (!isSupabaseConfigured()) {
+        console.warn('⚠️ Supabase is NOT configured! Data will only be stored in localStorage.');
+        console.warn('⚠️ To enable cloud sync, set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
+        setSystemAlert('⚠️ Cloud sync disabled - data stored locally only. Check Supabase configuration.');
+      }
     };
 
     loadFromDatabase();
   }, []); // Run once on mount
+
+  // Save Excel schedule to Supabase whenever it changes (after initial load)
+  useEffect(() => {
+    if (!isDataLoaded) return;
+    if (Object.keys(excelSchedule).length === 0) return; // Don't save empty schedule
+    saveExcelScheduleToDatabase(excelSchedule);
+  }, [excelSchedule, isDataLoaded]);
 
   // Save manual overrides to Supabase whenever they change (after initial load)
   useEffect(() => {
