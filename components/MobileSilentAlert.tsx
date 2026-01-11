@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PhoneOff, AlignJustify, VolumeX } from 'lucide-react';
 import { MobileSilentAlertSettings } from '../types';
@@ -10,24 +10,24 @@ interface MobileSilentAlertProps {
   previewMode?: boolean;
 }
 
-export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({ 
-  settings, 
+export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({
+  settings,
   targetTime,
-  previewMode = false 
+  previewMode = false
 }) => {
   const [timeLeft, setTimeLeft] = useState<string>("00:00");
   const [isUrgent, setIsUrgent] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Sound generator (Oscillator)
-  const playBeep = () => {
+  // Sound generator (Oscillator) - wrapped in useCallback to prevent recreating on every render
+  const playBeep = useCallback(() => {
     if (!settings.beepEnabled) return;
-    
+
     try {
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
-      
+
       const ctx = audioContextRef.current;
       // Ensure context is running (needed if resumed from suspended state)
       if (ctx.state === 'suspended') {
@@ -35,11 +35,11 @@ export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({
       }
 
       const t = ctx.currentTime;
-      
+
       // Calculate gain based on volume setting (0-100)
       // Normalize to 0.0 - 0.2 (0.2 is plenty loud for raw oscillator)
       const masterVolume = (settings.beepVolume || 75) / 100;
-      const peakGain = masterVolume * 0.2; 
+      const peakGain = masterVolume * 0.2;
 
       const playTone = (freq: number, startTime: number, duration: number, type: OscillatorType = 'sine') => {
         const oscillator = ctx.createOscillator();
@@ -50,7 +50,7 @@ export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({
 
         oscillator.type = type;
         oscillator.frequency.setValueAtTime(freq, startTime);
-        
+
         // Attack
         gainNode.gain.setValueAtTime(0, startTime);
         gainNode.gain.linearRampToValueAtTime(peakGain, startTime + 0.05);
@@ -81,7 +81,7 @@ export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({
     } catch (e) {
       console.warn("Audio Context failed", e);
     }
-  };
+  }, [settings.beepEnabled, settings.beepType, settings.beepVolume]);
 
   // Effect to handle the countdown
   useEffect(() => {
@@ -127,7 +127,7 @@ export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({
     }, loopInterval);
 
     return () => clearInterval(loop);
-  }, [settings.beepEnabled, settings.beepType, settings.beepVolume, isUrgent]);
+  }, [playBeep, settings.beepEnabled, settings.beepType, isUrgent]);
 
 
   const Icon = settings.icon === 'align-rows' ? AlignJustify : settings.icon === 'shhh' ? VolumeX : PhoneOff;

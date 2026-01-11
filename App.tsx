@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ScreenPrayerTimes } from './components/ScreenPrayerTimes';
 import { SettingsModal } from './components/SettingsModal';
 import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AutoAlertSettings, MobileSilentAlertSettings } from './types';
@@ -320,7 +320,7 @@ const App: React.FC = () => {
   }, [announcement, systemAlert, autoAlertSettings]);
 
   // --- Fullscreen & Shortcuts ---
-  const toggleFullscreen = () => {
+  const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().then(() => setIsFullscreen(true));
     } else {
@@ -328,7 +328,7 @@ const App: React.FC = () => {
         document.exitFullscreen().then(() => setIsFullscreen(false));
       }
     }
-  };
+  }, []);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -351,7 +351,7 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSettingsOpen]);
+  }, [isSettingsOpen, toggleFullscreen]);
 
   // Determine if Fullscreen Alert should show
   // Show if: (Active in time window OR Preview Mode) AND (Mode is Fullscreen)
