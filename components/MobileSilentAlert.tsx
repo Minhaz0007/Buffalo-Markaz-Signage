@@ -18,7 +18,6 @@ export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({
   const [timeLeft, setTimeLeft] = useState<string>("00:00");
   const [isUrgent, setIsUrgent] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const hasBeeped = useRef(false);
 
   // Sound generator (Oscillator)
   const playBeep = () => {
@@ -30,30 +29,62 @@ export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({
       }
       
       const ctx = audioContextRef.current;
-      const oscillator = ctx.createOscillator();
-      const gainNode = ctx.createGain();
+      // Ensure context is running (needed if resumed from suspended state)
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
 
-      oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
+      const t = ctx.currentTime;
+      
+      // Calculate gain based on volume setting (0-100)
+      // Normalize to 0.0 - 0.2 (0.2 is plenty loud for raw oscillator)
+      const masterVolume = (settings.beepVolume || 75) / 100;
+      const peakGain = masterVolume * 0.2; 
 
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, ctx.currentTime); // A5
-      gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-      
-      oscillator.start();
-      
-      // Beep-Beep-Beep pattern
-      gainNode.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.5);
-      oscillator.stop(ctx.currentTime + 0.5);
+      const playTone = (freq: number, startTime: number, duration: number, type: OscillatorType = 'sine') => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(freq, startTime);
+        
+        // Attack
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(peakGain, startTime + 0.05);
+        // Decay
+        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+
+      switch (settings.beepType) {
+        case 'double':
+            playTone(880, t, 0.15); // A5
+            playTone(880, t + 0.2, 0.4); // A5
+            break;
+        case 'sonar':
+            playTone(1200, t, 0.8, 'sine'); // High ping
+            break;
+        case 'soft':
+            playTone(440, t, 1.5, 'sine'); // A4, long decay
+            break;
+        case 'single':
+        default:
+            playTone(880, t, 0.5, 'sine'); // Standard beep
+            break;
+      }
+
     } catch (e) {
       console.warn("Audio Context failed", e);
     }
   };
 
+  // Effect to handle the countdown
   useEffect(() => {
-    // Reset beep ref when component mounts or target changes
-    hasBeeped.current = false;
-
     const timer = setInterval(() => {
       const now = new Date();
       const diff = targetTime.getTime() - now.getTime();
@@ -72,24 +103,32 @@ export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({
       if (diff <= 30000 && !isUrgent) {
         setIsUrgent(true);
       }
-
-      // Beep Trigger (at 30 seconds mark)
-      if (settings.beepEnabled && Math.floor(diff / 1000) === 30 && !hasBeeped.current && !previewMode) {
-        playBeep();
-        hasBeeped.current = true;
-      }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [targetTime, settings.beepEnabled, previewMode]);
+  }, [targetTime]);
 
-  // Preview Mode: Play beep immediately if urgent simulation
+  // Effect to handle the repeating audio loop
   useEffect(() => {
-    if (previewMode && settings.beepEnabled) {
-       // Optional: Play a test beep on mount in preview
-       // playBeep();
-    }
-  }, [previewMode]);
+    if (!settings.beepEnabled) return;
+
+    // Play immediately on mount/update
+    playBeep();
+
+    // Determine loop interval based on beep type to prevent overlapping mess
+    let loopInterval = 2000; // default 2 seconds
+    if (settings.beepType === 'soft') loopInterval = 3000;
+    if (settings.beepType === 'sonar') loopInterval = 2500;
+    if (settings.beepType === 'double') loopInterval = 2000;
+    if (isUrgent) loopInterval = 1000; // Faster beeps when urgent
+
+    const loop = setInterval(() => {
+        playBeep();
+    }, loopInterval);
+
+    return () => clearInterval(loop);
+  }, [settings.beepEnabled, settings.beepType, settings.beepVolume, isUrgent]);
+
 
   const Icon = settings.icon === 'align-rows' ? AlignJustify : settings.icon === 'shhh' ? VolumeX : PhoneOff;
 

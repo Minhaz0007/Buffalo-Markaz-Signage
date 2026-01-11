@@ -112,4 +112,6 @@ export interface MobileSilentAlertSettings {
   icon: 'phone-off' | 'align-rows' | 'shhh';
   animation: 'pulse' | 'flash' | 'none';
   beepEnabled: boolean;
+  beepType: 'single' | 'double' | 'sonar' | 'soft';
+  beepVolume: number; // 0 to 100
 }

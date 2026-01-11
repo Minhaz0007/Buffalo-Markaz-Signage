@@ -48,12 +48,14 @@ export const DEFAULT_ANNOUNCEMENT: Announcement = {
 export const DEFAULT_MOBILE_SILENT_ALERT: MobileSilentAlertSettings = {
   enabled: true,
   mode: 'panel', // 'fullscreen' or 'panel'
-  triggerMinutes: 2,
+  triggerMinutes: 0.5, // 30 seconds default
   backgroundColor: '#ef4444', // Red-500
   text: 'Please silence your cell phones.',
   icon: 'phone-off',
   animation: 'pulse',
-  beepEnabled: true
+  beepEnabled: true,
+  beepType: 'single',
+  beepVolume: 75 // Default 75%
 };
 
 export const ALERT_MESSAGES = [
