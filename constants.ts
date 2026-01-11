@@ -5,6 +5,10 @@ export const ADDRESS = "123 Main St, Buffalo, NY 14212";
 export const WEBSITE = "www.buffalomarkaz.com";
 export const PHONE = "716-555-0100";
 
+// DEFAULT PRAYER TIMES
+// Note: These are FALLBACK values only, used if auto-calculation fails.
+// The app now runs in AUTOPILOT mode with automatic prayer time calculations
+// for Buffalo, NY using the 'adhan' library. See utils/prayerCalculator.ts
 export const DEFAULT_PRAYER_TIMES: DailyPrayers = {
   fajr: { name: 'Fajr', start: '5:45 AM', iqamah: '6:15 AM' },
   sunrise: '6:58 AM',
