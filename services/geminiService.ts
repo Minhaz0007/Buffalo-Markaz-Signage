@@ -32,8 +32,10 @@ export const fetchDailyWisdom = async (): Promise<string> => {
   }
 
   // 2. Fallback if no API key or Offline with no cache
-  if (!process.env.API_KEY) {
-    console.warn("API_KEY not found. Returning fallback wisdom.");
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+  if (!apiKey) {
+    console.warn("VITE_GEMINI_API_KEY not found. Returning fallback wisdom.");
     return "The best of you are those who are best to their families.";
   }
 
@@ -43,7 +45,7 @@ export const fetchDailyWisdom = async (): Promise<string> => {
 
   // 3. Fetch fresh wisdom
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
