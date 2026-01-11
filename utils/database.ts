@@ -87,24 +87,33 @@ export const saveManualOverridesToDatabase = async (overrides: ManualOverride[])
 
   try {
     // Delete all existing overrides first
-    await supabase!.from('manual_overrides').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    const { error: deleteError } = await supabase!
+      .from('manual_overrides')
+      .delete()
+      .not('id', 'is', null);
 
-    // Insert new overrides
-    const rows = overrides.map(o => ({
-      id: o.id,
-      prayer_key: o.prayerKey,
-      start_date: o.startDate,
-      end_date: o.endDate,
-      start_time: o.start,
-      iqamah_time: o.iqamah,
-    }));
-
-    if (rows.length > 0) {
-      const { error } = await supabase!.from('manual_overrides').insert(rows);
-      if (error) throw error;
+    if (deleteError && deleteError.code !== 'PGRST116') {
+      throw deleteError;
     }
 
-    console.log(`✅ Saved ${rows.length} manual overrides to Supabase`);
+    // Insert new overrides (only if there are any)
+    if (overrides.length > 0) {
+      const rows = overrides.map(o => ({
+        prayer_key: o.prayerKey,
+        start_date: o.startDate,
+        end_date: o.endDate,
+        start_time: o.start,
+        iqamah_time: o.iqamah,
+      }));
+
+      const { error: insertError } = await supabase!
+        .from('manual_overrides')
+        .insert(rows);
+
+      if (insertError) throw insertError;
+    }
+
+    console.log(`✅ Saved ${overrides.length} manual overrides to Supabase`);
     return { success: true };
   } catch (error) {
     console.error('Error saving manual overrides to Supabase:', error);
@@ -148,24 +157,33 @@ export const saveAnnouncementItemsToDatabase = async (items: AnnouncementItem[])
   if (!isSupabaseConfigured()) return { success: false };
 
   try {
-    // Delete all existing items first
-    await supabase!.from('announcement_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    // Delete all existing items first (using a condition that matches all rows)
+    const { error: deleteError } = await supabase!
+      .from('announcement_items')
+      .delete()
+      .gte('display_order', 0);
 
-    // Insert new items
-    const rows = items.map((item, index) => ({
-      id: item.id,
-      text: item.text,
-      color: item.color,
-      animation: item.animation,
-      display_order: index,
-    }));
-
-    if (rows.length > 0) {
-      const { error } = await supabase!.from('announcement_items').insert(rows);
-      if (error) throw error;
+    if (deleteError && deleteError.code !== 'PGRST116') { // PGRST116 = no rows found (acceptable)
+      throw deleteError;
     }
 
-    console.log(`✅ Saved ${rows.length} announcement items to Supabase`);
+    // Insert new items (only if there are items to insert)
+    if (items.length > 0) {
+      const rows = items.map((item, index) => ({
+        text: item.text,
+        color: item.color,
+        animation: item.animation,
+        display_order: index,
+      }));
+
+      const { error: insertError } = await supabase!
+        .from('announcement_items')
+        .insert(rows);
+
+      if (insertError) throw insertError;
+    }
+
+    console.log(`✅ Saved ${items.length} announcement items to Supabase`);
     return { success: true };
   } catch (error) {
     console.error('Error saving announcement items to Supabase:', error);
@@ -208,29 +226,39 @@ export const saveSlideshowConfigToDatabase = async (slides: SlideConfig[]) => {
 
   try {
     // Delete all existing slides first
-    await supabase!.from('slideshow_config').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    const { error: deleteError } = await supabase!
+      .from('slideshow_config')
+      .delete()
+      .not('id', 'is', null);
 
-    // Insert new slides
-    const rows = slides.map((slide, index) => ({
-      slide_id: slide.id,
-      slide_type: slide.type,
-      enabled: slide.enabled,
-      duration: slide.duration,
-      display_order: index,
-      content: slide.type === 'ANNOUNCEMENT' ? (slide as any).content : null,
-      background_color: slide.type === 'ANNOUNCEMENT' ? (slide as any).styles.backgroundColor : null,
-      text_color: slide.type === 'ANNOUNCEMENT' ? (slide as any).styles.textColor : null,
-      text_animation: slide.type === 'ANNOUNCEMENT' ? (slide as any).styles.textAnimation : null,
-      font_size: slide.type === 'ANNOUNCEMENT' ? (slide as any).styles.fontSize : null,
-      days_to_show: slide.type === 'SCHEDULE' ? (slide as any).daysToShow : null,
-    }));
-
-    if (rows.length > 0) {
-      const { error } = await supabase!.from('slideshow_config').insert(rows);
-      if (error) throw error;
+    if (deleteError && deleteError.code !== 'PGRST116') {
+      throw deleteError;
     }
 
-    console.log(`✅ Saved ${rows.length} slideshow slides to Supabase`);
+    // Insert new slides (only if there are any)
+    if (slides.length > 0) {
+      const rows = slides.map((slide, index) => ({
+        slide_id: slide.id,
+        slide_type: slide.type,
+        enabled: slide.enabled,
+        duration: slide.duration,
+        display_order: index,
+        content: slide.type === 'ANNOUNCEMENT' ? (slide as any).content : null,
+        background_color: slide.type === 'ANNOUNCEMENT' ? (slide as any).styles.backgroundColor : null,
+        text_color: slide.type === 'ANNOUNCEMENT' ? (slide as any).styles.textColor : null,
+        text_animation: slide.type === 'ANNOUNCEMENT' ? (slide as any).styles.textAnimation : null,
+        font_size: slide.type === 'ANNOUNCEMENT' ? (slide as any).styles.fontSize : null,
+        days_to_show: slide.type === 'SCHEDULE' ? (slide as any).daysToShow : null,
+      }));
+
+      const { error: insertError } = await supabase!
+        .from('slideshow_config')
+        .insert(rows);
+
+      if (insertError) throw insertError;
+    }
+
+    console.log(`✅ Saved ${slides.length} slideshow slides to Supabase`);
     return { success: true };
   } catch (error) {
     console.error('Error saving slideshow config to Supabase:', error);
