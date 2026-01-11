@@ -4,6 +4,7 @@ import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, Slide
 import { ALERT_MESSAGES } from '../constants';
 import * as XLSX from 'xlsx';
 import { saveExcelScheduleToDatabase } from '../utils/database';
+import { isSupabaseConfigured } from '../utils/supabase';
 
 // --- Types ---
 interface SettingsModalProps {
@@ -295,13 +296,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setExcelSchedule(newSchedule);
 
       // Save to Supabase database
-      setUploadStatus(`Saving to database...`);
-      const dbResult = await saveExcelScheduleToDatabase(newSchedule);
-
-      if (dbResult.success) {
-        setUploadStatus(`Success! Imported ${count} days and saved to database.`);
+      if (!isSupabaseConfigured()) {
+        setUploadStatus(`⚠️ Imported ${count} days (LOCAL ONLY - Supabase not configured). Set environment variables to enable cloud sync.`);
       } else {
-        setUploadStatus(`Success! Imported ${count} days (saved locally only).`);
+        setUploadStatus(`Saving to database...`);
+        const dbResult = await saveExcelScheduleToDatabase(newSchedule);
+
+        if (dbResult.success) {
+          setUploadStatus(`✅ Success! Imported ${count} days and saved to cloud database. Data will persist across all devices.`);
+        } else {
+          setUploadStatus(`⚠️ Imported ${count} days locally, but cloud save failed. Data may not sync across devices.`);
+        }
       }
     } catch (err) {
       console.error(err);
