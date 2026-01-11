@@ -399,6 +399,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
   const calculateNextIqamah = (now: Date) => {
     const nowTime = now.getTime();
+
+    // CRITICAL: Always use IQAMAH times, never START times
+    // Hierarchy: Adhan Library < Excel < Manual Overrides (all for iqamah calculation)
     const prayersList = [
       { name: 'Fajr', time: parseTime(prayers.fajr.iqamah || '', now), raw: prayers.fajr.iqamah },
       { name: 'Dhuhr', time: parseTime(prayers.dhuhr.iqamah || '', now), raw: prayers.dhuhr.iqamah },
@@ -409,19 +412,6 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
     // Use explicit millisecond comparison for stability
     let nextPrayer = prayersList.find(p => p.time && p.time.getTime() > nowTime);
-
-    // Debug logging if next prayer seems wrong
-    if (!nextPrayer || (nextPrayer && nextPrayer.time && (nextPrayer.time.getTime() - nowTime) < 0)) {
-      console.log('⚠️ Prayer calculation issue detected at', now.toLocaleTimeString());
-      prayersList.forEach(p => {
-        if (p.time) {
-          const isPast = p.time.getTime() <= nowTime;
-          const diff = p.time.getTime() - nowTime;
-          console.log(`  ${p.name}: ${p.raw} -> ${p.time.toLocaleTimeString()} ${isPast ? '(PAST)' : '(FUTURE)'} diff: ${diff}ms`);
-        }
-      });
-      console.log(`  Selected: ${nextPrayer ? nextPrayer.name : 'NONE'}`);
-    }
 
     // If no prayer found left today, check tomorrow's Fajr
     if (!nextPrayer) {
