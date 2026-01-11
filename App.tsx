@@ -223,8 +223,17 @@ const App: React.FC = () => {
       // Load announcement items
       const dbAnnouncementItems = await loadAnnouncementItemsFromDatabase();
       if (dbAnnouncementItems.length > 0) {
-        setAnnouncement({ ...announcement, items: dbAnnouncementItems });
+        console.log(`📥 Loading ${dbAnnouncementItems.length} announcement items from Supabase, overwriting any local changes`);
+        setAnnouncement(prev => {
+          const prevCount = prev.items.length;
+          if (prevCount > 0 && prevCount !== dbAnnouncementItems.length) {
+            console.warn(`⚠️ Local had ${prevCount} announcements, Supabase has ${dbAnnouncementItems.length}. Using Supabase data.`);
+          }
+          return { ...prev, items: dbAnnouncementItems };
+        });
         console.log(`✅ Loaded ${dbAnnouncementItems.length} announcement items from database`);
+      } else {
+        console.log(`ℹ️ No announcement items found in Supabase, keeping local data`);
       }
 
       // Load slideshow config
@@ -275,7 +284,14 @@ const App: React.FC = () => {
   // Save announcement items to Supabase whenever they change (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
-    saveAnnouncementItemsToDatabase(announcement.items);
+    console.log(`💾 Saving ${announcement.items.length} announcement items to Supabase`);
+    saveAnnouncementItemsToDatabase(announcement.items).then(result => {
+      if (result.success) {
+        console.log(`✅ Successfully saved ${announcement.items.length} announcements to Supabase`);
+      } else {
+        console.error(`❌ Failed to save announcements to Supabase:`, result.error);
+      }
+    });
   }, [announcement.items, isDataLoaded]);
 
   // Save slideshow config to Supabase whenever it changes (after initial load)

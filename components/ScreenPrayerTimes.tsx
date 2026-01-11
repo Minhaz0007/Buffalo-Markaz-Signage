@@ -362,27 +362,66 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
   const parseTime = (timeStr: string, now: Date): Date | null => {
     if (!timeStr) return null;
-    const [time, modifier] = timeStr.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-    if (modifier === 'PM' && hours < 12) hours += 12;
-    if (modifier === 'AM' && hours === 12) hours = 0;
-    const date = new Date(now);
-    date.setHours(hours, minutes, 0, 0);
+
+    // Normalize: trim and handle multiple spaces
+    const normalized = timeStr.trim().replace(/\s+/g, ' ');
+    const parts = normalized.split(' ');
+
+    if (parts.length !== 2) {
+      console.error(`Invalid time format: "${timeStr}"`);
+      return null;
+    }
+
+    const [time, modifier] = parts;
+    const timeParts = time.split(':');
+
+    if (timeParts.length !== 2) {
+      console.error(`Invalid time components: "${time}"`);
+      return null;
+    }
+
+    let [hours, minutes] = timeParts.map(Number);
+
+    if (isNaN(hours) || isNaN(minutes)) {
+      console.error(`Invalid numbers in time: "${time}"`);
+      return null;
+    }
+
+    // Convert to 24-hour format
+    const upperModifier = modifier.toUpperCase();
+    if (upperModifier === 'PM' && hours < 12) hours += 12;
+    if (upperModifier === 'AM' && hours === 12) hours = 0;
+
+    // Create date for today at specified time
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
     return date;
   };
 
   const calculateNextIqamah = (now: Date) => {
     const nowTime = now.getTime();
     const prayersList = [
-      { name: 'Fajr', time: parseTime(prayers.fajr.iqamah || '', now) },
-      { name: 'Dhuhr', time: parseTime(prayers.dhuhr.iqamah || '', now) },
-      { name: 'Asr', time: parseTime(prayers.asr.iqamah || '', now) },
-      { name: 'Maghrib', time: parseTime(prayers.maghrib.iqamah || '', now) },
-      { name: 'Isha', time: parseTime(prayers.isha.iqamah || '', now) },
+      { name: 'Fajr', time: parseTime(prayers.fajr.iqamah || '', now), raw: prayers.fajr.iqamah },
+      { name: 'Dhuhr', time: parseTime(prayers.dhuhr.iqamah || '', now), raw: prayers.dhuhr.iqamah },
+      { name: 'Asr', time: parseTime(prayers.asr.iqamah || '', now), raw: prayers.asr.iqamah },
+      { name: 'Maghrib', time: parseTime(prayers.maghrib.iqamah || '', now), raw: prayers.maghrib.iqamah },
+      { name: 'Isha', time: parseTime(prayers.isha.iqamah || '', now), raw: prayers.isha.iqamah },
     ];
 
     // Use explicit millisecond comparison for stability
     let nextPrayer = prayersList.find(p => p.time && p.time.getTime() > nowTime);
+
+    // Debug logging if next prayer seems wrong
+    if (!nextPrayer || (nextPrayer && nextPrayer.time && (nextPrayer.time.getTime() - nowTime) < 0)) {
+      console.log('⚠️ Prayer calculation issue detected at', now.toLocaleTimeString());
+      prayersList.forEach(p => {
+        if (p.time) {
+          const isPast = p.time.getTime() <= nowTime;
+          const diff = p.time.getTime() - nowTime;
+          console.log(`  ${p.name}: ${p.raw} -> ${p.time.toLocaleTimeString()} ${isPast ? '(PAST)' : '(FUTURE)'} diff: ${diff}ms`);
+        }
+      });
+      console.log(`  Selected: ${nextPrayer ? nextPrayer.name : 'NONE'}`);
+    }
 
     // If no prayer found left today, check tomorrow's Fajr
     if (!nextPrayer) {
