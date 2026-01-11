@@ -372,6 +372,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   };
 
   const calculateNextIqamah = (now: Date) => {
+    const nowTime = now.getTime();
     const prayersList = [
       { name: 'Fajr', time: parseTime(prayers.fajr.iqamah || '', now) },
       { name: 'Dhuhr', time: parseTime(prayers.dhuhr.iqamah || '', now) },
@@ -380,7 +381,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       { name: 'Isha', time: parseTime(prayers.isha.iqamah || '', now) },
     ];
 
-    let nextPrayer = prayersList.find(p => p.time && p.time > now);
+    // Use explicit millisecond comparison for stability
+    let nextPrayer = prayersList.find(p => p.time && p.time.getTime() > nowTime);
 
     // If no prayer found left today, check tomorrow's Fajr
     if (!nextPrayer) {
@@ -396,7 +398,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     // Check if we are in the 5-minute pre-Iqamah window
     let freeze = false;
     if (nextPrayer && nextPrayer.time) {
-        const diffMs = nextPrayer.time.getTime() - now.getTime();
+        const diffMs = nextPrayer.time.getTime() - nowTime;
         const diffMinutes = diffMs / (1000 * 60);
         // Freeze if within 5 minutes of Iqamah
         if (diffMinutes <= 5 && diffMinutes > 0) {
@@ -406,14 +408,14 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     setIsIqamahFreeze(freeze);
 
     if (!nextPrayer) {
-       setNextPrayerName("FAJR"); 
+       setNextPrayerName("FAJR");
        setTimeUntilIqamah("--:--:--");
        return;
     }
 
     if (nextPrayer && nextPrayer.time) {
       setNextPrayerName(nextPrayer.name.toUpperCase());
-      const diffMs = nextPrayer.time.getTime() - now.getTime();
+      const diffMs = nextPrayer.time.getTime() - nowTime;
       const hours = Math.floor(diffMs / (1000 * 60 * 60));
       const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);

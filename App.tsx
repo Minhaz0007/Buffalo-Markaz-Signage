@@ -333,7 +333,7 @@ const App: React.FC = () => {
     const updateTimes = () => {
       const now = new Date();
       const todayKey = now.toISOString().split('T')[0];
-      
+
       const tomorrow = new Date(now);
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowKey = tomorrow.toISOString().split('T')[0];
@@ -342,9 +342,22 @@ const App: React.FC = () => {
       const todaySchedule = getScheduleForDate(todayKey, excelSchedule, manualOverrides, maghribOffset);
       const tomorrowSchedule = getScheduleForDate(tomorrowKey, excelSchedule, manualOverrides, maghribOffset);
 
-      // Set Display
-      setDisplayedPrayerTimes(todaySchedule.prayers);
-      setDisplayedJumuahTimes(todaySchedule.jumuah);
+      // Set Display - Only update if values actually changed (prevent unnecessary re-renders)
+      setDisplayedPrayerTimes(prev => {
+        const next = todaySchedule.prayers;
+        // Deep comparison of prayer time values
+        if (JSON.stringify(prev) === JSON.stringify(next)) {
+          return prev; // Return same reference if values unchanged
+        }
+        return next;
+      });
+      setDisplayedJumuahTimes(prev => {
+        const next = todaySchedule.jumuah;
+        if (JSON.stringify(prev) === JSON.stringify(next)) {
+          return prev;
+        }
+        return next;
+      });
 
       // --- Change Detection Logic ---
       // NOTE: Maghrib is excluded because it changes daily (tied to sunset + offset)
