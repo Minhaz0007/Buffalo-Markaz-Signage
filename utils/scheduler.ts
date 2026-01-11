@@ -1,5 +1,6 @@
 import { DailyPrayers, ExcelDaySchedule, ManualOverride } from '../types';
 import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES } from '../constants';
+import { calculatePrayerTimes, calculateJumuahTimes } from './prayerCalculator';
 
 export const addMinutesToTime = (timeStr: string, minutesToAdd: number): string => {
   const match = timeStr.match(/(\d+):(\d+)\s?(AM|PM)/i);
@@ -29,10 +30,24 @@ export const getScheduleForDate = (
   manualOverrides: ManualOverride[],
   maghribOffset: number
 ): { prayers: DailyPrayers, jumuah: { start: string, iqamah: string } } => {
-  
-  // 1. Start with Default
-  let newPrayers = { ...DEFAULT_PRAYER_TIMES };
-  let newJumuah = { ...DEFAULT_JUMUAH_TIMES };
+
+  // 1. Start with Auto-Calculated Prayer Times (Autopilot Mode)
+  // Parse the date string to create a Date object for the specific day
+  const targetDate = new Date(dateStr + 'T12:00:00'); // Use noon to avoid timezone issues
+
+  let newPrayers: DailyPrayers;
+  let newJumuah: { start: string, iqamah: string };
+
+  try {
+    // Calculate prayer times automatically for Buffalo, NY
+    newPrayers = calculatePrayerTimes(targetDate);
+    newJumuah = calculateJumuahTimes(targetDate);
+  } catch (error) {
+    // Fallback to defaults if calculation fails
+    console.warn('Auto-calculation failed, using defaults:', error);
+    newPrayers = { ...DEFAULT_PRAYER_TIMES };
+    newJumuah = { ...DEFAULT_JUMUAH_TIMES };
+  }
 
   // 2. Apply Excel (if exists for date)
   if (excelSchedule[dateStr]) {
