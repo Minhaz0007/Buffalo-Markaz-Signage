@@ -21,7 +21,7 @@
             },
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
-              serif: ['Amiri', 'serif'], // Good for Islamic/Arabic aesthetic
+              serif: ['Amiri', 'serif'],
             }
           }
         }
@@ -30,26 +30,13 @@
     <style>
       body {
         margin: 0;
-        overflow: hidden; /* Hide scrollbars for signage */
+        overflow: hidden;
         background-color: #0B1E3B;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
-    "framer-motion": "https://esm.sh/framer-motion@^12.24.12",
-    "react-qr-code": "https://esm.sh/react-qr-code@^2.0.18",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs"
-  }
-}
-</script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
