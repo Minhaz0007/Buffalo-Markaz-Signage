@@ -406,9 +406,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </nav>
 
             <div className="p-10 border-t border-white/5">
-                <button onClick={onClose} className="w-full py-6 rounded-2xl border-2 border-white/10 hover:bg-white/10 text-white/70 hover:text-white transition-all font-bold uppercase tracking-widest text-xl flex items-center justify-center gap-4">
-                    <X className="w-8 h-8" /> Close Settings
-                </button>
+                <div className="text-white/30 text-xl uppercase tracking-widest font-mono text-center">
+                    Markaz Masjid v2.0
+                </div>
             </div>
         </div>
 
@@ -418,14 +418,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
              {/* Header */}
              <div className="h-32 px-16 flex items-center justify-between border-b border-white/5 bg-black/10 shrink-0">
                  <h3 className="text-white font-serif text-5xl tracking-wide opacity-90">
-                    {activeTab === 'schedule' ? 'Prayer Schedule' : 
-                     activeTab === 'announcements' ? 'Announcements & Alerts' : 
+                    {activeTab === 'schedule' ? 'Prayer Schedule' :
+                     activeTab === 'announcements' ? 'Announcements & Alerts' :
                      activeTab === 'silentAlert' ? 'Mobile Silent Alert' :
                      activeTab === 'slideshow' ? 'Right Panel Content' : 'Appearance'}
                  </h3>
-                 <div className="flex items-center gap-4 text-xl text-white/30 uppercase tracking-widest font-mono">
-                    Markaz Masjid v2.0
-                 </div>
+                 <button
+                    onClick={onClose}
+                    className="p-4 rounded-full border-2 border-white/10 hover:border-mosque-gold hover:bg-mosque-gold/10 text-white/70 hover:text-mosque-gold transition-all"
+                    title="Close Settings"
+                 >
+                    <X className="w-10 h-10" />
+                 </button>
              </div>
 
              <div className="flex-1 overflow-y-auto p-16 custom-scrollbar">

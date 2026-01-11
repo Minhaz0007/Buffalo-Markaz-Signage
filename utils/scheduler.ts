@@ -31,6 +31,14 @@ export const getScheduleForDate = (
   maghribOffset: number
 ): { prayers: DailyPrayers, jumuah: { start: string, iqamah: string } } => {
 
+  /**
+   * PRIORITY HIERARCHY FOR IQAMAH TIMES:
+   * 1. Adhan Library (Auto-calculation) - Base layer, always calculated
+   * 2. Year-Round Calendar (Excel) - Overrides auto-calculation, extrapolates across years
+   * 3. Maghrib Offset - Only applies if NO Excel data exists for Maghrib
+   * 4. Manual Scheduling - Highest priority, overrides everything
+   */
+
   // 1. Start with Auto-Calculated Prayer Times (Autopilot Mode)
   // Parse the date string to create a Date object for the specific day
   const targetDate = new Date(dateStr + 'T12:00:00'); // Use noon to avoid timezone issues
@@ -49,10 +57,33 @@ export const getScheduleForDate = (
     newJumuah = { ...DEFAULT_JUMUAH_TIMES };
   }
 
-  // 2. Apply Excel (if exists for date)
+  // 2. Apply Excel (if exists for date) - WITH YEAR-ROUND EXTRAPOLATION
   let hasExcelMaghrib = false;
+  let excelDataForDate: ExcelDaySchedule | null = null;
+
+  // First, try exact date match
   if (excelSchedule[dateStr]) {
-    const day = excelSchedule[dateStr];
+    excelDataForDate = excelSchedule[dateStr];
+  } else {
+    // Year-round calendar logic: If no exact match, find the same month-day from any year
+    // This allows a 2026 calendar to work for 2027, 2028, etc.
+    const [year, month, day] = dateStr.split('-');
+    const monthDay = `${month}-${day}`; // e.g., "01-15"
+
+    // Find all Excel entries with the same month-day
+    const matchingEntries = Object.entries(excelSchedule)
+      .filter(([key]) => key.endsWith(monthDay)) // Match MM-DD suffix
+      .sort(([keyA], [keyB]) => keyB.localeCompare(keyA)); // Sort descending (most recent year first)
+
+    // Use the most recent year's data for this month-day
+    if (matchingEntries.length > 0) {
+      excelDataForDate = matchingEntries[0][1];
+    }
+  }
+
+  // Apply the Excel data if found (either exact match or year-round match)
+  if (excelDataForDate) {
+    const day = excelDataForDate;
     newPrayers.fajr = { name: 'Fajr', ...day.fajr };
     newPrayers.dhuhr = { name: 'Dhuhr', ...day.dhuhr };
     newPrayers.asr = { name: 'Asr', ...day.asr };
