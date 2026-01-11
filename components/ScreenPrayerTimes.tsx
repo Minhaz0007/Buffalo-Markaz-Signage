@@ -484,12 +484,16 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                 const isJumuah = !!row.isJumuah;
                 const bgClass = isActive ? 'bg-[#E5E5E5] scale-[1.02] z-10 shadow-y-lg' : 'bg-transparent';
                 const borderClass = isActive ? 'border-mosque-navy/10' : 'border-white/10';
+                
                 let nameColor = isActive ? 'text-mosque-navy' : 'text-white opacity-90';
                 let timeColor = isActive ? 'text-mosque-navy' : 'text-white';
+                
+                // Jumuah Styling Logic - Gold Gradient
                 if (isJumuah) {
-                    nameColor = 'text-mosque-gold';
-                    timeColor = 'text-mosque-gold';
+                    nameColor = 'bg-gradient-to-r from-[#D4AF37] via-[#FFFFFF] to-[#D4AF37] bg-[length:200%_auto] animate-text-shine text-transparent bg-clip-text';
+                    timeColor = 'bg-gradient-to-r from-[#D4AF37] via-[#FFFFFF] to-[#D4AF37] bg-[length:200%_auto] animate-text-shine text-transparent bg-clip-text';
                 }
+
                 const iqamahBgClass = isActive ? '' : 'bg-black/5';
                 const nameSize = isActive ? 'text-6xl' : 'text-5xl';
                 const timeSize = isActive ? 'text-8xl font-black' : 'text-7xl font-bold';
@@ -560,9 +564,16 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
         @keyframes marquee { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
         @keyframes textPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.98); } }
         @keyframes textBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes text-shine {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
         .animate-marquee { animation-name: marquee; animation-timing-function: linear; animation-iteration-count: infinite; transform: translateZ(0); }
         .animate-text-pulse { animation: textPulse 2s infinite ease-in-out; display: inline-block; }
         .animate-text-blink { animation: textBlink 1s infinite steps(1); display: inline-block; }
+        .animate-text-shine {
+            animation: text-shine 3s linear infinite;
+        }
       `}</style>
     </div>
   );
