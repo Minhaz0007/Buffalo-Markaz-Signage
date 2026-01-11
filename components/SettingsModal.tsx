@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers, Lock } from 'lucide-react';
-import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig, AutoAlertSettings } from '../types';
+import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers, Lock, PhoneOff, Eye } from 'lucide-react';
+import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig, AutoAlertSettings, MobileSilentAlertSettings } from '../types';
+import { ALERT_MESSAGES } from '../constants';
 import * as XLSX from 'xlsx';
 
 // --- Types ---
@@ -26,6 +27,10 @@ interface SettingsModalProps {
 
   slidesConfig: SlideConfig[];
   setSlidesConfig: (config: SlideConfig[]) => void;
+
+  mobileAlertSettings: MobileSilentAlertSettings;
+  setMobileAlertSettings: (settings: MobileSilentAlertSettings) => void;
+  setIsPreviewAlert: (isPreview: boolean) => void;
 }
 
 // --- Calendar Component ---
@@ -136,9 +141,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   maghribOffset, setMaghribOffset,
   autoAlertSettings, setAutoAlertSettings,
   tickerBg, setTickerBg,
-  slidesConfig, setSlidesConfig
+  slidesConfig, setSlidesConfig,
+  mobileAlertSettings, setMobileAlertSettings,
+  setIsPreviewAlert
 }) => {
-  const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization' | 'slideshow'>('schedule');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization' | 'slideshow' | 'silentAlert'>('schedule');
   const [uploadStatus, setUploadStatus] = useState<string>("");
   const [expandedPrayer, setExpandedPrayer] = useState<string | null>(null);
   const [newOverride, setNewOverride] = useState<Partial<ManualOverride>>({
@@ -160,6 +167,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isAutoAlertExpanded, setIsAutoAlertExpanded] = useState(false);
 
   if (!isOpen) return null;
+
+  const handlePreviewToggle = () => {
+      // Toggle preview mode in App
+      setIsPreviewAlert(true);
+      // Close modal temporarily to see preview
+      onClose();
+      // Auto turn off preview after 5 seconds
+      setTimeout(() => {
+          setIsPreviewAlert(false);
+      }, 5000);
+  };
 
   const convertExcelTime = (val: any): string => {
     if (!val) return "";
@@ -340,13 +358,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                    <MessageSquare className="w-8 h-8" />
                    <span className="text-2xl tracking-wide uppercase">Alerts</span>
                 </button>
-                <button onClick={() => setActiveTab('customization')} className={sidebarItemClass('customization')}>
-                   <Palette className="w-8 h-8" />
-                   <span className="text-2xl tracking-wide uppercase">Theme</span>
+                <button onClick={() => setActiveTab('silentAlert')} className={sidebarItemClass('silentAlert')}>
+                   <PhoneOff className="w-8 h-8" />
+                   <span className="text-2xl tracking-wide uppercase">Silent Alert</span>
                 </button>
                 <button onClick={() => setActiveTab('slideshow')} className={sidebarItemClass('slideshow')}>
                    <Layers className="w-8 h-8" />
                    <span className="text-2xl tracking-wide uppercase">Slideshow</span>
+                </button>
+                <button onClick={() => setActiveTab('customization')} className={sidebarItemClass('customization')}>
+                   <Palette className="w-8 h-8" />
+                   <span className="text-2xl tracking-wide uppercase">Theme</span>
                 </button>
              </nav>
           </div>
@@ -358,6 +380,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                  <h3 className="text-white font-serif text-4xl tracking-wide">
                     {activeTab === 'schedule' ? 'Prayer Schedule & Overrides' : 
                      activeTab === 'announcements' ? 'Announcements & Alerts' : 
+                     activeTab === 'silentAlert' ? 'Mobile Silent Alert' :
                      activeTab === 'slideshow' ? 'Right Panel Slideshow' : 'Appearance'}
                  </h3>
                  <button onClick={onClose} className="text-white/40 hover:text-white hover:bg-white/10 p-4 rounded-full transition-all duration-300">
@@ -367,6 +390,174 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
              <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
                 
+                {/* --- SILENT ALERT TAB --- */}
+                {activeTab === 'silentAlert' && (
+                    <div className="max-w-[1400px] mx-auto space-y-12">
+                        {/* Header Description */}
+                        <div className="bg-white/5 p-8 rounded-2xl border border-white/10 flex items-center justify-between">
+                             <div className="flex items-center gap-6">
+                                <div className="p-4 rounded-xl bg-red-500/20 text-red-400">
+                                    <PhoneOff className="w-12 h-12" />
+                                </div>
+                                <div>
+                                    <h4 className="text-3xl text-white font-bold">Mobile Silent Alert</h4>
+                                    <p className="text-white/50 text-xl mt-2">Display a warning before Iqamah to remind congregants to silence phones.</p>
+                                </div>
+                             </div>
+                             
+                             <div className="flex items-center gap-4">
+                                <label className="text-xl uppercase tracking-widest text-white/70 font-bold mr-4">Enable Alert</label>
+                                <button 
+                                  onClick={() => setMobileAlertSettings({ ...mobileAlertSettings, enabled: !mobileAlertSettings.enabled })}
+                                  className={`w-24 h-12 rounded-full relative transition-colors duration-300 ${mobileAlertSettings.enabled ? 'bg-mosque-gold' : 'bg-white/10'}`}
+                               >
+                                  <div className={`absolute top-1 bottom-1 w-10 bg-mosque-navy rounded-full transition-all duration-300 shadow-lg ${mobileAlertSettings.enabled ? 'right-1' : 'left-1'}`}></div>
+                               </button>
+                             </div>
+                        </div>
+
+                        {/* Configuration Grid */}
+                        <div className="grid grid-cols-2 gap-12">
+                            {/* Left Col */}
+                            <div className="space-y-10">
+                                <div>
+                                    <label className={labelClass}>Alert Mode</label>
+                                    <div className="flex gap-4">
+                                        <button 
+                                            onClick={() => setMobileAlertSettings({...mobileAlertSettings, mode: 'panel'})}
+                                            className={`flex-1 py-6 rounded-2xl border-2 text-2xl font-bold uppercase transition-all ${mobileAlertSettings.mode === 'panel' ? 'border-mosque-gold bg-mosque-gold/10 text-mosque-gold' : 'border-white/10 bg-black/20 text-white/40'}`}
+                                        >
+                                            Right Panel
+                                        </button>
+                                        <button 
+                                            onClick={() => setMobileAlertSettings({...mobileAlertSettings, mode: 'fullscreen'})}
+                                            className={`flex-1 py-6 rounded-2xl border-2 text-2xl font-bold uppercase transition-all ${mobileAlertSettings.mode === 'fullscreen' ? 'border-mosque-gold bg-mosque-gold/10 text-mosque-gold' : 'border-white/10 bg-black/20 text-white/40'}`}
+                                        >
+                                            Full Screen
+                                        </button>
+                                    </div>
+                                    <p className="text-white/40 text-lg mt-3 ml-1">
+                                        {mobileAlertSettings.mode === 'panel' ? "Shows in the right column, replacing slides." : "Takes over the entire screen for maximum visibility."}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label className={labelClass}>Trigger Time (Minutes Before Iqamah)</label>
+                                    <select 
+                                        value={mobileAlertSettings.triggerMinutes}
+                                        onChange={(e) => setMobileAlertSettings({...mobileAlertSettings, triggerMinutes: Number(e.target.value)})}
+                                        className={inputClass}
+                                    >
+                                        {[1, 2, 3, 4, 5, 10].map(m => (
+                                            <option key={m} value={m} className="bg-mosque-navy">{m} Minutes</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className={labelClass}>Background Color</label>
+                                    <div className="flex gap-6 items-center">
+                                         {['#ef4444', '#b91c1c', '#000000', '#1e3a8a', '#d97706'].map(c => (
+                                             <button 
+                                                key={c}
+                                                onClick={() => setMobileAlertSettings({...mobileAlertSettings, backgroundColor: c})}
+                                                className={`w-16 h-16 rounded-full border-4 shadow-lg transition-transform hover:scale-110 ${mobileAlertSettings.backgroundColor === c ? 'border-white scale-110 ring-4 ring-white/20' : 'border-transparent'}`}
+                                                style={{ backgroundColor: c }}
+                                             />
+                                         ))}
+                                         <input 
+                                            type="color"
+                                            value={mobileAlertSettings.backgroundColor}
+                                            onChange={(e) => setMobileAlertSettings({...mobileAlertSettings, backgroundColor: e.target.value})}
+                                            className="w-16 h-16 rounded-full border-0 p-0 overflow-hidden cursor-pointer"
+                                         />
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-6 p-6 bg-white/5 rounded-2xl border border-white/10">
+                                    <div className="p-4 bg-white/10 rounded-full">
+                                        <Zap className="w-8 h-8 text-mosque-gold" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h5 className="text-xl font-bold text-white">Audio Beep</h5>
+                                        <p className="text-white/50">Play a warning tone at 30 seconds.</p>
+                                    </div>
+                                    <button 
+                                      onClick={() => setMobileAlertSettings({ ...mobileAlertSettings, beepEnabled: !mobileAlertSettings.beepEnabled })}
+                                      className={`w-16 h-8 rounded-full relative transition-colors duration-300 ${mobileAlertSettings.beepEnabled ? 'bg-green-500' : 'bg-white/10'}`}
+                                   >
+                                      <div className={`absolute top-1 bottom-1 w-6 bg-white rounded-full transition-all duration-300 shadow ${mobileAlertSettings.beepEnabled ? 'right-1' : 'left-1'}`}></div>
+                                   </button>
+                                </div>
+                            </div>
+
+                            {/* Right Col */}
+                            <div className="space-y-10">
+                                <div>
+                                    <label className={labelClass}>Alert Message</label>
+                                    <div className="space-y-4 mb-4">
+                                        {ALERT_MESSAGES.map((msg, idx) => (
+                                            <button 
+                                                key={idx}
+                                                onClick={() => setMobileAlertSettings({...mobileAlertSettings, text: msg})}
+                                                className={`block w-full text-left p-4 rounded-xl text-lg border transition-all ${mobileAlertSettings.text === msg ? 'bg-mosque-gold text-mosque-navy border-mosque-gold font-bold' : 'bg-white/5 text-white/60 border-transparent hover:bg-white/10'}`}
+                                            >
+                                                {msg}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        value={mobileAlertSettings.text}
+                                        onChange={(e) => setMobileAlertSettings({...mobileAlertSettings, text: e.target.value})}
+                                        className={inputClass}
+                                        placeholder="Or type a custom message..."
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className={labelClass}>Icon & Animation</label>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div>
+                                            <select 
+                                                value={mobileAlertSettings.icon}
+                                                onChange={(e) => setMobileAlertSettings({...mobileAlertSettings, icon: e.target.value as any})}
+                                                className={inputClass}
+                                            >
+                                                <option value="phone-off" className="bg-mosque-navy">No Phone Icon</option>
+                                                <option value="shhh" className="bg-mosque-navy">Silence Icon</option>
+                                                <option value="align-rows" className="bg-mosque-navy">Straighten Rows</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <select 
+                                                value={mobileAlertSettings.animation}
+                                                onChange={(e) => setMobileAlertSettings({...mobileAlertSettings, animation: e.target.value as any})}
+                                                className={inputClass}
+                                            >
+                                                <option value="pulse" className="bg-mosque-navy">Pulse</option>
+                                                <option value="flash" className="bg-mosque-navy">Flash Background</option>
+                                                <option value="none" className="bg-mosque-navy">Static</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pt-8 mt-8 border-t border-white/10">
+                                    <button 
+                                        onClick={handlePreviewToggle}
+                                        className="w-full py-6 bg-white hover:bg-white/90 text-mosque-navy text-2xl font-bold uppercase tracking-widest rounded-xl shadow-xl flex items-center justify-center gap-4 transition-all"
+                                    >
+                                        <Eye className="w-8 h-8" />
+                                        Preview Alert (5s)
+                                    </button>
+                                    <p className="text-center text-white/40 mt-3">Preview will close settings and show the alert for 5 seconds.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {activeTab === 'schedule' && (
                   <div className="space-y-12 max-w-[1400px] mx-auto">
                      {/* Schedule content omitted for brevity, logic remains the same */}
@@ -565,467 +756,3 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   </div>
                 )}
-
-                {activeTab === 'announcements' && (
-                  <div className="max-w-[1400px] mx-auto space-y-12">
-                    
-                    {/* Ticker Background Config */}
-                    <div className="flex items-center justify-between bg-white/5 p-8 rounded-2xl border border-white/10">
-                        <div>
-                             <h4 className="text-3xl text-white font-bold">Ticker Background</h4>
-                             <p className="text-white/50 text-xl mt-2">Select the background color for the bottom announcement bar.</p>
-                        </div>
-                        <div className="flex bg-black/30 p-2 rounded-xl border border-white/10">
-                             <button 
-                                onClick={() => setTickerBg('white')}
-                                className={`px-8 py-3 rounded-lg text-xl font-bold transition-all ${tickerBg === 'white' ? 'bg-white text-mosque-navy shadow-lg' : 'text-white/50 hover:text-white'}`}
-                             >
-                                White
-                             </button>
-                             <button 
-                                onClick={() => setTickerBg('navy')}
-                                className={`px-8 py-3 rounded-lg text-xl font-bold transition-all ${tickerBg === 'navy' ? 'bg-mosque-navy text-mosque-gold shadow-lg ring-1 ring-mosque-gold' : 'text-white/50 hover:text-white'}`}
-                             >
-                                Navy
-                             </button>
-                        </div>
-                    </div>
-
-                    {/* Auto Alerts Config */}
-                    <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
-                       <div className="p-8 flex items-center justify-between cursor-pointer hover:bg-white/5" onClick={() => setIsAutoAlertExpanded(!isAutoAlertExpanded)}>
-                           <div className="flex items-center gap-6">
-                              <div className={`p-4 rounded-xl ${autoAlertSettings.enabled ? 'bg-mosque-gold text-mosque-navy' : 'bg-white/5 text-white/40'}`}>
-                                 <AlertTriangle className="w-10 h-10" />
-                              </div>
-                              <div>
-                                 <h4 className="text-3xl text-white font-bold">Automatic Iqamah Change Alerts</h4>
-                                 <p className="text-white/50 text-xl mt-2">Automatically display an alert when prayer times change tomorrow.</p>
-                              </div>
-                           </div>
-                           <div className="flex items-center gap-6">
-                               <button 
-                                  onClick={(e) => { e.stopPropagation(); setAutoAlertSettings({ ...autoAlertSettings, enabled: !autoAlertSettings.enabled }); }}
-                                  className={`w-24 h-12 rounded-full relative transition-colors duration-300 ${autoAlertSettings.enabled ? 'bg-mosque-gold' : 'bg-white/10'}`}
-                               >
-                                  <div className={`absolute top-1 bottom-1 w-10 bg-mosque-navy rounded-full transition-all duration-300 shadow-lg ${autoAlertSettings.enabled ? 'right-1' : 'left-1'}`}></div>
-                               </button>
-                               <div className={`transform transition-transform duration-300 ${isAutoAlertExpanded ? 'rotate-180 text-mosque-gold' : 'text-white/50'}`}>▼</div>
-                           </div>
-                       </div>
-                       
-                       {isAutoAlertExpanded && (
-                           <div className="p-8 border-t border-white/10 bg-black/20 space-y-8 animate-in slide-in-from-top-4">
-                                <div>
-                                   <label className={labelClass}>Alert Message Template</label>
-                                   <p className="text-white/40 mb-3 text-sm">Use <span className="text-mosque-gold font-mono">{`{prayers}`}</span> as a placeholder for the list of changing prayers.</p>
-                                   <input 
-                                      type="text" 
-                                      value={autoAlertSettings.template}
-                                      onChange={(e) => setAutoAlertSettings({ ...autoAlertSettings, template: e.target.value })}
-                                      className={inputClass}
-                                   />
-                                </div>
-                                <div className="grid grid-cols-2 gap-10">
-                                   <div>
-                                      <label className={labelClass}>Alert Color</label>
-                                      <div className="flex gap-4">
-                                         {THEME_COLORS.map(c => (
-                                            <button 
-                                               key={c}
-                                               onClick={() => setAutoAlertSettings({ ...autoAlertSettings, color: c })}
-                                               className={`w-12 h-12 rounded-full border-2 ${autoAlertSettings.color === c ? 'border-white scale-110' : 'border-transparent opacity-50'}`}
-                                               style={{ backgroundColor: c }}
-                                            />
-                                         ))}
-                                          {/* Custom Color Input for Alerts */}
-                                          <div className="relative">
-                                            <input 
-                                                type="color" 
-                                                value={autoAlertSettings.color}
-                                                onChange={(e) => setAutoAlertSettings({ ...autoAlertSettings, color: e.target.value })}
-                                                className="w-12 h-12 opacity-0 absolute inset-0 cursor-pointer"
-                                            />
-                                            <div className="w-12 h-12 rounded-full border border-white/20 bg-gradient-to-br from-gray-700 to-black flex items-center justify-center pointer-events-none">
-                                                <Plus className="w-4 h-4 text-white/50" />
-                                            </div>
-                                          </div>
-                                      </div>
-                                   </div>
-                                   <div>
-                                      <label className={labelClass}>Animation Style</label>
-                                      <div className="flex gap-4">
-                                          {['none', 'pulse', 'blink'].map((anim) => (
-                                              <button
-                                                  key={anim}
-                                                  onClick={() => setAutoAlertSettings({ ...autoAlertSettings, animation: anim as any })}
-                                                  className={`px-6 py-3 rounded-xl font-bold uppercase tracking-widest border-2 transition-all ${autoAlertSettings.animation === anim ? 'bg-mosque-gold text-mosque-navy border-mosque-gold' : 'bg-black/20 text-white/50 border-transparent hover:border-white/20'}`}
-                                              >
-                                                  {anim}
-                                              </button>
-                                          ))}
-                                      </div>
-                                   </div>
-                                </div>
-                           </div>
-                       )}
-                    </div>
-
-                    {/* Custom Ticker Items */}
-                    <div>
-                        <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
-                            <h4 className="text-2xl font-bold uppercase tracking-widest text-white/80">Ticker Messages</h4>
-                            <button 
-                                onClick={() => openEditor()}
-                                className="flex items-center gap-3 bg-mosque-gold text-mosque-navy px-6 py-3 rounded-lg font-bold uppercase tracking-wider hover:bg-white transition-colors"
-                            >
-                                <Plus className="w-6 h-6" /> Add New
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4">
-                            {announcement.items.length === 0 ? (
-                                <div className="text-white/30 text-2xl text-center py-20 italic bg-white/5 rounded-2xl border border-white/5">
-                                    No custom messages active.
-                                </div>
-                            ) : (
-                                announcement.items.map(item => (
-                                    <div key={item.id} className="bg-white/5 rounded-2xl border border-white/10 p-6 flex items-center justify-between group hover:border-white/20 transition-all">
-                                        <div className="flex items-center gap-6">
-                                            <div className="w-16 h-16 rounded-full border-2 border-white/10 flex items-center justify-center shrink-0" style={{ backgroundColor: item.color }}>
-                                                {item.animation === 'pulse' && <Zap className="w-6 h-6 text-white/80" />}
-                                                {item.animation === 'blink' && <AlertTriangle className="w-6 h-6 text-white/80" />}
-                                                {item.animation === 'none' && <Type className="w-6 h-6 text-white/80" />}
-                                            </div>
-                                            <div>
-                                                <div className="text-2xl text-white font-serif font-bold leading-tight mb-1">{item.text}</div>
-                                                <div className="text-white/40 uppercase tracking-wider text-sm flex gap-4">
-                                                    <span>Color: {item.color}</span>
-                                                    <span>•</span>
-                                                    <span>Animation: {item.animation}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => openEditor(item)} className="p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
-                                                <Edit2 className="w-6 h-6" />
-                                            </button>
-                                            <button onClick={() => deleteAnnouncementItem(item.id)} className="p-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-full transition-colors">
-                                                <Trash2 className="w-6 h-6" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'slideshow' && (
-                    <div className="max-w-[1400px] mx-auto space-y-12">
-                        {/* Intro / Info Block */}
-                        <div className="bg-white/5 p-8 rounded-2xl border border-white/10">
-                           <div className="flex items-center gap-6">
-                              <div className="p-4 rounded-xl bg-mosque-gold/20 text-mosque-gold">
-                                 <Layers className="w-10 h-10" />
-                              </div>
-                              <div>
-                                 <h4 className="text-3xl text-white font-bold">Right Panel Slideshow</h4>
-                                 <p className="text-white/50 text-xl mt-2">Activate multiple slides to cycle through content. The Main Clock will always be included.</p>
-                              </div>
-                           </div>
-                        </div>
-
-                        {/* Slide List */}
-                        <div className="space-y-6">
-                           <h4 className="text-2xl font-bold uppercase tracking-widest text-white/80 border-b border-white/10 pb-4">Available Slides</h4>
-                           
-                           {slidesConfig.map(slide => {
-                              const isExpanded = expandedSlideId === slide.id;
-                              const isLocked = slide.type === 'CLOCK'; // Lock Main Clock
-                              
-                              return (
-                                 <div key={slide.id} className={`bg-white/5 rounded-2xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'border-mosque-gold ring-2 ring-mosque-gold/30' : 'border-white/5'}`}>
-                                    {/* Header */}
-                                    <div className="p-8 flex items-center justify-between">
-                                       <div className="flex items-center gap-6">
-                                          {isLocked ? (
-                                              <div className="w-8 h-8 flex items-center justify-center bg-mosque-gold/20 rounded border border-mosque-gold/50 text-mosque-gold" title="Always Active">
-                                                  <Lock className="w-5 h-5" />
-                                              </div>
-                                          ) : (
-                                              <input 
-                                                type="checkbox" 
-                                                checked={slide.enabled}
-                                                onChange={(e) => updateSlideConfig(slide.id, { enabled: e.target.checked })}
-                                                className="w-8 h-8 rounded border-white/30 bg-black/20 text-mosque-gold focus:ring-mosque-gold cursor-pointer"
-                                              />
-                                          )}
-                                          <div>
-                                             <div className="text-3xl font-bold text-white font-serif">{slide.type === 'CLOCK' ? 'Main Clock & Prayer Info' : slide.type === 'ANNOUNCEMENT' ? 'Special Announcement' : '7-Day Prayer Schedule'}</div>
-                                             <div className="text-white/40 text-lg mt-1 flex items-center gap-4">
-                                                <span>{slide.duration} Seconds</span>
-                                                {(slide.enabled || isLocked) && <span className="bg-green-500/20 text-green-400 px-3 py-0.5 rounded text-sm uppercase font-bold tracking-wide">Active</span>}
-                                             </div>
-                                          </div>
-                                       </div>
-                                       <button onClick={() => setExpandedSlideId(isExpanded ? null : slide.id)} className="bg-white/5 hover:bg-white/10 text-white px-6 py-3 rounded-lg font-bold uppercase tracking-wider text-sm transition-colors">
-                                          {isExpanded ? 'Collapse' : 'Configure'}
-                                       </button>
-                                    </div>
-
-                                    {/* Config Body */}
-                                    {isExpanded && (
-                                       <div className="p-10 border-t border-white/10 bg-black/20 space-y-10 animate-in slide-in-from-top-4 duration-300">
-                                          
-                                          {/* Common: Duration */}
-                                          <div className="max-w-md">
-                                             <label className={labelClass}>Display Duration (Seconds)</label>
-                                             <input 
-                                                type="number" 
-                                                value={slide.duration}
-                                                onChange={(e) => updateSlideConfig(slide.id, { duration: parseInt(e.target.value) || 10 })}
-                                                className={inputClass}
-                                             />
-                                          </div>
-
-                                          {/* Type Specific: Announcement */}
-                                          {slide.type === 'ANNOUNCEMENT' && (
-                                             <div className="space-y-8 border-t border-white/5 pt-8">
-                                                <div>
-                                                   <label className={labelClass}>Announcement Text</label>
-                                                   <textarea 
-                                                      value={(slide as AnnouncementSlideConfig).content}
-                                                      onChange={(e) => updateSlideConfig(slide.id, { content: e.target.value })}
-                                                      className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-3xl text-white placeholder-white/20 focus:border-mosque-gold outline-none min-h-[160px] resize-none"
-                                                   />
-                                                </div>
-                                                
-                                                <div className="grid grid-cols-2 gap-10">
-                                                   <div>
-                                                      <label className={labelClass}>Background Color</label>
-                                                      <div className="flex gap-4">
-                                                         {SLIDE_BG_COLORS.map(c => (
-                                                            <button 
-                                                               key={c}
-                                                               onClick={() => updateSlideConfig(slide.id, { backgroundColor: c })}
-                                                               className={`w-12 h-12 rounded-full border-2 ${ (slide as AnnouncementSlideConfig).styles.backgroundColor === c ? 'border-white scale-110' : 'border-transparent opacity-50'}`}
-                                                               style={{ backgroundColor: c }}
-                                                            />
-                                                         ))}
-                                                      </div>
-                                                   </div>
-                                                   <div>
-                                                      <label className={labelClass}>Text Animation</label>
-                                                      <select 
-                                                         value={(slide as AnnouncementSlideConfig).styles.textAnimation}
-                                                         onChange={(e) => updateSlideConfig(slide.id, { textAnimation: e.target.value as any })}
-                                                         className="bg-black/40 border border-white/20 rounded-xl px-4 py-3 text-white text-xl w-full"
-                                                      >
-                                                         <option value="none">None</option>
-                                                         <option value="gradient-flow">Gradient Flow</option>
-                                                         <option value="pulse">Pulse</option>
-                                                      </select>
-                                                   </div>
-                                                </div>
-                                             </div>
-                                          )}
-                                       </div>
-                                    )}
-                                 </div>
-                              );
-                           })}
-                        </div>
-                    </div>
-                )}
-                
-                {activeTab === 'customization' && (
-                  <div className="max-w-[1600px] mx-auto">
-                      <div className="mb-12">
-                          <h4 className="text-4xl text-white font-serif mb-4">Background Theme</h4>
-                          <p className="text-white/40 text-2xl">Select a background style for the display.</p>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                          {/* Theme Options */}
-                          <button 
-                             onClick={() => setCurrentTheme('arabesque')}
-                             className={`group relative h-80 rounded-2xl border-4 overflow-hidden transition-all duration-300 ${currentTheme === 'arabesque' ? 'border-mosque-gold shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'border-white/10 hover:border-white/30'}`}
-                          >
-                             <div className="absolute inset-0 bg-[#0B1E3B]">
-                                  <div className="absolute inset-0 bg-gradient-to-br from-[#112442] to-[#050F1E]"></div>
-                                  <div className="absolute inset-0 opacity-[0.1]">
-                                    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                                      <defs>
-                                        <pattern id="preview-arabesque" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-                                          <path d="M20 0 L40 20 L20 40 L0 20 Z" fill="none" stroke="white" strokeWidth="1" />
-                                          <circle cx="20" cy="20" r="2" fill="white" />
-                                        </pattern>
-                                      </defs>
-                                      <rect width="100%" height="100%" fill="url(#preview-arabesque)" />
-                                    </svg>
-                                  </div>
-                                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.6)_100%)]"></div>
-                             </div>
-                             <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 to-transparent">
-                                <span className="text-white font-bold flex items-center gap-4 text-3xl">Subtle Arabesque {currentTheme === 'arabesque' && <CheckCircle2 className="w-8 h-8 text-mosque-gold"/>}</span>
-                                <span className="text-xl text-white/50 block mt-2">Default elegant geometric pattern</span>
-                             </div>
-                          </button>
-
-                           <button 
-                           onClick={() => setCurrentTheme('lattice')}
-                           className={`group relative h-80 rounded-2xl border-4 overflow-hidden transition-all duration-300 ${currentTheme === 'lattice' ? 'border-mosque-gold shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'border-white/10 hover:border-white/30'}`}
-                        >
-                           <div className="absolute inset-0 bg-mosque-navy">
-                               <div className="absolute inset-0 bg-[#08152b]"></div>
-                               <div className="absolute inset-0 opacity-20 text-mosque-gold">
-                                  <svg width="100%" height="100%">
-                                    <pattern id="preview-lattice" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
-                                      <path d="M15 0 L30 15 L15 30 L0 15 Z" fill="none" stroke="currentColor" strokeWidth="1" />
-                                    </pattern>
-                                    <rect width="100%" height="100%" fill="url(#preview-lattice)" />
-                                  </svg>
-                               </div>
-                               <div className="absolute inset-0 bg-gradient-to-t from-mosque-navy via-transparent to-mosque-navy opacity-80"></div>
-                           </div>
-                           <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 to-transparent">
-                              <span className="text-white font-bold flex items-center gap-4 text-3xl">Golden Lattice {currentTheme === 'lattice' && <CheckCircle2 className="w-8 h-8 text-mosque-gold"/>}</span>
-                              <span className="text-xl text-white/50 block mt-2">Modern grid with gold accents</span>
-                           </div>
-                        </button>
-                        
-                         <button 
-                           onClick={() => setCurrentTheme('starry')}
-                           className={`group relative h-80 rounded-2xl border-4 overflow-hidden transition-all duration-300 ${currentTheme === 'starry' ? 'border-mosque-gold shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'border-white/10 hover:border-white/30'}`}
-                        >
-                           <div className="absolute inset-0 bg-[#02040a]">
-                               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,#0B1E3B_0%,#02040a_50%,#000000_100%)]"></div>
-                               <div className="absolute inset-0">
-                                  {Array.from({ length: 20 }).map((_, i) => (
-                                    <div 
-                                      key={i} 
-                                      className="absolute bg-white rounded-full opacity-60"
-                                      style={{
-                                        top: `${Math.random() * 100}%`,
-                                        left: `${Math.random() * 100}%`,
-                                        width: `${Math.random() * 3}px`,
-                                        height: `${Math.random() * 3}px`,
-                                      }}
-                                    />
-                                  ))}
-                               </div>
-                               <div className="absolute inset-0 flex items-center justify-center opacity-50">
-                                   <Moon className="w-16 h-16 text-white" />
-                               </div>
-                           </div>
-                           <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 to-transparent">
-                              <span className="text-white font-bold flex items-center gap-4 text-3xl">Starry Nights {currentTheme === 'starry' && <CheckCircle2 className="w-8 h-8 text-mosque-gold"/>}</span>
-                              <span className="text-xl text-white/50 block mt-2">Peaceful night sky with animated stars</span>
-                           </div>
-                        </button>
-                      </div>
-                  </div>
-                )}
-             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* EXTENSIVE EDITOR OVERLAY MODAL */}
-      {isEditorOpen && (
-        <div className="fixed inset-0 z-[110] bg-black/80 flex items-center justify-center p-8 backdrop-blur-md animate-in fade-in duration-300">
-           <div className="bg-mosque-navy w-[1000px] border-2 border-mosque-gold rounded-3xl shadow-2xl overflow-hidden flex flex-col">
-              
-              <div className="p-8 border-b border-white/10 bg-black/20 flex items-center justify-between">
-                <div>
-                   <h3 className="text-3xl text-mosque-gold font-bold uppercase tracking-widest mb-1">
-                      {editingId ? 'Edit Announcement' : 'Add New Announcement'}
-                   </h3>
-                   <p className="text-white/50 text-lg">Configure text, color, and animation.</p>
-                </div>
-                <button onClick={closeEditor} className="p-4 bg-white/5 hover:bg-white/20 rounded-full transition-colors">
-                   <X className="w-8 h-8 text-white" />
-                </button>
-              </div>
-
-              <div className="p-10 space-y-10 bg-gradient-to-b from-mosque-navy to-[#050c18]">
-                   {/* Text Input */}
-                   <div>
-                      <label className={labelClass}>Message Text</label>
-                      <textarea 
-                          value={newItem.text}
-                          onChange={(e) => setNewItem({ ...newItem, text: e.target.value })}
-                          className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-3xl text-white placeholder-white/20 focus:border-mosque-gold outline-none min-h-[160px] resize-none leading-relaxed"
-                          placeholder="Type your announcement here..."
-                      />
-                   </div>
-
-                   <div className="flex gap-10">
-                      {/* Color Picker */}
-                      <div className="flex-1 space-y-4">
-                          <label className={labelClass}><span className="flex items-center gap-2"><Palette className="w-5 h-5"/> Text Color</span></label>
-                          <div className="bg-white/5 rounded-2xl p-6 border border-white/10 flex items-center gap-6">
-                              {THEME_COLORS.map(color => (
-                                  <button
-                                      key={color}
-                                      onClick={() => setNewItem({ ...newItem, color })}
-                                      className={`w-16 h-16 rounded-full border-4 shadow-lg transition-transform hover:scale-110 ${newItem.color === color ? 'border-white scale-110 ring-4 ring-white/20' : 'border-transparent'}`}
-                                      style={{ backgroundColor: color }}
-                                      title={color}
-                                  />
-                              ))}
-                              <div className="w-px h-12 bg-white/10"></div>
-                              <div className="relative">
-                                <input 
-                                    type="color" 
-                                    value={newItem.color}
-                                    onChange={(e) => setNewItem({ ...newItem, color: e.target.value })}
-                                    className="w-16 h-16 opacity-0 absolute inset-0 cursor-pointer"
-                                />
-                                <div className="w-16 h-16 rounded-2xl border border-white/20 bg-gradient-to-br from-gray-700 to-black flex items-center justify-center pointer-events-none">
-                                    <Plus className="w-6 h-6 text-white/50" />
-                                </div>
-                              </div>
-                          </div>
-                      </div>
-
-                      {/* Animation Picker */}
-                      <div className="flex-1 space-y-4">
-                          <label className={labelClass}><span className="flex items-center gap-2"><Zap className="w-5 h-5"/> Animation</span></label>
-                          <div className="bg-white/5 rounded-2xl p-6 border border-white/10 flex gap-4">
-                              {['none', 'pulse', 'blink'].map((anim) => (
-                                  <button
-                                      key={anim}
-                                      onClick={() => setNewItem({ ...newItem, animation: anim as any })}
-                                      className={`flex-1 py-4 rounded-xl text-xl font-bold uppercase tracking-widest border-2 transition-all ${newItem.animation === anim ? 'bg-mosque-gold text-mosque-navy border-mosque-gold shadow-lg transform scale-105' : 'bg-black/20 text-white/50 border-transparent hover:border-white/20'}`}
-                                  >
-                                      {anim}
-                                  </button>
-                              ))}
-                          </div>
-                      </div>
-                   </div>
-              </div>
-
-              <div className="p-8 border-t border-white/10 bg-black/20 flex justify-end gap-6">
-                  <button 
-                      onClick={closeEditor}
-                      className="px-8 py-5 text-white/60 font-bold text-xl uppercase tracking-widest hover:text-white transition-colors"
-                  >
-                      Cancel
-                  </button>
-                  <button 
-                      onClick={handleSaveItem}
-                      className="px-12 py-5 bg-mosque-gold text-mosque-navy font-bold text-2xl uppercase tracking-widest rounded-xl hover:bg-white transition-colors shadow-xl"
-                  >
-                      {editingId ? 'Update Announcement' : 'Save Announcement'}
-                  </button>
-              </div>
-           </div>
-        </div>
-      )}
-    </>
-  );
-};

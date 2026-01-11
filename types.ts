@@ -102,3 +102,14 @@ export interface AutoAlertSettings {
   color: string;
   animation: 'none' | 'pulse' | 'blink';
 }
+
+export interface MobileSilentAlertSettings {
+  enabled: boolean;
+  mode: 'fullscreen' | 'panel';
+  triggerMinutes: number; // How many minutes before Iqamah to start
+  backgroundColor: string;
+  text: string;
+  icon: 'phone-off' | 'align-rows' | 'shhh';
+  animation: 'pulse' | 'flash' | 'none';
+  beepEnabled: boolean;
+}

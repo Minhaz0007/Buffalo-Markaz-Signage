@@ -1,4 +1,4 @@
-import { DailyPrayers, Announcement } from './types';
+import { DailyPrayers, Announcement, MobileSilentAlertSettings } from './types';
 
 export const MOSQUE_NAME = "Buffalo Markaz Masjid";
 export const ADDRESS = "123 Main St, Buffalo, NY 14212";
@@ -44,3 +44,21 @@ export const DEFAULT_ANNOUNCEMENT: Announcement = {
     }
   ]
 };
+
+export const DEFAULT_MOBILE_SILENT_ALERT: MobileSilentAlertSettings = {
+  enabled: true,
+  mode: 'panel', // 'fullscreen' or 'panel'
+  triggerMinutes: 2,
+  backgroundColor: '#ef4444', // Red-500
+  text: 'Please silence your cell phones.',
+  icon: 'phone-off',
+  animation: 'pulse',
+  beepEnabled: true
+};
+
+export const ALERT_MESSAGES = [
+  "Please silence your cell phones.",
+  "Please straighten the rows and fill the gaps.",
+  "Turn off mobile phones and connect with Allah.",
+  "Please keep children close and silence devices."
+];

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ScreenPrayerTimes } from './components/ScreenPrayerTimes';
 import { SettingsModal } from './components/SettingsModal';
-import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AutoAlertSettings } from './types';
-import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES, DEFAULT_ANNOUNCEMENT } from './constants';
+import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AutoAlertSettings, MobileSilentAlertSettings } from './types';
+import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES, DEFAULT_ANNOUNCEMENT, DEFAULT_MOBILE_SILENT_ALERT } from './constants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Maximize, Minimize } from 'lucide-react';
 import { getScheduleForDate } from './utils/scheduler';
+import { MobileSilentAlert } from './components/MobileSilentAlert';
 
 // --- Background Components ---
 
@@ -165,6 +166,7 @@ const App: React.FC = () => {
   
   // New Configs
   const [autoAlertSettings, setAutoAlertSettings] = usePersistentState<AutoAlertSettings>('auto_alert_settings', DEFAULT_AUTO_ALERTS);
+  const [mobileAlertSettings, setMobileAlertSettings] = usePersistentState<MobileSilentAlertSettings>('mobile_alert_settings', DEFAULT_MOBILE_SILENT_ALERT);
   const [tickerBg, setTickerBg] = usePersistentState<'white' | 'navy'>('ticker_bg', 'white');
   
   // Slideshow State
@@ -177,6 +179,11 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [scale, setScale] = useState(1);
+  
+  // Alert Logic State
+  const [isMobileAlertActive, setIsMobileAlertActive] = useState(false);
+  const [alertTargetTime, setAlertTargetTime] = useState<Date | null>(null);
+  const [isPreviewAlert, setIsPreviewAlert] = useState(false);
 
   // Scaling Logic for Virtual Viewport (1920x1080)
   useEffect(() => {
@@ -199,6 +206,18 @@ const App: React.FC = () => {
 
   // --- Logic: Priority Scheduler & Alerts ---
   
+  // Helper to parse time string to Date object for today
+  const parseTime = (timeStr: string | undefined): Date | null => {
+    if (!timeStr) return null;
+    const [time, modifier] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    if (modifier === 'PM' && hours < 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  };
+
   useEffect(() => {
     const updateTimes = () => {
       const now = new Date();
@@ -239,13 +258,51 @@ const App: React.FC = () => {
       } else {
         setSystemAlert("");
       }
+
+      // --- Mobile Silent Alert Logic ---
+      if (mobileAlertSettings.enabled && !isPreviewAlert) {
+         const prayersList = [
+            todaySchedule.prayers.fajr,
+            todaySchedule.prayers.dhuhr,
+            todaySchedule.prayers.asr,
+            todaySchedule.prayers.maghrib,
+            todaySchedule.prayers.isha
+         ];
+
+         // Determine which Iqamah is coming up
+         const iqamahTimes = prayersList
+             .map(p => parseTime(p.iqamah))
+             .filter(Boolean) as Date[];
+         
+         // Special case for Jumuah on Friday
+         if (now.getDay() === 5 && todaySchedule.jumuah.iqamah) {
+             const jTime = parseTime(todaySchedule.jumuah.iqamah);
+             if (jTime) iqamahTimes.push(jTime);
+         }
+
+         // Find the next active iqamah or currently happening one
+         const upcoming = iqamahTimes.find(time => {
+            const diff = time.getTime() - now.getTime();
+            // Check if within trigger window AND not yet passed
+            const triggerMs = mobileAlertSettings.triggerMinutes * 60 * 1000;
+            return diff > 0 && diff <= triggerMs;
+         });
+
+         if (upcoming) {
+            setIsMobileAlertActive(true);
+            setAlertTargetTime(upcoming);
+         } else {
+            setIsMobileAlertActive(false);
+            setAlertTargetTime(null);
+         }
+      }
     };
 
     updateTimes();
-    const interval = setInterval(updateTimes, 60000); // Check every minute
+    const interval = setInterval(updateTimes, 1000); // Check every second for accurate alert triggering
     return () => clearInterval(interval);
 
-  }, [excelSchedule, manualOverrides, maghribOffset, autoAlertSettings]);
+  }, [excelSchedule, manualOverrides, maghribOffset, autoAlertSettings, mobileAlertSettings, isPreviewAlert]);
 
   // Combine system alerts with manually added announcement items
   const effectiveAnnouncement: Announcement = React.useMemo(() => {
@@ -296,6 +353,12 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSettingsOpen]);
 
+  // Determine if Fullscreen Alert should show
+  // Show if: (Active in time window OR Preview Mode) AND (Mode is Fullscreen)
+  const showFullscreenAlert = (isMobileAlertActive || isPreviewAlert) && mobileAlertSettings.mode === 'fullscreen';
+  // If preview is active, use a fake target time (now + 2 minutes)
+  const effectiveTargetTime = isPreviewAlert ? new Date(Date.now() + 120000) : alertTargetTime;
+
   return (
     <div className="w-screen h-screen bg-black flex items-center justify-center overflow-hidden font-sans antialiased selection:bg-mosque-gold selection:text-mosque-navy">
       {/* 
@@ -316,25 +379,46 @@ const App: React.FC = () => {
 
         <div className="relative z-10 w-full h-full">
           <AnimatePresence mode="wait">
-            <motion.div
-              key="prayer-times"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
-              className="w-full h-full"
-            >
-              <ScreenPrayerTimes 
-                prayers={displayedPrayerTimes} 
-                jumuah={displayedJumuahTimes} 
-                announcement={effectiveAnnouncement}
-                slidesConfig={slidesConfig}
-                excelSchedule={excelSchedule}
-                manualOverrides={manualOverrides}
-                maghribOffset={maghribOffset}
-                tickerBg={tickerBg}
-              />
-            </motion.div>
+             {/* Fullscreen Alert Overlay */}
+             {showFullscreenAlert && effectiveTargetTime ? (
+                 <motion.div
+                    key="fullscreen-alert"
+                    initial={{ opacity: 0, scale: 1.1 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="absolute inset-0 z-50"
+                 >
+                    <MobileSilentAlert 
+                        settings={mobileAlertSettings} 
+                        targetTime={effectiveTargetTime} 
+                        previewMode={isPreviewAlert}
+                    />
+                 </motion.div>
+             ) : (
+                <motion.div
+                  key="prayer-times"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  className="w-full h-full"
+                >
+                  <ScreenPrayerTimes 
+                    prayers={displayedPrayerTimes} 
+                    jumuah={displayedJumuahTimes} 
+                    announcement={effectiveAnnouncement}
+                    slidesConfig={slidesConfig}
+                    excelSchedule={excelSchedule}
+                    manualOverrides={manualOverrides}
+                    maghribOffset={maghribOffset}
+                    tickerBg={tickerBg}
+                    // Alert props for panel mode
+                    isAlertActive={isMobileAlertActive || isPreviewAlert}
+                    alertSettings={mobileAlertSettings}
+                    nextIqamahTime={effectiveTargetTime}
+                  />
+                </motion.div>
+             )}
           </AnimatePresence>
         </div>
 
@@ -374,6 +458,9 @@ const App: React.FC = () => {
           setTickerBg={setTickerBg}
           slidesConfig={slidesConfig}
           setSlidesConfig={setSlidesConfig}
+          mobileAlertSettings={mobileAlertSettings}
+          setMobileAlertSettings={setMobileAlertSettings}
+          setIsPreviewAlert={setIsPreviewAlert}
         />
         
       </div>

@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { DailyPrayers, Announcement, SlideConfig, AnnouncementSlideConfig, ScheduleSlideConfig, ExcelDaySchedule, ManualOverride } from '../types';
+import { DailyPrayers, Announcement, SlideConfig, AnnouncementSlideConfig, ScheduleSlideConfig, ExcelDaySchedule, ManualOverride, MobileSilentAlertSettings } from '../types';
 import { Sunrise, Sunset } from 'lucide-react';
 import { MOSQUE_NAME } from '../constants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getScheduleForDate } from '../utils/scheduler';
+import { MobileSilentAlert } from './MobileSilentAlert';
 
 interface ScreenPrayerTimesProps {
   prayers: DailyPrayers;
@@ -14,6 +15,11 @@ interface ScreenPrayerTimesProps {
   manualOverrides: ManualOverride[];
   maghribOffset: number;
   tickerBg: 'white' | 'navy';
+  
+  // Alert Props
+  isAlertActive: boolean;
+  alertSettings: MobileSilentAlertSettings;
+  nextIqamahTime: Date | null;
 }
 
 const GeometricCorner = ({ className, rotate }: { className?: string, rotate?: number }) => (
@@ -269,7 +275,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     prayers, jumuah, announcement, 
     slidesConfig, 
     excelSchedule, manualOverrides, maghribOffset,
-    tickerBg 
+    tickerBg,
+    isAlertActive, alertSettings, nextIqamahTime
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timeUntilIqamah, setTimeUntilIqamah] = useState<string>("");
@@ -286,7 +293,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
   useEffect(() => {
     // If freeze mode is active or only one slide (or zero), do not cycle
-    if (!isSlideshowActive || isIqamahFreeze) {
+    // Also stop cycling if Alert is active in panel mode
+    if (!isSlideshowActive || isIqamahFreeze || (isAlertActive && alertSettings.mode === 'panel')) {
         return; 
     }
 
@@ -304,7 +312,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [currentSlideIndex, isSlideshowActive, activeSlides, isIqamahFreeze]);
+  }, [currentSlideIndex, isSlideshowActive, activeSlides, isIqamahFreeze, isAlertActive, alertSettings.mode]);
 
 
   // Calculate duration based on text length for consistent speed
@@ -353,6 +361,17 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     ];
 
     let nextPrayer = prayersList.find(p => p.time && p.time > now);
+
+    // If no prayer found left today, check tomorrow's Fajr
+    if (!nextPrayer) {
+       const tomorrow = new Date(now);
+       tomorrow.setDate(tomorrow.getDate() + 1);
+       // Parse Fajr time using tomorrow's date
+       const fajrTime = parseTime(prayers.fajr.iqamah || '', tomorrow);
+       if (fajrTime) {
+         nextPrayer = { name: 'Fajr', time: fajrTime };
+       }
+    }
     
     // Check if we are in the 5-minute pre-Iqamah window
     let freeze = false;
@@ -404,6 +423,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
   const getActiveRowIndex = () => {
     const now = new Date();
+    const isFriday = now.getDay() === 5; // 5 is Friday
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const parseToMinutes = (timeStr: string) => {
        if (!timeStr) return -1;
@@ -413,7 +433,19 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
        if (modifier === 'AM' && hours === 12) hours = 0;
        return hours * 60 + minutes;
     };
-    return rows.findIndex((row, idx) => !row.isJumuah && parseToMinutes(row.iqamah || '') > currentMinutes);
+    
+    // Find next prayer row (excluding Jumuah from this standard check)
+    let index = rows.findIndex((row, idx) => !row.isJumuah && parseToMinutes(row.iqamah || '') > currentMinutes);
+    
+    // If all passed (index -1), effectively next is Fajr (0) of tomorrow
+    if (index === -1) index = 0;
+
+    // Special Jumuah Logic: If it is Friday and the next prayer is Dhuhr (index 1), point to Jumuah (index 5) instead.
+    if (isFriday && rows[index].name === 'Dhuhr') {
+        return 5; // Index of Jumuah in the rows array
+    }
+
+    return index;
   };
   
   const activeIndex = getActiveRowIndex();
@@ -421,16 +453,22 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
   // --- Determine Active Content for Right Panel ---
   
+  // Default is Clock Slide
   let RightPanelContent = <ClockSlide 
     hours={hours} minutes={minutes} seconds={seconds} displayAmPm={displayAmPm}
     nextPrayerName={nextPrayerName} timeUntilIqamah={timeUntilIqamah}
     hijriDate={hijriDate} formatDate={formatDate} currentTime={currentTime} prayers={prayers}
   />;
 
-  // Use slideshow content ONLY if slideshow active, slides exist, AND we are not in the "Iqamah Freeze" window
-  if (isSlideshowActive && activeSlides.length > 0 && !isIqamahFreeze) {
+  // Logic Loop:
+  // 1. If Alert is Active AND Mode is PANEL -> Show Alert
+  // 2. Else if Slideshow Active -> Show Slides
+  // 3. Else -> Show Default Clock
+
+  if (isAlertActive && alertSettings.mode === 'panel' && nextIqamahTime) {
+      RightPanelContent = <MobileSilentAlert settings={alertSettings} targetTime={nextIqamahTime} />;
+  } else if (isSlideshowActive && activeSlides.length > 0 && !isIqamahFreeze) {
       const activeSlide = activeSlides[currentSlideIndex];
-      // Safety check: activeSlide might be undefined if currentSlideIndex is stale/invalid
       if (activeSlide) {
         if (activeSlide.type === 'ANNOUNCEMENT') {
             RightPanelContent = <AnnouncementSlide config={activeSlide as AnnouncementSlideConfig} />;
@@ -438,7 +476,6 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
             RightPanelContent = <ScheduleSlide config={activeSlide as ScheduleSlideConfig} excelSchedule={excelSchedule} manualOverrides={manualOverrides} maghribOffset={maghribOffset} />;
         }
       }
-      // ClockSlide is the default fallback above or if activeSlide is invalid
   }
 
   // Ticker style based on tickerBg prop
@@ -488,11 +525,19 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                 let nameColor = isActive ? 'text-mosque-navy' : 'text-white opacity-90';
                 let timeColor = isActive ? 'text-mosque-navy' : 'text-white';
                 
-                // Jumuah Styling Logic - Gold Gradient
+                // Jumuah Styling Logic
                 if (isJumuah) {
-                    const goldGradient = 'bg-[linear-gradient(to_right,#D4AF37,#FFFFFF,#D4AF37,#FFFFFF,#D4AF37)]';
-                    nameColor = `${goldGradient} bg-[length:200%_auto] animate-text-shine text-transparent bg-clip-text`;
-                    timeColor = `${goldGradient} bg-[length:200%_auto] animate-text-shine text-transparent bg-clip-text`;
+                    if (isActive) {
+                        // High Contrast Gradient for Active Jumuah (Dark Navy/Gold) against Light Background
+                        const darkGoldGradient = 'bg-[linear-gradient(to_right,#0B1E3B,#D4AF37,#0B1E3B,#D4AF37,#0B1E3B)]';
+                        nameColor = `${darkGoldGradient} bg-[length:200%_auto] animate-text-shine text-transparent bg-clip-text`;
+                        timeColor = `${darkGoldGradient} bg-[length:200%_auto] animate-text-shine text-transparent bg-clip-text`;
+                    } else {
+                        // Standard Gold Gradient for Inactive Jumuah against Dark Background
+                        const lightGoldGradient = 'bg-[linear-gradient(to_right,#D4AF37,#FFFFFF,#D4AF37,#FFFFFF,#D4AF37)]';
+                        nameColor = `${lightGoldGradient} bg-[length:200%_auto] animate-text-shine text-transparent bg-clip-text`;
+                        timeColor = `${lightGoldGradient} bg-[length:200%_auto] animate-text-shine text-transparent bg-clip-text`;
+                    }
                 }
 
                 const iqamahBgClass = isActive ? '' : 'bg-black/5';
@@ -525,7 +570,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
               <div className="w-full h-full relative z-10">
                  <AnimatePresence mode="wait">
                     <motion.div
-                       key={(!isSlideshowActive || isIqamahFreeze) ? 'static-clock' : activeSlides[currentSlideIndex]?.id}
+                       key={isAlertActive ? 'alert-panel' : (!isSlideshowActive || isIqamahFreeze) ? 'static-clock' : activeSlides[currentSlideIndex]?.id}
                        initial={{ opacity: 0, x: 20 }}
                        animate={{ opacity: 1, x: 0 }}
                        exit={{ opacity: 0, x: -20 }}
