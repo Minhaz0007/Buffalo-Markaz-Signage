@@ -197,15 +197,15 @@ const AnnouncementSlide = ({ config }: { config: AnnouncementSlideConfig }) => {
 };
 
 const ScheduleSlide = ({ config, excelSchedule, manualOverrides, maghribOffset }: { config: ScheduleSlideConfig, excelSchedule: any, manualOverrides: any, maghribOffset: number }) => {
-    
+
     const scheduleData = useMemo(() => {
         const days = [];
         const start = new Date();
         // Start from Tomorrow (exclude today)
         start.setDate(start.getDate() + 1);
-        
-        // Show next 7 days statically
-        const daysToDisplay = 7; 
+
+        // Use config value for days to display
+        const daysToDisplay = config.daysToShow || 7; 
         
         for(let i = 0; i < daysToDisplay; i++) {
            const d = new Date(start);
