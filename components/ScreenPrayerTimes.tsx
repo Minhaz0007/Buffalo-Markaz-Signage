@@ -320,12 +320,31 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   // Speed: 100px per second. Duration = Width / Speed
   const marqueeDuration = estimatedContentWidth / 100;
 
+  // Initialize immediately on mount and whenever prayers change
+  useEffect(() => {
+    const now = new Date();
+    setCurrentTime(now);
+    calculateNextIqamah(now);
+
+    try {
+      const hijri = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }).format(now);
+      setHijriDate(hijri.replace(' AH', '').toUpperCase());
+    } catch (e) {
+      setHijriDate("HIJRI DATE UNAVAILABLE");
+    }
+  }, [prayers]);
+
+  // Continuous clock update (independent of prayers changes)
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
       setCurrentTime(now);
       calculateNextIqamah(now);
-      
+
       try {
         const hijri = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
           day: 'numeric',
@@ -339,7 +358,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
     }, 1000);
     return () => clearInterval(timer);
-  }, [prayers]);
+  }, []); // Empty dependency array - runs once and keeps ticking
 
   const parseTime = (timeStr: string, now: Date): Date | null => {
     if (!timeStr) return null;
