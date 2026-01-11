@@ -7,6 +7,17 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Maximize, Minimize } from 'lucide-react';
 import { getScheduleForDate } from './utils/scheduler';
 import { MobileSilentAlert } from './components/MobileSilentAlert';
+import {
+  loadExcelScheduleFromDatabase,
+  loadManualOverridesFromDatabase,
+  loadAnnouncementItemsFromDatabase,
+  loadSlideshowConfigFromDatabase,
+  loadGlobalSettingsFromDatabase,
+  saveManualOverridesToDatabase,
+  saveAnnouncementItemsToDatabase,
+  saveSlideshowConfigToDatabase,
+  saveGlobalSettingsToDatabase,
+} from './utils/database';
 
 // --- Background Components ---
 
@@ -184,6 +195,90 @@ const App: React.FC = () => {
   const [isMobileAlertActive, setIsMobileAlertActive] = useState(false);
   const [alertTargetTime, setAlertTargetTime] = useState<Date | null>(null);
   const [isPreviewAlert, setIsPreviewAlert] = useState(false);
+
+  // Supabase sync state
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  // Load data from Supabase on mount
+  useEffect(() => {
+    const loadFromDatabase = async () => {
+      console.log('🔄 Loading data from Supabase...');
+
+      // Load Excel schedule
+      const dbExcelSchedule = await loadExcelScheduleFromDatabase();
+      if (Object.keys(dbExcelSchedule).length > 0) {
+        setExcelSchedule(dbExcelSchedule);
+        console.log(`✅ Loaded ${Object.keys(dbExcelSchedule).length} days from database`);
+      }
+
+      // Load manual overrides
+      const dbManualOverrides = await loadManualOverridesFromDatabase();
+      if (dbManualOverrides.length > 0) {
+        setManualOverrides(dbManualOverrides);
+        console.log(`✅ Loaded ${dbManualOverrides.length} manual overrides from database`);
+      }
+
+      // Load announcement items
+      const dbAnnouncementItems = await loadAnnouncementItemsFromDatabase();
+      if (dbAnnouncementItems.length > 0) {
+        setAnnouncement({ ...announcement, items: dbAnnouncementItems });
+        console.log(`✅ Loaded ${dbAnnouncementItems.length} announcement items from database`);
+      }
+
+      // Load slideshow config
+      const dbSlidesConfig = await loadSlideshowConfigFromDatabase();
+      if (dbSlidesConfig && dbSlidesConfig.length > 0) {
+        setSlidesConfig(dbSlidesConfig);
+        console.log(`✅ Loaded ${dbSlidesConfig.length} slideshow slides from database`);
+      }
+
+      // Load global settings
+      const dbGlobalSettings = await loadGlobalSettingsFromDatabase();
+      if (dbGlobalSettings) {
+        setCurrentTheme(dbGlobalSettings.theme);
+        setTickerBg(dbGlobalSettings.tickerBg);
+        setMaghribOffset(dbGlobalSettings.maghribOffset);
+        setAutoAlertSettings(dbGlobalSettings.autoAlertSettings);
+        setMobileAlertSettings(dbGlobalSettings.mobileAlertSettings);
+        console.log('✅ Loaded global settings from database');
+      }
+
+      setIsDataLoaded(true);
+      console.log('✅ All data loaded from Supabase');
+    };
+
+    loadFromDatabase();
+  }, []); // Run once on mount
+
+  // Save manual overrides to Supabase whenever they change (after initial load)
+  useEffect(() => {
+    if (!isDataLoaded) return;
+    saveManualOverridesToDatabase(manualOverrides);
+  }, [manualOverrides, isDataLoaded]);
+
+  // Save announcement items to Supabase whenever they change (after initial load)
+  useEffect(() => {
+    if (!isDataLoaded) return;
+    saveAnnouncementItemsToDatabase(announcement.items);
+  }, [announcement.items, isDataLoaded]);
+
+  // Save slideshow config to Supabase whenever it changes (after initial load)
+  useEffect(() => {
+    if (!isDataLoaded) return;
+    saveSlideshowConfigToDatabase(slidesConfig);
+  }, [slidesConfig, isDataLoaded]);
+
+  // Save global settings to Supabase whenever they change (after initial load)
+  useEffect(() => {
+    if (!isDataLoaded) return;
+    saveGlobalSettingsToDatabase({
+      theme: currentTheme,
+      tickerBg,
+      maghribOffset,
+      autoAlertSettings,
+      mobileAlertSettings,
+    });
+  }, [currentTheme, tickerBg, maghribOffset, autoAlertSettings, mobileAlertSettings, isDataLoaded]);
 
   // Scaling Logic for Virtual Viewport (1920x1080)
   useEffect(() => {
