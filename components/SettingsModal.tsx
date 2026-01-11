@@ -660,15 +660,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <div className="space-y-4">
                               {announcement.items.length === 0 && <div className="text-white/30 text-center py-12 bg-white/5 rounded-2xl border border-dashed border-white/10 text-xl">No messages in ticker. Add one above.</div>}
                               {announcement.items.map((item, idx) => (
-                                  <div key={item.id} className="bg-white/5 border border-white/5 rounded-2xl p-6 flex items-center justify-between group hover:border-white/20 transition-all">
-                                      <div className="flex items-center gap-6">
-                                          <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-lg font-bold text-white/50">{idx + 1}</div>
-                                          <span className="text-2xl text-white" style={{ color: item.color }}>{item.text}</span>
-                                          {item.animation !== 'none' && <span className="px-3 py-1 bg-white/10 rounded text-sm uppercase text-white/50 tracking-wider">{item.animation}</span>}
+                                  <div key={item.id} className="bg-white/10 border border-white/10 rounded-2xl p-6 flex items-center justify-between group hover:border-white/20 hover:bg-white/15 transition-all shadow-sm">
+                                      <div className="flex items-center gap-8">
+                                          <div className="w-14 h-14 rounded-full bg-black/40 flex items-center justify-center text-xl font-bold text-white/70 border border-white/10 shadow-inner">{idx + 1}</div>
+                                          
+                                          <div className="flex flex-col gap-2">
+                                              <span className="text-2xl text-white font-medium tracking-wide drop-shadow-sm">{item.text}</span>
+                                              
+                                              <div className="flex items-center gap-4">
+                                                  {/* Color Indicator */}
+                                                  <div className="flex items-center gap-3 bg-black/30 px-4 py-1.5 rounded-lg border border-white/5">
+                                                      <div className="w-5 h-5 rounded-full border border-white/30 shadow-sm" style={{ backgroundColor: item.color }}></div>
+                                                      <span className="text-base text-white/50 uppercase font-mono tracking-wider">{item.color}</span>
+                                                  </div>
+
+                                                  {/* Animation Badge */}
+                                                  {item.animation !== 'none' && (
+                                                      <span className="px-3 py-1.5 bg-mosque-gold/20 text-mosque-gold rounded-lg text-sm uppercase font-bold tracking-wider border border-mosque-gold/20">
+                                                          {item.animation}
+                                                      </span>
+                                                  )}
+                                              </div>
+                                          </div>
                                       </div>
-                                      <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <button onClick={() => openEditor(item)} className="p-3 hover:bg-white/10 rounded-xl text-blue-300"><Edit2 className="w-6 h-6" /></button>
-                                          <button onClick={() => deleteAnnouncementItem(item.id)} className="p-3 hover:bg-white/10 rounded-xl text-red-400"><Trash2 className="w-6 h-6" /></button>
+                                      
+                                      <div className="flex gap-4 opacity-100"> 
+                                          {/* Keep opacity 100 for better usability/discoverability on touch screens or large displays where hover might be tricky or simply for clarity */}
+                                          <button onClick={() => openEditor(item)} className="p-4 hover:bg-white/20 rounded-xl text-blue-300 transition-colors bg-black/20 border border-white/5"><Edit2 className="w-7 h-7" /></button>
+                                          <button onClick={() => deleteAnnouncementItem(item.id)} className="p-4 hover:bg-white/20 rounded-xl text-red-400 transition-colors bg-black/20 border border-white/5"><Trash2 className="w-7 h-7" /></button>
                                       </div>
                                   </div>
                               ))}
