@@ -3,6 +3,7 @@ import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Tr
 import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig, AutoAlertSettings, MobileSilentAlertSettings } from '../types';
 import { ALERT_MESSAGES } from '../constants';
 import * as XLSX from 'xlsx';
+import { saveExcelScheduleToDatabase } from '../utils/database';
 
 // --- Types ---
 interface SettingsModalProps {
@@ -292,7 +293,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }
       }
       setExcelSchedule(newSchedule);
-      setUploadStatus(`Success! Imported ${count} days.`);
+
+      // Save to Supabase database
+      setUploadStatus(`Saving to database...`);
+      const dbResult = await saveExcelScheduleToDatabase(newSchedule);
+
+      if (dbResult.success) {
+        setUploadStatus(`Success! Imported ${count} days and saved to database.`);
+      } else {
+        setUploadStatus(`Success! Imported ${count} days (saved locally only).`);
+      }
     } catch (err) {
       console.error(err);
       setUploadStatus("Error processing file.");
