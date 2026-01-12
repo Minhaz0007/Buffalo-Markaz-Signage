@@ -693,10 +693,6 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
       {/* === BOTTOM FOOTER: ANNOUNCEMENT TICKER === */}
       <div className={`h-[10%] ${tickerContainerClass} relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden transition-colors duration-500 flex`}>
-          <div className="absolute left-0 top-0 bottom-0 bg-mosque-gold text-mosque-navy px-8 flex items-center justify-center z-20 font-black uppercase tracking-[0.15em] text-4xl shadow-[10px_0_20px_rgba(0,0,0,0.2)] min-w-[380px]">
-             {announcement.title}
-          </div>
-          
           {/* Seamless Marquee Container using Duplicated Content */}
           <div className="flex-1 flex overflow-hidden relative z-10 items-center">
                <div 

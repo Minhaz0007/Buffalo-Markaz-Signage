@@ -432,22 +432,34 @@ const App: React.FC = () => {
       // NOTE: Maghrib is excluded because it changes daily (tied to sunset + offset)
       const changes: string[] = [];
       const norm = (t?: string) => t?.replace(/\s+/g, '').toUpperCase() || '';
+      const pushChange = (label: string, time?: string) => {
+        if (time) {
+          changes.push(`${label} Salah is at ${time}`);
+        }
+      };
 
-      if (norm(todaySchedule.prayers.fajr.iqamah) !== norm(tomorrowSchedule.prayers.fajr.iqamah)) changes.push(`Fajr`);
-      if (norm(todaySchedule.prayers.dhuhr.iqamah) !== norm(tomorrowSchedule.prayers.dhuhr.iqamah)) changes.push(`Dhuhr`);
-      if (norm(todaySchedule.prayers.asr.iqamah) !== norm(tomorrowSchedule.prayers.asr.iqamah)) changes.push(`Asr`);
+      if (norm(todaySchedule.prayers.fajr.iqamah) !== norm(tomorrowSchedule.prayers.fajr.iqamah)) {
+        pushChange('Fajr', tomorrowSchedule.prayers.fajr.iqamah);
+      }
+      if (norm(todaySchedule.prayers.dhuhr.iqamah) !== norm(tomorrowSchedule.prayers.dhuhr.iqamah)) {
+        pushChange('Dhuhr', tomorrowSchedule.prayers.dhuhr.iqamah);
+      }
+      if (norm(todaySchedule.prayers.asr.iqamah) !== norm(tomorrowSchedule.prayers.asr.iqamah)) {
+        pushChange('Asr', tomorrowSchedule.prayers.asr.iqamah);
+      }
       // SKIP MAGHRIB - it changes daily by design (sunset + offset), no alert needed
-      if (norm(todaySchedule.prayers.isha.iqamah) !== norm(tomorrowSchedule.prayers.isha.iqamah)) changes.push(`Isha`);
+      if (norm(todaySchedule.prayers.isha.iqamah) !== norm(tomorrowSchedule.prayers.isha.iqamah)) {
+        pushChange('Isha', tomorrowSchedule.prayers.isha.iqamah);
+      }
 
       if (tomorrow.getDay() === 5) { // 5 = Friday
          if (norm(todaySchedule.jumuah.iqamah) !== norm(tomorrowSchedule.jumuah.iqamah)) {
-            changes.push(`Jumu'ah`);
+            pushChange(`Jumu'ah`, tomorrowSchedule.jumuah.iqamah);
          }
       }
 
       if (changes.length > 0 && autoAlertSettings.enabled) {
-        // Use the custom template
-        const alertText = autoAlertSettings.template.replace('{prayers}', changes.join(', '));
+        const alertText = `⚠️ Attention: From tomorrow, ${changes.join(', ')}`;
         setSystemAlert(alertText);
       } else {
         setSystemAlert("");
