@@ -19,7 +19,7 @@ import {
   saveSlideshowConfigToDatabase,
   saveGlobalSettingsToDatabase,
 } from './utils/database';
-import { isSupabaseConfigured } from './utils/supabase';
+import { isSupabaseConfigured, supabase } from './utils/supabase';
 
 // --- Background Components ---
 
@@ -267,6 +267,59 @@ const App: React.FC = () => {
 
     loadFromDatabase();
   }, []); // Run once on mount
+
+  // Subscribe to Supabase realtime updates to sync settings across devices
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !supabase) return;
+
+    const channel = supabase
+      .channel('settings-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_overrides' }, async () => {
+        const dbManualOverrides = await loadManualOverridesFromDatabase();
+        setManualOverrides(dbManualOverrides);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'excel_schedule' }, async () => {
+        const dbExcelSchedule = await loadExcelScheduleFromDatabase();
+        if (Object.keys(dbExcelSchedule).length > 0) {
+          setExcelSchedule(dbExcelSchedule);
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcement_items' }, async () => {
+        const dbAnnouncementItems = await loadAnnouncementItemsFromDatabase();
+        setAnnouncement(prev => ({ ...prev, items: dbAnnouncementItems }));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'slideshow_config' }, async () => {
+        const dbSlidesConfig = await loadSlideshowConfigFromDatabase();
+        if (dbSlidesConfig && dbSlidesConfig.length > 0) {
+          setSlidesConfig(dbSlidesConfig);
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'global_settings' }, async () => {
+        const dbGlobalSettings = await loadGlobalSettingsFromDatabase();
+        if (dbGlobalSettings) {
+          setCurrentTheme(dbGlobalSettings.theme);
+          setTickerBg(dbGlobalSettings.tickerBg);
+          setMaghribOffset(dbGlobalSettings.maghribOffset);
+          setAutoAlertSettings(dbGlobalSettings.autoAlertSettings);
+          setMobileAlertSettings(dbGlobalSettings.mobileAlertSettings);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [
+    setAnnouncement,
+    setAutoAlertSettings,
+    setCurrentTheme,
+    setExcelSchedule,
+    setMaghribOffset,
+    setManualOverrides,
+    setMobileAlertSettings,
+    setSlidesConfig,
+    setTickerBg,
+  ]);
 
   // Save Excel schedule to Supabase whenever it changes (after initial load)
   useEffect(() => {
