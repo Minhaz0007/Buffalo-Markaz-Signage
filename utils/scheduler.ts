@@ -2,6 +2,32 @@ import { DailyPrayers, ExcelDaySchedule, ManualOverride } from '../types';
 import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES } from '../constants';
 import { calculatePrayerTimes, calculateJumuahTimes } from './prayerCalculator';
 
+// Helper function to ensure time has AM/PM suffix
+const ensureAmPm = (timeStr: string, isAfternoon: boolean = true): string => {
+  if (!timeStr) return timeStr;
+
+  // If already has AM/PM, return as-is
+  if (/AM|PM/i.test(timeStr)) {
+    return timeStr;
+  }
+
+  // Match HH:MM or H:MM format without AM/PM
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+  if (match) {
+    const hours = parseInt(match[1]);
+    const minutes = match[2];
+
+    // For Jumu'ah and afternoon prayers, assume PM
+    // For hours 12, it's noon (PM)
+    // For hours 1-2, if isAfternoon flag is true, assume PM
+    const suffix = isAfternoon || hours === 12 ? 'PM' : 'AM';
+
+    return `${hours}:${minutes} ${suffix}`;
+  }
+
+  return timeStr;
+};
+
 export const addMinutesToTime = (timeStr: string, minutesToAdd: number): string => {
   const match = timeStr.match(/(\d+):(\d+)\s?(AM|PM)/i);
   if (!match) return timeStr;
@@ -95,7 +121,8 @@ export const getScheduleForDate = (
     newPrayers.isha = { name: 'Isha', ...day.isha };
 
     if (day.jumuahIqamah) {
-       newJumuah.iqamah = day.jumuahIqamah;
+       // Ensure Jumu'ah iqamah time has AM/PM (fix for legacy data)
+       newJumuah.iqamah = ensureAmPm(day.jumuahIqamah, true);
     }
   }
 
@@ -110,7 +137,11 @@ export const getScheduleForDate = (
   manualOverrides.forEach(override => {
      if (dateStr >= override.startDate && dateStr <= override.endDate) {
         if (override.prayerKey === 'jumuah') {
-            newJumuah = { start: override.start, iqamah: override.iqamah };
+            // Ensure manual override Jumu'ah times have AM/PM
+            newJumuah = {
+              start: ensureAmPm(override.start, true),
+              iqamah: ensureAmPm(override.iqamah, true)
+            };
         } else if (override.prayerKey !== 'maghrib') {
             // It's a daily prayer (but NOT maghrib - maghrib is always auto-calculated)
             const key = override.prayerKey as keyof Omit<DailyPrayers, 'sunrise'|'sunset'>;

@@ -236,22 +236,55 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       }, 5000);
   };
 
-  const convertExcelTime = (val: any): string => {
+  const convertExcelTime = (val: any, isJumuah: boolean = false): string => {
     if (!val) return "";
     let timeStr = String(val);
+
+    // If time already has AM/PM, return as-is
+    if (/AM|PM/i.test(timeStr)) {
+      return timeStr;
+    }
+
+    // Handle Excel serial number (fraction of a day)
     if (typeof val === 'number') {
         const totalMinutes = Math.round(val * 24 * 60);
         const h = Math.floor(totalMinutes / 60);
         const m = totalMinutes % 60;
         timeStr = `${h}:${m < 10 ? '0' : ''}${m}`;
     }
+
+    // Match time format HH:MM or H:MM
     const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
     if (match) {
         let h = parseInt(match[1]);
         const m = match[2];
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        if (h > 12) h -= 12;
-        if (h === 0) h = 12;
+
+        // Determine AM/PM based on hour value
+        let ampm: string;
+        if (h >= 13) {
+          // Definitely 24-hour format (1 PM - 11 PM)
+          ampm = 'PM';
+          h -= 12;
+        } else if (h === 0) {
+          // Midnight
+          h = 12;
+          ampm = 'AM';
+        } else if (h === 12) {
+          // Noon
+          ampm = 'PM';
+        } else if (h >= 1 && h <= 2 && isJumuah) {
+          // Jumu'ah times in 1-2 range are always PM (afternoon prayer)
+          ampm = 'PM';
+        } else if (h >= 4 && h <= 7) {
+          // Fajr range (4 AM - 7 AM)
+          ampm = 'AM';
+        } else {
+          // For other hours, default to 24-hour interpretation
+          ampm = h >= 12 ? 'PM' : 'AM';
+          if (h > 12) h -= 12;
+          if (h === 0) h = 12;
+        }
+
         return `${h}:${m} ${ampm}`;
     }
     return timeStr;
@@ -288,7 +321,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 asr: { start: convertExcelTime(row[5]), iqamah: convertExcelTime(row[6]) },
                 maghrib: { start: convertExcelTime(row[7]), iqamah: convertExcelTime(row[8]) },
                 isha: { start: convertExcelTime(row[9]), iqamah: convertExcelTime(row[10]) },
-                jumuahIqamah: convertExcelTime(row[11])
+                jumuahIqamah: convertExcelTime(row[11], true) // Pass isJumuah=true
             };
             count++;
         }
