@@ -66,11 +66,21 @@ export const getScheduleForDate = (
    *
    * SPECIAL CASE: Maghrib is ALWAYS calculated as sunset + offset, regardless of Excel or manual overrides.
    * This is because Maghrib iqamah is tied to the daily sunset time, which changes every day.
+   *
+   * SPECIAL CASE: Jumu'ah start ALWAYS uses Dhuhr start time.
+   * Only Jumu'ah iqamah can be overridden by Excel or manual schedules.
+   *
+   * DAYLIGHT SAVING TIME (DST):
+   * - All prayer times automatically adjust for DST transitions
+   * - Buffalo, NY observes DST (America/New_York: EST/EDT)
+   * - JavaScript Date objects handle DST automatically using system timezone
+   * - No manual adjustment needed
    */
 
   // 1. Start with Auto-Calculated Prayer Times (Autopilot Mode)
   // Parse the date string to create a Date object for the specific day
-  const targetDate = new Date(dateStr + 'T12:00:00'); // Use noon to avoid timezone issues
+  // Using T12:00:00 creates the date at noon LOCAL time (handles DST automatically)
+  const targetDate = new Date(dateStr + 'T12:00:00');
 
   let newPrayers: DailyPrayers;
   let newJumuah: { start: string, iqamah: string };
@@ -120,14 +130,17 @@ export const getScheduleForDate = (
     // newPrayers.maghrib = { name: 'Maghrib', ...day.maghrib }; // SKIP MAGHRIB - always auto-calculated
     newPrayers.isha = { name: 'Isha', ...day.isha };
 
-    // Override Jumu'ah times from Excel if available
-    if (day.jumuahStart) {
-       newJumuah.start = ensureAmPm(day.jumuahStart, true);
-    }
+    // Override Jumu'ah iqamah from Excel if available
+    // Note: Jumu'ah start ALWAYS uses Dhuhr start (set below)
     if (day.jumuahIqamah) {
        newJumuah.iqamah = ensureAmPm(day.jumuahIqamah, true);
     }
   }
+
+  // Always set Jumu'ah start to match Dhuhr start (per user requirement)
+  // This happens AFTER Excel data is applied but BEFORE manual overrides
+  // Manual overrides can still override Jumu'ah if needed
+  newJumuah.start = newPrayers.dhuhr.start;
 
   // 3. Apply Maghrib Offset (ALWAYS - tied to daily sunset)
   // Maghrib is never overridden by Excel or manual schedules - always calculated from sunset

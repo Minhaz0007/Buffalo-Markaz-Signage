@@ -1,9 +1,21 @@
--- Migration: Add jumuah_start column to excel_schedule table
--- Run this in Supabase SQL Editor to add support for Jumu'ah start time
-
+-- ⚠️ DEPRECATED - DO NOT USE THIS MIGRATION ⚠️
+--
+-- This migration is no longer needed and should NOT be run.
+--
+-- REASON:
+-- After implementing this migration, we realized Jumu'ah start time should
+-- ALWAYS use the Dhuhr start time (not stored separately in the database).
+--
+-- The application now:
+-- - Uses Dhuhr start time for Jumu'ah start (calculated at runtime)
+-- - Only stores Jumu'ah iqamah in the database (jumuah_iqamah column)
+--
+-- If you already ran this migration and have a jumuah_start column,
+-- please run: supabase-migration-jumuah-cleanup.sql to clean it up.
+--
+-- ============================================================
+-- ORIGINAL MIGRATION (DO NOT USE)
+-- ============================================================
 -- Add the jumuah_start column (allow NULL for existing data)
-ALTER TABLE excel_schedule
-ADD COLUMN IF NOT EXISTS jumuah_start VARCHAR(20);
-
--- Optional: If you want to set a default value for existing rows
--- UPDATE excel_schedule SET jumuah_start = '12:10 PM' WHERE jumuah_start IS NULL;
+-- ALTER TABLE excel_schedule
+-- ADD COLUMN IF NOT EXISTS jumuah_start VARCHAR(20);

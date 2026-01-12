@@ -30,11 +30,19 @@ function formatTime(date: Date): string {
 
 /**
  * Calculates prayer times for a specific date in Buffalo, NY
+ *
+ * DAYLIGHT SAVING TIME (DST) SUPPORT:
+ * - Buffalo, NY observes DST (America/New_York timezone: EST/EDT)
+ * - JavaScript Date objects automatically handle DST transitions
+ * - The Adhan library uses local timezone from Date objects
+ * - Prayer times will automatically adjust during DST changes
+ * - No manual timezone configuration needed for client-side calculations
+ *
  * @param date - The date to calculate prayer times for (defaults to today)
  * @returns DailyPrayers object with calculated times
  */
 export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
-  // Create a new date at midnight to avoid timezone issues
+  // Create a new date at midnight in LOCAL timezone (handles DST automatically)
   const calculationDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
   const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
