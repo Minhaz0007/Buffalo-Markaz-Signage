@@ -182,10 +182,12 @@ export const getScheduleForDate = (
             // It's a daily prayer (but NOT maghrib - maghrib is always auto-calculated)
             const key = override.prayerKey as keyof Omit<DailyPrayers, 'sunrise'|'sunset'>;
             if (newPrayers[key]) {
+                // Determine if this is an afternoon prayer to correctly handle AM/PM
+                const isAfternoonPrayer = ['dhuhr', 'asr'].includes(override.prayerKey);
                 newPrayers[key] = {
                     ...newPrayers[key],
-                    start: override.start,
-                    iqamah: override.iqamah
+                    start: ensureAmPm(override.start, isAfternoonPrayer || override.prayerKey !== 'fajr'),
+                    iqamah: ensureAmPm(override.iqamah, isAfternoonPrayer || override.prayerKey !== 'fajr')
                 };
             }
         }
