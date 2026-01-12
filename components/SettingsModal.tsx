@@ -95,6 +95,41 @@ const ColorPickerPreset = ({ value, onChange }: { value: string, onChange: (c: s
     );
 };
 
+// --- Time Dropdown Component ---
+const TimeDropdown = ({ value, onChange, placeholder = "Select time" }: { value: string, onChange: (time: string) => void, placeholder?: string }) => {
+    // Generate time options in 5-minute increments
+    const generateTimeOptions = () => {
+        const times: string[] = [];
+        for (let hour = 0; hour < 24; hour++) {
+            for (let minute = 0; minute < 60; minute += 5) {
+                const period = hour < 12 ? 'AM' : 'PM';
+                const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                const displayMinute = minute.toString().padStart(2, '0');
+                times.push(`${displayHour}:${displayMinute} ${period}`);
+            }
+        }
+        return times;
+    };
+
+    const timeOptions = generateTimeOptions();
+    const inputBase = "w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white placeholder-white/30 focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold focus:bg-black/50 outline-none transition-all duration-200 cursor-pointer appearance-none";
+
+    return (
+        <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className={inputBase}
+        >
+            <option value="" className="bg-mosque-navy text-white/50">{placeholder}</option>
+            {timeOptions.map(time => (
+                <option key={time} value={time} className="bg-mosque-navy text-white">
+                    {time}
+                </option>
+            ))}
+        </select>
+    );
+};
+
 // --- Calendar Component (Refined) ---
 interface RangeCalendarProps {
   startDate: string;
@@ -591,11 +626,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                     <div className="grid grid-cols-2 gap-8">
                                                         <div>
                                                             <label className={labelBase}>{prayer === 'jumuah' ? 'Start Time' : 'Adhan'}</label>
-                                                            <input type="text" placeholder="5:00 AM" value={newOverride.start} onChange={e => setNewOverride({...newOverride, start: e.target.value})} className={inputBase} />
+                                                            <TimeDropdown value={newOverride.start || ''} onChange={v => setNewOverride({...newOverride, start: v})} placeholder={prayer === 'jumuah' ? 'Select start time' : 'Select adhan time'} />
                                                         </div>
                                                         <div>
                                                             <label className={labelBase}>Iqamah</label>
-                                                            <input type="text" placeholder="5:15 AM" value={newOverride.iqamah} onChange={e => setNewOverride({...newOverride, iqamah: e.target.value})} className={inputBase} />
+                                                            <TimeDropdown value={newOverride.iqamah || ''} onChange={v => setNewOverride({...newOverride, iqamah: v})} placeholder="Select iqamah time" />
                                                         </div>
                                                     </div>
                                                     <div>
