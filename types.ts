@@ -49,6 +49,7 @@ export interface ExcelDaySchedule {
   asr: PrayerScheduleValue;
   maghrib: PrayerScheduleValue;
   isha: PrayerScheduleValue;
+  jumuahStart?: string;
   jumuahIqamah?: string;
 }
 

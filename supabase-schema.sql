@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS excel_schedule (
     isha_iqamah VARCHAR(20) NOT NULL,
 
     -- Jumuah
+    jumuah_start VARCHAR(20),
     jumuah_iqamah VARCHAR(20),
 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
