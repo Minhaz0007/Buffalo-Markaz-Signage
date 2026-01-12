@@ -244,6 +244,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization' | 'slideshow' | 'silentAlert'>('schedule');
   const [uploadStatus, setUploadStatus] = useState<string>("");
+  const [overrideStatus, setOverrideStatus] = useState<string>("");
   const [expandedPrayer, setExpandedPrayer] = useState<string | null>(null);
   const [newOverride, setNewOverride] = useState<Partial<ManualOverride>>({
     startDate: new Date().toISOString().split('T')[0],
@@ -393,8 +394,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         startDate: newOverride.startDate,
         endDate: newOverride.endDate
       });
-      setUploadStatus('Please fill in all fields: Start time, Iqamah time, and Date range');
-      setTimeout(() => setUploadStatus(''), 3000);
+      setOverrideStatus('Please fill in all fields: Start time, Iqamah time, and Date range');
+      setTimeout(() => setOverrideStatus(''), 3000);
       return;
     }
 
@@ -409,9 +410,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     console.log('Adding override:', override);
     setManualOverrides((prev) => [...prev, override]);
-    setNewOverride({ startDate: newOverride.startDate, endDate: newOverride.endDate, start: '', iqamah: '' });
-    setUploadStatus(`Override added successfully for ${prayerKey}!`);
-    setTimeout(() => setUploadStatus(''), 3000);
+    setNewOverride((prev) => ({ startDate: prev.startDate, endDate: prev.endDate, start: '', iqamah: '' }));
+    setOverrideStatus(`Override added successfully for ${prayerKey}!`);
+    setTimeout(() => setOverrideStatus(''), 3000);
   };
 
   const deleteOverride = (id: string) => setManualOverrides(manualOverrides.filter(o => o.id !== id));
@@ -626,18 +627,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                     <div className="grid grid-cols-2 gap-8">
                                                         <div>
                                                             <label className={labelBase}>{prayer === 'jumuah' ? 'Start Time' : 'Adhan'}</label>
-                                                            <TimeDropdown value={newOverride.start || ''} onChange={v => setNewOverride({...newOverride, start: v})} placeholder={prayer === 'jumuah' ? 'Select start time' : 'Select adhan time'} />
+                                                            <TimeDropdown value={newOverride.start || ''} onChange={v => setNewOverride((prev) => ({ ...prev, start: v }))} placeholder={prayer === 'jumuah' ? 'Select start time' : 'Select adhan time'} />
                                                         </div>
                                                         <div>
                                                             <label className={labelBase}>Iqamah</label>
-                                                            <TimeDropdown value={newOverride.iqamah || ''} onChange={v => setNewOverride({...newOverride, iqamah: v})} placeholder="Select iqamah time" />
+                                                            <TimeDropdown value={newOverride.iqamah || ''} onChange={v => setNewOverride((prev) => ({ ...prev, iqamah: v }))} placeholder="Select iqamah time" />
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <label className={labelBase}>Date Range</label>
-                                                        <RangeCalendar startDate={newOverride.startDate || ''} endDate={newOverride.endDate || ''} onChange={(start, end) => setNewOverride({...newOverride, startDate: start, endDate: end})} />
+                                                        <RangeCalendar startDate={newOverride.startDate || ''} endDate={newOverride.endDate || ''} onChange={(start, end) => setNewOverride((prev) => ({ ...prev, startDate: start, endDate: end }))} />
                                                     </div>
                                                     <button onClick={() => handleAddOverride(prayer)} className="w-full py-6 bg-mosque-gold hover:bg-white text-mosque-navy font-bold text-2xl rounded-2xl transition-colors">Save Override</button>
+                                                    {overrideStatus && (
+                                                      <div className="text-center font-mono text-xl text-mosque-gold mt-4">
+                                                        {overrideStatus}
+                                                      </div>
+                                                    )}
                                                 </div>
 
                                                 <div className="col-span-4 bg-white/5 rounded-2xl p-8 border border-white/5">
