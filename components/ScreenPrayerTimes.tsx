@@ -81,10 +81,41 @@ const ElegantFrame = () => {
 
 const TimeDisplay = ({ time, className = "", smallSuffix = true }: { time: string, className?: string, smallSuffix?: boolean }) => {
   if (!time) return null;
-  // Match "5:27" and "AM" separately
-  const match = time.match(/(\d+:\d+)\s?(AM|PM)/i);
+
+  // First try to match time with AM/PM
+  let match = time.match(/(\d+:\d+)\s?(AM|PM)/i);
+
+  // If no AM/PM, try to match just the time and infer AM/PM
+  if (!match) {
+    const timeOnlyMatch = time.match(/^(\d{1,2}):(\d{2})$/);
+    if (timeOnlyMatch) {
+      const hours = parseInt(timeOnlyMatch[1]);
+      const minutes = timeOnlyMatch[2];
+
+      // Infer AM/PM based on hour (12-hour format)
+      // Assume 0-11 = AM, 12-23 = PM (standard convention)
+      let displayHours = hours;
+      let ampm = 'AM';
+
+      if (hours >= 12) {
+        ampm = 'PM';
+      }
+      if (hours > 12) {
+        displayHours = hours - 12;
+      }
+      if (hours === 0) {
+        displayHours = 12;
+      }
+
+      // Create normalized time string with AM/PM
+      const normalizedTime = `${displayHours}:${minutes}`;
+      match = [time, normalizedTime, ampm];
+    }
+  }
+
+  // If still no match, return as-is
   if (!match) return <span className={className}>{time}</span>;
-  
+
   return (
     <span className={`font-serif flex items-baseline justify-center ${className}`}>
       {match[1]}
