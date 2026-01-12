@@ -141,13 +141,40 @@ export const getScheduleForDate = (
 
   // Apply the Excel data if found (either exact match or year-round match)
   // NOTE: Maghrib is EXCLUDED from Excel - always calculated from sunset + offset
+  // IMPORTANT: Apply ensureAmPm to all Excel times to ensure AM/PM formatting
   if (excelDataForDate) {
     const day = excelDataForDate;
-    newPrayers.fajr = { name: 'Fajr', ...day.fajr };
-    newPrayers.dhuhr = { name: 'Dhuhr', ...day.dhuhr };
-    newPrayers.asr = { name: 'Asr', ...day.asr };
+
+    // Apply Excel data with AM/PM formatting
+    if (day.fajr) {
+      newPrayers.fajr = {
+        name: 'Fajr',
+        start: ensureAmPm(day.fajr.start, false),  // Fajr is morning
+        iqamah: ensureAmPm(day.fajr.iqamah, false)
+      };
+    }
+    if (day.dhuhr) {
+      newPrayers.dhuhr = {
+        name: 'Dhuhr',
+        start: ensureAmPm(day.dhuhr.start, true),  // Dhuhr is afternoon
+        iqamah: ensureAmPm(day.dhuhr.iqamah, true)
+      };
+    }
+    if (day.asr) {
+      newPrayers.asr = {
+        name: 'Asr',
+        start: ensureAmPm(day.asr.start, true),  // Asr is afternoon
+        iqamah: ensureAmPm(day.asr.iqamah, true)
+      };
+    }
     // newPrayers.maghrib = { name: 'Maghrib', ...day.maghrib }; // SKIP MAGHRIB - always auto-calculated
-    newPrayers.isha = { name: 'Isha', ...day.isha };
+    if (day.isha) {
+      newPrayers.isha = {
+        name: 'Isha',
+        start: ensureAmPm(day.isha.start, true),  // Isha is evening/night
+        iqamah: ensureAmPm(day.isha.iqamah, true)
+      };
+    }
 
     // Override Jumu'ah iqamah from Excel if available
     // Note: Jumu'ah start ALWAYS uses Dhuhr start (set below)

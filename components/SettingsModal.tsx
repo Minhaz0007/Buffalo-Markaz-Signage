@@ -348,7 +348,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleAddOverride = (prayerKey: string) => {
-    if (!newOverride.start || !newOverride.iqamah || !newOverride.startDate || !newOverride.endDate) return;
+    console.log('handleAddOverride called for:', prayerKey);
+    console.log('newOverride state:', newOverride);
+
+    if (!newOverride.start || !newOverride.iqamah || !newOverride.startDate || !newOverride.endDate) {
+      console.error('Validation failed - missing required fields:', {
+        start: newOverride.start,
+        iqamah: newOverride.iqamah,
+        startDate: newOverride.startDate,
+        endDate: newOverride.endDate
+      });
+      setUploadStatus('Please fill in all fields: Start time, Iqamah time, and Date range');
+      setTimeout(() => setUploadStatus(''), 3000);
+      return;
+    }
+
     const override: ManualOverride = {
         id: Date.now().toString(),
         prayerKey: prayerKey as any,
@@ -357,8 +371,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         start: newOverride.start!,
         iqamah: newOverride.iqamah!
     };
+
+    console.log('Adding override:', override);
     setManualOverrides([...manualOverrides, override]);
     setNewOverride({ startDate: newOverride.startDate, endDate: newOverride.endDate, start: '', iqamah: '' });
+    setUploadStatus(`Override added successfully for ${prayerKey}!`);
+    setTimeout(() => setUploadStatus(''), 3000);
   };
 
   const deleteOverride = (id: string) => setManualOverrides(manualOverrides.filter(o => o.id !== id));
