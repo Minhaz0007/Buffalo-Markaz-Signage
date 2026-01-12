@@ -82,12 +82,14 @@ const ElegantFrame = () => {
 const TimeDisplay = ({ time, className = "", smallSuffix = true }: { time: string, className?: string, smallSuffix?: boolean }) => {
   if (!time) return null;
 
+  const normalizedTime = time.trim();
+
   // First try to match time with AM/PM
-  let match = time.match(/(\d+:\d+)\s?(AM|PM)/i);
+  let match = normalizedTime.match(/(\d+:\d+)\s?(AM|PM)/i);
 
   // If no AM/PM, try to match just the time and infer AM/PM
   if (!match) {
-    const timeOnlyMatch = time.match(/^(\d{1,2}):(\d{2})$/);
+    const timeOnlyMatch = normalizedTime.match(/^(\d{1,2}):(\d{2})$/);
     if (timeOnlyMatch) {
       const hours = parseInt(timeOnlyMatch[1]);
       const minutes = timeOnlyMatch[2];
@@ -108,18 +110,22 @@ const TimeDisplay = ({ time, className = "", smallSuffix = true }: { time: strin
       }
 
       // Create normalized time string with AM/PM
-      const normalizedTime = `${displayHours}:${minutes}`;
-      match = [time, normalizedTime, ampm];
+      const normalizedDisplayTime = `${displayHours}:${minutes}`;
+      match = [normalizedTime, normalizedDisplayTime, ampm];
     }
   }
 
   // If still no match, return as-is
-  if (!match) return <span className={className}>{time}</span>;
+  if (!match) return <span className={className}>{normalizedTime}</span>;
+
+  const suffixClassName = className.includes('text-transparent')
+    ? `${className} text-[0.5em] ml-1 font-sans font-bold uppercase tracking-wide opacity-80`
+    : 'text-[0.5em] ml-1 font-sans font-bold uppercase tracking-wide opacity-80';
 
   return (
     <span className={`font-serif flex items-baseline justify-center ${className}`}>
       {match[1]}
-      {smallSuffix && <span className="text-[0.5em] ml-1 font-sans font-bold uppercase tracking-wide opacity-80">{match[2]}</span>}
+      {smallSuffix && <span className={suffixClassName}>{match[2]}</span>}
       {!smallSuffix && <span className="ml-2">{match[2]}</span>}
     </span>
   );
