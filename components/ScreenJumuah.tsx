@@ -4,27 +4,44 @@ interface ScreenJumuahProps {
   jumuah: { start: string; iqamah: string };
 }
 
+// Helper component to display time with proper AM/PM formatting
+const TimeDisplay = ({ time, className = "" }: { time: string, className?: string }) => {
+  if (!time) return null;
+
+  // Try to match time with AM/PM
+  const match = time.match(/(\d+:\d+)\s?(AM|PM)/i);
+
+  if (!match) return <span className={className}>{time}</span>;
+
+  return (
+    <span className={`font-mono flex items-baseline ${className}`}>
+      {match[1]}
+      <span className="text-[0.4em] ml-2 font-sans font-bold uppercase tracking-wide opacity-90">{match[2]}</span>
+    </span>
+  );
+};
+
 export const ScreenJumuah: React.FC<ScreenJumuahProps> = ({ jumuah }) => {
   return (
     <div className="w-full h-full flex">
       {/* Left Panel: Title - Transparent for App background */}
       <div className="w-1/2 bg-transparent flex flex-col justify-center px-16 relative overflow-hidden">
-         
+
          <div className="relative z-10">
              <div className="w-2 h-32 bg-mosque-gold mb-8"></div>
              <h1 className="text-8xl font-bold text-mosque-cream font-serif leading-tight drop-shadow-lg">
-               JUMU'AH <br/> 
+               JUMU'AH <br/>
                <span className="text-mosque-gold">PRAYER</span>
              </h1>
-             
+
              <div className="flex gap-20 mt-16">
                <div>
                   <div className="text-gray-400 text-sm uppercase tracking-widest mb-2">Khutbah Starts</div>
-                  <div className="text-5xl text-white font-mono font-bold drop-shadow-md">{jumuah.start}</div>
+                  <TimeDisplay time={jumuah.start} className="text-5xl text-white font-bold drop-shadow-md" />
                </div>
                <div>
                   <div className="text-gray-400 text-sm uppercase tracking-widest mb-2">Iqamah</div>
-                  <div className="text-5xl text-mosque-gold font-mono font-bold drop-shadow-md">{jumuah.iqamah}</div>
+                  <TimeDisplay time={jumuah.iqamah} className="text-5xl text-mosque-gold font-bold drop-shadow-md" />
                </div>
              </div>
          </div>
