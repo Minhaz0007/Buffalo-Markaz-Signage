@@ -408,7 +408,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     };
 
     console.log('Adding override:', override);
-    setManualOverrides([...manualOverrides, override]);
+    setManualOverrides((prev) => [...prev, override]);
     setNewOverride({ startDate: newOverride.startDate, endDate: newOverride.endDate, start: '', iqamah: '' });
     setUploadStatus(`Override added successfully for ${prayerKey}!`);
     setTimeout(() => setUploadStatus(''), 3000);
