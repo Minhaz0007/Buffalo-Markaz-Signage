@@ -321,7 +321,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 asr: { start: convertExcelTime(row[5]), iqamah: convertExcelTime(row[6]) },
                 maghrib: { start: convertExcelTime(row[7]), iqamah: convertExcelTime(row[8]) },
                 isha: { start: convertExcelTime(row[9]), iqamah: convertExcelTime(row[10]) },
-                jumuahIqamah: convertExcelTime(row[11], true) // Pass isJumuah=true
+                jumuahStart: convertExcelTime(row[11], true), // Jumu'ah start (column 11)
+                jumuahIqamah: convertExcelTime(row[12], true) // Jumu'ah iqamah (column 12)
             };
             count++;
         }

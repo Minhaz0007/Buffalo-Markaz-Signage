@@ -120,8 +120,11 @@ export const getScheduleForDate = (
     // newPrayers.maghrib = { name: 'Maghrib', ...day.maghrib }; // SKIP MAGHRIB - always auto-calculated
     newPrayers.isha = { name: 'Isha', ...day.isha };
 
+    // Override Jumu'ah times from Excel if available
+    if (day.jumuahStart) {
+       newJumuah.start = ensureAmPm(day.jumuahStart, true);
+    }
     if (day.jumuahIqamah) {
-       // Ensure Jumu'ah iqamah time has AM/PM (fix for legacy data)
        newJumuah.iqamah = ensureAmPm(day.jumuahIqamah, true);
     }
   }

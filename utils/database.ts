@@ -25,6 +25,7 @@ export const saveExcelScheduleToDatabase = async (schedule: Record<string, Excel
       maghrib_iqamah: day.maghrib.iqamah,
       isha_start: day.isha.start,
       isha_iqamah: day.isha.iqamah,
+      jumuah_start: day.jumuahStart || null,
       jumuah_iqamah: day.jumuahIqamah || null,
     }));
 
@@ -66,6 +67,7 @@ export const loadExcelScheduleFromDatabase = async (): Promise<Record<string, Ex
         asr: { start: row.asr_start, iqamah: row.asr_iqamah },
         maghrib: { start: row.maghrib_start, iqamah: row.maghrib_iqamah },
         isha: { start: row.isha_start, iqamah: row.isha_iqamah },
+        jumuahStart: row.jumuah_start,
         jumuahIqamah: row.jumuah_iqamah,
       };
     });
