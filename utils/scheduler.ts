@@ -2,7 +2,7 @@ import { DailyPrayers, ExcelDaySchedule, ManualOverride } from '../types';
 import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES } from '../constants';
 import { calculatePrayerTimes, calculateJumuahTimes } from './prayerCalculator';
 
-// Helper function to ensure time has AM/PM suffix
+// Helper function to ensure time has AM/PM suffix and convert 24-hour to 12-hour format
 const ensureAmPm = (timeStr: string, isAfternoon: boolean = true): string => {
   if (!timeStr) return timeStr;
 
@@ -14,13 +14,32 @@ const ensureAmPm = (timeStr: string, isAfternoon: boolean = true): string => {
   // Match HH:MM or H:MM format without AM/PM
   const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
   if (match) {
-    const hours = parseInt(match[1]);
+    let hours = parseInt(match[1]);
     const minutes = match[2];
 
-    // For Jumu'ah and afternoon prayers, assume PM
-    // For hours 12, it's noon (PM)
-    // For hours 1-2, if isAfternoon flag is true, assume PM
-    const suffix = isAfternoon || hours === 12 ? 'PM' : 'AM';
+    // Convert 24-hour format to 12-hour format with AM/PM
+    let suffix: string;
+    if (hours >= 13) {
+      // 13:00-23:59 → 1:00 PM - 11:59 PM
+      suffix = 'PM';
+      hours -= 12;
+    } else if (hours === 12) {
+      // 12:00-12:59 → 12:00 PM - 12:59 PM (noon)
+      suffix = 'PM';
+    } else if (hours === 0) {
+      // 00:00-00:59 → 12:00 AM - 12:59 AM (midnight)
+      hours = 12;
+      suffix = 'AM';
+    } else if (hours >= 1 && hours <= 2 && isAfternoon) {
+      // 1:00-2:59 with isAfternoon flag → assume PM (Jumu'ah case)
+      suffix = 'PM';
+    } else if (hours >= 1 && hours <= 11) {
+      // 1:00-11:59 → 1:00 AM - 11:59 AM
+      suffix = hours >= 4 && hours <= 7 ? 'AM' : (isAfternoon ? 'PM' : 'AM');
+    } else {
+      // Fallback
+      suffix = 'AM';
+    }
 
     return `${hours}:${minutes} ${suffix}`;
   }
