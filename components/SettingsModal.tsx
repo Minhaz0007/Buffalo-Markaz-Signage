@@ -4,6 +4,7 @@ import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, Slide
 import { ALERT_MESSAGES } from '../constants';
 import * as XLSX from 'xlsx';
 import { saveExcelScheduleToDatabase } from '../utils/database';
+import { getScheduleForDate } from '../utils/scheduler';
 import { isSupabaseConfigured } from '../utils/supabase';
 
 // --- Types ---
@@ -387,14 +388,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     console.log('handleAddOverride called for:', prayerKey);
     console.log('newOverride state:', newOverride);
 
-    if (!newOverride.start || !newOverride.iqamah || !newOverride.startDate || !newOverride.endDate) {
+    if (!newOverride.iqamah || !newOverride.startDate || !newOverride.endDate) {
       console.error('Validation failed - missing required fields:', {
         start: newOverride.start,
         iqamah: newOverride.iqamah,
         startDate: newOverride.startDate,
         endDate: newOverride.endDate
       });
-      setOverrideStatus('Please fill in all fields: Start time, Iqamah time, and Date range');
+      setOverrideStatus('Please fill in Iqamah time and Date range.');
+      setTimeout(() => setOverrideStatus(''), 3000);
+      return;
+    }
+
+    const scheduleForStartDate = getScheduleForDate(
+      newOverride.startDate,
+      excelSchedule,
+      manualOverrides,
+      maghribOffset
+    );
+    let inferredStart: string | undefined;
+    if (prayerKey === 'jumuah') {
+      inferredStart = scheduleForStartDate.jumuah.start;
+    } else if (prayerKey in scheduleForStartDate.prayers) {
+      inferredStart = scheduleForStartDate.prayers[prayerKey as keyof typeof scheduleForStartDate.prayers]?.start;
+    }
+    const startTime = newOverride.start || inferredStart;
+
+    if (!startTime) {
+      setOverrideStatus('Unable to infer start time. Please select a start time.');
       setTimeout(() => setOverrideStatus(''), 3000);
       return;
     }
@@ -404,7 +425,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         prayerKey: prayerKey as any,
         startDate: newOverride.startDate!,
         endDate: newOverride.endDate!,
-        start: newOverride.start!,
+        start: startTime,
         iqamah: newOverride.iqamah!
     };
 
