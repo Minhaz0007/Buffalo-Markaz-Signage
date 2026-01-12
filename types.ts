@@ -49,8 +49,7 @@ export interface ExcelDaySchedule {
   asr: PrayerScheduleValue;
   maghrib: PrayerScheduleValue;
   isha: PrayerScheduleValue;
-  jumuahStart?: string;
-  jumuahIqamah?: string;
+  jumuahIqamah?: string; // Only iqamah from Excel, start always uses Dhuhr time
 }
 
 // Represents a manual override range
