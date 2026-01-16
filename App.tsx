@@ -20,7 +20,6 @@ import {
   saveGlobalSettingsToDatabase,
 } from './utils/database';
 import { isSupabaseConfigured, supabase } from './utils/supabase';
-import { prayerTimesEqual } from './utils/performance';
 
 // --- Background Components ---
 
