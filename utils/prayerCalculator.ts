@@ -3,6 +3,7 @@ import { DailyPrayers } from '../types';
 
 // Buffalo, NY coordinates (14212 zip code area)
 const BUFFALO_COORDINATES = new Coordinates(42.8864, -78.8784);
+const BUFFALO_TIMEZONE = 'America/New_York';
 
 // Use ISNA (Islamic Society of North America) calculation method
 // This is the most commonly used method in North America
@@ -28,6 +29,50 @@ function formatTime(date: Date): string {
   return `${hours}:${minutesStr} ${ampm}`;
 }
 
+const getTimeZoneParts = (date: Date, timeZone: string) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(date);
+  const values = Object.fromEntries(
+    parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value])
+  );
+
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+    second: Number(values.second)
+  };
+};
+
+const getTimeZoneOffset = (date: Date, timeZone: string) => {
+  const parts = getTimeZoneParts(date, timeZone);
+  const utcTime = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  return (utcTime - date.getTime()) / 60000;
+};
+
+const toTimeZoneDate = (date: Date, timeZone: string) => {
+  const parts = getTimeZoneParts(date, timeZone);
+  return new Date(parts.year, parts.month - 1, parts.day);
+};
+
+const shiftToTimeZone = (date: Date, baseDate: Date, timeZone: string) => {
+  const localOffset = baseDate.getTimezoneOffset();
+  const targetOffset = getTimeZoneOffset(baseDate, timeZone);
+  const diffMinutes = targetOffset - localOffset;
+  return new Date(date.getTime() + diffMinutes * 60 * 1000);
+};
+
 /**
  * Calculates prayer times for a specific date in Buffalo, NY
  *
@@ -42,10 +87,11 @@ function formatTime(date: Date): string {
  * @returns DailyPrayers object with calculated times
  */
 export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
-  // Create a new date at midnight in LOCAL timezone (handles DST automatically)
-  const calculationDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  // Create a new date at midnight in Buffalo timezone to avoid host TZ skew
+  const calculationDate = toTimeZoneDate(date, BUFFALO_TIMEZONE);
 
   const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
+  const shift = (time: Date) => shiftToTimeZone(time, calculationDate, BUFFALO_TIMEZONE);
 
   // Calculate Iqamah times (typically 10-15 minutes after adhan)
   // These are reasonable defaults, can be adjusted based on masjid practice
@@ -58,31 +104,31 @@ export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
   return {
     fajr: {
       name: 'Fajr',
-      start: formatTime(prayerTimes.fajr),
-      iqamah: formatTime(fajrIqamah)
+      start: formatTime(shift(prayerTimes.fajr)),
+      iqamah: formatTime(shift(fajrIqamah))
     },
-    sunrise: formatTime(prayerTimes.sunrise),
+    sunrise: formatTime(shift(prayerTimes.sunrise)),
     dhuhr: {
       name: 'Dhuhr',
-      start: formatTime(prayerTimes.dhuhr),
-      iqamah: formatTime(dhuhrIqamah)
+      start: formatTime(shift(prayerTimes.dhuhr)),
+      iqamah: formatTime(shift(dhuhrIqamah))
     },
     asr: {
       name: 'Asr',
-      start: formatTime(prayerTimes.asr),
-      iqamah: formatTime(asrIqamah)
+      start: formatTime(shift(prayerTimes.asr)),
+      iqamah: formatTime(shift(asrIqamah))
     },
     maghrib: {
       name: 'Maghrib',
-      start: formatTime(prayerTimes.maghrib),
-      iqamah: formatTime(maghribIqamah)
+      start: formatTime(shift(prayerTimes.maghrib)),
+      iqamah: formatTime(shift(maghribIqamah))
     },
     isha: {
       name: 'Isha',
-      start: formatTime(prayerTimes.isha),
-      iqamah: formatTime(ishaIqamah)
+      start: formatTime(shift(prayerTimes.isha)),
+      iqamah: formatTime(shift(ishaIqamah))
     },
-    sunset: formatTime(prayerTimes.sunset)
+    sunset: formatTime(shift(prayerTimes.sunset))
   };
 }
 
@@ -122,8 +168,9 @@ export function getNextPrayer(prayerTimes: DailyPrayers): string {
  * @returns Object with start (Khutbah) and iqamah times
  */
 export function calculateJumuahTimes(date: Date = new Date()): { start: string; iqamah: string } {
-  const calculationDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const calculationDate = toTimeZoneDate(date, BUFFALO_TIMEZONE);
   const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
+  const shift = (time: Date) => shiftToTimeZone(time, calculationDate, BUFFALO_TIMEZONE);
 
   // Khutbah typically starts 15-20 minutes before Dhuhr time
   const khutbahStart = new Date(prayerTimes.dhuhr.getTime() - 15 * 60 * 1000);
@@ -131,7 +178,7 @@ export function calculateJumuahTimes(date: Date = new Date()): { start: string; 
   const salahTime = new Date(prayerTimes.dhuhr.getTime() + 5 * 60 * 1000);
 
   return {
-    start: formatTime(khutbahStart),
-    iqamah: formatTime(salahTime)
+    start: formatTime(shift(khutbahStart)),
+    iqamah: formatTime(shift(salahTime))
   };
 }
