@@ -23,5 +23,26 @@ export default defineConfig({
     target: process.env.ELECTRON === 'true' ? 'esnext' : 'modules',
     minify: 'esbuild',
     sourcemap: false,
+    // Performance optimizations
+    rollupOptions: {
+      output: {
+        // Manual chunk splitting for better caching
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'framer-motion': ['framer-motion'],
+          'lucide': ['lucide-react'],
+        },
+      },
+    },
+    // Optimize chunk size
+    chunkSizeWarningLimit: 1000,
+    // Enable CSS code splitting
+    cssCodeSplit: true,
+  },
+  // Optimize dependencies
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'framer-motion', 'lucide-react'],
+    // Exclude large dependencies that don't need pre-bundling
+    exclude: [],
   }
 });

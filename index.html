@@ -33,6 +33,60 @@
         overflow: hidden;
         background-color: #0B1E3B;
       }
+
+      /* Performance-optimized animations - defined once globally */
+      @keyframes scroll {
+        0% { transform: translate3d(0, 0, 0); }
+        100% { transform: translate3d(-100%, 0, 0); }
+      }
+
+      .animate-scroll {
+        animation: scroll linear infinite;
+        will-change: transform;
+      }
+
+      @keyframes subtle-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.85; transform: scale(0.99); }
+      }
+
+      .animate-subtle-pulse {
+        animation: subtle-pulse 4s ease-in-out infinite;
+      }
+
+      @keyframes textPulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.95); }
+      }
+
+      @keyframes textBlink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+      }
+
+      @keyframes text-shine {
+        0% { background-position: 0% 50%; }
+        100% { background-position: 100% 50%; }
+      }
+
+      @keyframes gradient-text {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+
+      .animate-text-pulse { animation: textPulse 1.5s infinite ease-in-out; }
+      .animate-text-blink { animation: textBlink 1s infinite steps(1); }
+      .animate-text-shine { animation: text-shine 3s linear infinite; }
+      .animate-gradient-text { animation: gradient-text 3s ease infinite; }
+      .bg-300% { background-size: 300% 300%; }
+
+      /* GPU acceleration for animated elements */
+      .gpu-accelerated {
+        transform: translateZ(0);
+        backface-visibility: hidden;
+        perspective: 1000px;
+      }
     </style>
   </head>
   <body>
