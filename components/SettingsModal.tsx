@@ -141,6 +141,7 @@ interface RangeCalendarProps {
 const RangeCalendar: React.FC<RangeCalendarProps> = ({ startDate, endDate, onChange }) => {
   const [currentDate, setCurrentDate] = useState(() => startDate ? new Date(startDate) : new Date());
   const [isSelectingEnd, setIsSelectingEnd] = useState(false);
+  const todayStr = new Date().toISOString().split('T')[0];
 
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
@@ -178,6 +179,11 @@ const RangeCalendar: React.FC<RangeCalendarProps> = ({ startDate, endDate, onCha
     return dateStr > startDate && dateStr < endDate;
   };
 
+  const isToday = (day: number) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return dateStr === todayStr;
+  };
+
   const changeMonth = (offset: number) => {
     setCurrentDate(new Date(year, month + offset, 1));
   };
@@ -202,10 +208,12 @@ const RangeCalendar: React.FC<RangeCalendarProps> = ({ startDate, endDate, onCha
              const day = i + 1;
              const selected = isSelected(day);
              const inRange = isInRange(day);
+             const today = isToday(day);
              
              let bgClass = "bg-white/5 text-white/70 hover:bg-white/20";
              if (selected) bgClass = "bg-mosque-gold text-mosque-navy font-bold shadow-lg scale-105 z-10";
              else if (inRange) bgClass = "bg-mosque-gold/20 text-mosque-gold";
+             else if (today) bgClass = "bg-white/10 text-white font-semibold ring-2 ring-mosque-gold/70";
 
              return (
                <button 
