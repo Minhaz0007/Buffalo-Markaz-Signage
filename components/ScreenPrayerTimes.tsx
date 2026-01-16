@@ -383,7 +383,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
     }, 1000);
     return () => clearInterval(timer);
-  }, []); // Empty dependency array - runs once and keeps ticking
+  }, [calculateNextIqamah]); // Keep countdown synced with updated prayer data
 
   const parseTime = useCallback((timeStr: string, now: Date): Date | null => {
     if (!timeStr) return null;
