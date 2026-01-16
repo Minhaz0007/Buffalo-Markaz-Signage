@@ -308,6 +308,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   const [nextPrayerName, setNextPrayerName] = useState<string>("NEXT PRAYER");
   const [hijriDate, setHijriDate] = useState<string>("");
   const [isIqamahFreeze, setIsIqamahFreeze] = useState(false);
+  const latestScheduleRef = React.useRef({ prayers, jumuah });
   
   // Slideshow Logic: If more than one slide is active, we cycle.
   const activeSlides = useMemo(() => slidesConfig.filter(s => s.enabled), [slidesConfig]);
@@ -345,45 +346,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   // Speed: 100px per second. Duration = Width / Speed
   const marqueeDuration = estimatedContentWidth / 100;
 
-  // Initialize immediately on mount and whenever prayers change
   useEffect(() => {
-    const now = new Date();
-    setCurrentTime(now);
-    calculateNextIqamah(now);
-
-    try {
-      const hijri = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      }).format(now);
-      setHijriDate(hijri.replace(' AH', '').toUpperCase());
-    } catch (e) {
-      setHijriDate("HIJRI DATE UNAVAILABLE");
-    }
-  }, [prayers]);
-
-  // Continuous clock update (independent of prayers changes)
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date();
-      setCurrentTime(now);
-      calculateNextIqamah(now);
-
-      try {
-        const hijri = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        }).format(now);
-        setHijriDate(hijri.replace(' AH', '').toUpperCase());
-      } catch (e) {
-        setHijriDate("HIJRI DATE UNAVAILABLE");
-      }
-
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [calculateNextIqamah]); // Keep countdown synced with updated prayer data
+    latestScheduleRef.current = { prayers, jumuah };
+  }, [prayers, jumuah]);
 
   const parseTime = useCallback((timeStr: string, now: Date): Date | null => {
     if (!timeStr) return null;
@@ -423,16 +388,17 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   }, []);
 
   const calculateNextIqamah = useCallback((now: Date) => {
+    const { prayers: currentPrayers, jumuah: currentJumuah } = latestScheduleRef.current;
     const nowTime = now.getTime();
 
     // CRITICAL: Always use IQAMAH times, never START times
     // Hierarchy: Adhan Library < Excel < Manual Overrides (all for iqamah calculation)
     const prayersList = [
-      { name: 'Fajr', time: parseTime(prayers.fajr.iqamah || '', now), raw: prayers.fajr.iqamah },
-      { name: 'Dhuhr', time: parseTime(prayers.dhuhr.iqamah || '', now), raw: prayers.dhuhr.iqamah },
-      { name: 'Asr', time: parseTime(prayers.asr.iqamah || '', now), raw: prayers.asr.iqamah },
-      { name: 'Maghrib', time: parseTime(prayers.maghrib.iqamah || '', now), raw: prayers.maghrib.iqamah },
-      { name: 'Isha', time: parseTime(prayers.isha.iqamah || '', now), raw: prayers.isha.iqamah },
+      { name: 'Fajr', time: parseTime(currentPrayers.fajr.iqamah || '', now), raw: currentPrayers.fajr.iqamah },
+      { name: 'Dhuhr', time: parseTime(currentPrayers.dhuhr.iqamah || '', now), raw: currentPrayers.dhuhr.iqamah },
+      { name: 'Asr', time: parseTime(currentPrayers.asr.iqamah || '', now), raw: currentPrayers.asr.iqamah },
+      { name: 'Maghrib', time: parseTime(currentPrayers.maghrib.iqamah || '', now), raw: currentPrayers.maghrib.iqamah },
+      { name: 'Isha', time: parseTime(currentPrayers.isha.iqamah || '', now), raw: currentPrayers.isha.iqamah },
     ];
 
     // Use explicit millisecond comparison for stability
@@ -443,7 +409,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
        const tomorrow = new Date(now);
        tomorrow.setDate(tomorrow.getDate() + 1);
        // Parse Fajr time using tomorrow's date
-       const fajrTime = parseTime(prayers.fajr.iqamah || '', tomorrow);
+       const fajrTime = parseTime(currentPrayers.fajr.iqamah || '', tomorrow);
        if (fajrTime) {
          nextPrayer = { name: 'Fajr', time: fajrTime };
        }
@@ -452,9 +418,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     // Special Friday Logic: Replace Dhuhr with Jumu'ah on Fridays
     const isFriday = now.getDay() === 5;
     if (isFriday && nextPrayer && nextPrayer.name === 'Dhuhr') {
-      const jumuahTime = parseTime(jumuah.iqamah || '', now);
+      const jumuahTime = parseTime(currentJumuah.iqamah || '', now);
       if (jumuahTime) {
-        nextPrayer = { name: 'Jumu\'ah', time: jumuahTime, raw: jumuah.iqamah };
+        nextPrayer = { name: 'Jumu\'ah', time: jumuahTime, raw: currentJumuah.iqamah };
       }
     }
 
@@ -484,7 +450,47 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
       setTimeUntilIqamah(`${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
     }
-  }, [prayers, jumuah, parseTime]);
+  }, [parseTime]);
+
+  // Initialize immediately on mount and whenever prayers change
+  useEffect(() => {
+    const now = new Date();
+    setCurrentTime(now);
+    calculateNextIqamah(now);
+
+    try {
+      const hijri = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }).format(now);
+      setHijriDate(hijri.replace(' AH', '').toUpperCase());
+    } catch (e) {
+      setHijriDate("HIJRI DATE UNAVAILABLE");
+    }
+  }, [calculateNextIqamah, prayers, jumuah]);
+
+  // Continuous clock update (independent of prayers changes)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(now);
+      calculateNextIqamah(now);
+
+      try {
+        const hijri = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        }).format(now);
+        setHijriDate(hijri.replace(' AH', '').toUpperCase());
+      } catch (e) {
+        setHijriDate("HIJRI DATE UNAVAILABLE");
+      }
+
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [calculateNextIqamah]); // Keep countdown synced with updated prayer data
 
   const formatDate = useCallback((date: Date) => {
     return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
