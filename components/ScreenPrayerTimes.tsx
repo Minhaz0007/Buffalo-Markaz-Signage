@@ -452,13 +452,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     // Special Friday Logic: Replace Dhuhr with Jumu'ah on Fridays
     const isFriday = now.getDay() === 5;
     if (isFriday && nextPrayer && nextPrayer.name === 'Dhuhr') {
-      console.log('Friday detected - Replacing Dhuhr with Jumuah');
-      console.log('Jumuah iqamah string:', jumuah.iqamah);
-      console.log('Dhuhr iqamah string:', prayers.dhuhr.iqamah);
       const jumuahTime = parseTime(jumuah.iqamah || '', now);
-      console.log('Parsed Jumuah time:', jumuahTime);
-      const dhuhrTime = parseTime(prayers.dhuhr.iqamah || '', now);
-      console.log('Parsed Dhuhr time:', dhuhrTime);
       if (jumuahTime) {
         nextPrayer = { name: 'Jumu\'ah', time: jumuahTime, raw: jumuah.iqamah };
       }

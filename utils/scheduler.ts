@@ -189,6 +189,13 @@ export const getScheduleForDate = (
   // Ensure AM/PM is added to Jumu'ah start time (isAfternoon: true to correctly handle times like 1:30 as PM)
   newJumuah.start = ensureAmPm(newPrayers.dhuhr.start, true);
 
+  // Also set Jumu'ah iqamah to match Dhuhr iqamah (unless Excel explicitly specified jumuahIqamah)
+  // This ensures Jumu'ah uses the same iqamah time as Dhuhr on Fridays
+  // Manual overrides below can still override this if needed
+  if (!excelDataForDate?.jumuahIqamah) {
+    newJumuah.iqamah = ensureAmPm(newPrayers.dhuhr.iqamah, true);
+  }
+
   // 3. Apply Maghrib Offset (ALWAYS - tied to daily sunset)
   // Maghrib is never overridden by Excel or manual schedules - always calculated from sunset
   if (newPrayers.maghrib.start) {
