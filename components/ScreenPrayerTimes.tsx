@@ -427,9 +427,14 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
     // CRITICAL: Always use IQAMAH times, never START times
     // Hierarchy: Adhan Library < Excel < Manual Overrides (all for iqamah calculation)
+    const isFriday = now.getDay() === 5;
+    const jumuahIqamah = parseTime(jumuah.iqamah || '', now);
+
     const prayersList = [
       { name: 'Fajr', time: parseTime(prayers.fajr.iqamah || '', now), raw: prayers.fajr.iqamah },
-      { name: 'Dhuhr', time: parseTime(prayers.dhuhr.iqamah || '', now), raw: prayers.dhuhr.iqamah },
+      ...(isFriday && jumuahIqamah
+        ? [{ name: `Jumu'ah`, time: jumuahIqamah, raw: jumuah.iqamah }]
+        : [{ name: 'Dhuhr', time: parseTime(prayers.dhuhr.iqamah || '', now), raw: prayers.dhuhr.iqamah }]),
       { name: 'Asr', time: parseTime(prayers.asr.iqamah || '', now), raw: prayers.asr.iqamah },
       { name: 'Maghrib', time: parseTime(prayers.maghrib.iqamah || '', now), raw: prayers.maghrib.iqamah },
       { name: 'Isha', time: parseTime(prayers.isha.iqamah || '', now), raw: prayers.isha.iqamah },
