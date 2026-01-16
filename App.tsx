@@ -19,7 +19,7 @@ import {
   saveSlideshowConfigToDatabase,
   saveGlobalSettingsToDatabase,
 } from './utils/database';
-import { isSupabaseConfigured } from './utils/supabase';
+import { isSupabaseConfigured, supabase } from './utils/supabase';
 
 // --- Background Components ---
 
@@ -268,6 +268,59 @@ const App: React.FC = () => {
     loadFromDatabase();
   }, []); // Run once on mount
 
+  // Subscribe to Supabase realtime updates to sync settings across devices
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !supabase) return;
+
+    const channel = supabase
+      .channel('settings-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_overrides' }, async () => {
+        const dbManualOverrides = await loadManualOverridesFromDatabase();
+        setManualOverrides(dbManualOverrides);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'excel_schedule' }, async () => {
+        const dbExcelSchedule = await loadExcelScheduleFromDatabase();
+        if (Object.keys(dbExcelSchedule).length > 0) {
+          setExcelSchedule(dbExcelSchedule);
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcement_items' }, async () => {
+        const dbAnnouncementItems = await loadAnnouncementItemsFromDatabase();
+        setAnnouncement(prev => ({ ...prev, items: dbAnnouncementItems }));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'slideshow_config' }, async () => {
+        const dbSlidesConfig = await loadSlideshowConfigFromDatabase();
+        if (dbSlidesConfig && dbSlidesConfig.length > 0) {
+          setSlidesConfig(dbSlidesConfig);
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'global_settings' }, async () => {
+        const dbGlobalSettings = await loadGlobalSettingsFromDatabase();
+        if (dbGlobalSettings) {
+          setCurrentTheme(dbGlobalSettings.theme);
+          setTickerBg(dbGlobalSettings.tickerBg);
+          setMaghribOffset(dbGlobalSettings.maghribOffset);
+          setAutoAlertSettings(dbGlobalSettings.autoAlertSettings);
+          setMobileAlertSettings(dbGlobalSettings.mobileAlertSettings);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [
+    setAnnouncement,
+    setAutoAlertSettings,
+    setCurrentTheme,
+    setExcelSchedule,
+    setMaghribOffset,
+    setManualOverrides,
+    setMobileAlertSettings,
+    setSlidesConfig,
+    setTickerBg,
+  ]);
+
   // Save Excel schedule to Supabase whenever it changes (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
@@ -379,22 +432,34 @@ const App: React.FC = () => {
       // NOTE: Maghrib is excluded because it changes daily (tied to sunset + offset)
       const changes: string[] = [];
       const norm = (t?: string) => t?.replace(/\s+/g, '').toUpperCase() || '';
+      const pushChange = (label: string, time?: string) => {
+        if (time) {
+          changes.push(`${label} Salah is at ${time}`);
+        }
+      };
 
-      if (norm(todaySchedule.prayers.fajr.iqamah) !== norm(tomorrowSchedule.prayers.fajr.iqamah)) changes.push(`Fajr`);
-      if (norm(todaySchedule.prayers.dhuhr.iqamah) !== norm(tomorrowSchedule.prayers.dhuhr.iqamah)) changes.push(`Dhuhr`);
-      if (norm(todaySchedule.prayers.asr.iqamah) !== norm(tomorrowSchedule.prayers.asr.iqamah)) changes.push(`Asr`);
+      if (norm(todaySchedule.prayers.fajr.iqamah) !== norm(tomorrowSchedule.prayers.fajr.iqamah)) {
+        pushChange('Fajr', tomorrowSchedule.prayers.fajr.iqamah);
+      }
+      if (norm(todaySchedule.prayers.dhuhr.iqamah) !== norm(tomorrowSchedule.prayers.dhuhr.iqamah)) {
+        pushChange('Dhuhr', tomorrowSchedule.prayers.dhuhr.iqamah);
+      }
+      if (norm(todaySchedule.prayers.asr.iqamah) !== norm(tomorrowSchedule.prayers.asr.iqamah)) {
+        pushChange('Asr', tomorrowSchedule.prayers.asr.iqamah);
+      }
       // SKIP MAGHRIB - it changes daily by design (sunset + offset), no alert needed
-      if (norm(todaySchedule.prayers.isha.iqamah) !== norm(tomorrowSchedule.prayers.isha.iqamah)) changes.push(`Isha`);
+      if (norm(todaySchedule.prayers.isha.iqamah) !== norm(tomorrowSchedule.prayers.isha.iqamah)) {
+        pushChange('Isha', tomorrowSchedule.prayers.isha.iqamah);
+      }
 
       if (tomorrow.getDay() === 5) { // 5 = Friday
          if (norm(todaySchedule.jumuah.iqamah) !== norm(tomorrowSchedule.jumuah.iqamah)) {
-            changes.push(`Jumu'ah`);
+            pushChange(`Jumu'ah`, tomorrowSchedule.jumuah.iqamah);
          }
       }
 
       if (changes.length > 0 && autoAlertSettings.enabled) {
-        // Use the custom template
-        const alertText = autoAlertSettings.template.replace('{prayers}', changes.join(', '));
+        const alertText = `⚠️ Attention: From tomorrow, ${changes.join(', ')}`;
         setSystemAlert(alertText);
       } else {
         setSystemAlert("");
