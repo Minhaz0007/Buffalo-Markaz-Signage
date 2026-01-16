@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { DailyPrayers, Announcement, SlideConfig, AnnouncementSlideConfig, ScheduleSlideConfig, ExcelDaySchedule, ManualOverride, MobileSilentAlertSettings } from '../types';
 import { Sunrise, Sunset } from 'lucide-react';
 import { MOSQUE_NAME } from '../constants';
@@ -22,8 +22,8 @@ interface ScreenPrayerTimesProps {
   nextIqamahTime: Date | null;
 }
 
-const GeometricCorner = ({ className, rotate }: { className?: string, rotate?: number }) => (
-  <div className={`absolute w-24 h-24 pointer-events-none ${className}`} style={{ zIndex: 0 }}>
+const GeometricCorner = React.memo(({ className, rotate }: { className?: string, rotate?: number }) => (
+  <div className={`absolute w-24 h-24 pointer-events-none ${className}`} style={{ zIndex: 0, transform: 'translateZ(0)' }}>
     <svg width="100%" height="100%" viewBox="0 0 100 100" style={{ transform: `rotate(${rotate || 0}deg)` }} className="overflow-visible">
       <defs>
         <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -63,9 +63,9 @@ const GeometricCorner = ({ className, rotate }: { className?: string, rotate?: n
 
     </svg>
   </div>
-);
+));
 
-const ElegantFrame = () => {
+const ElegantFrame = React.memo(() => {
   return (
     <div className="absolute inset-0 z-50 pointer-events-none p-4">
        {/* Subtle full border connecting corners visually */}
@@ -77,9 +77,9 @@ const ElegantFrame = () => {
        <GeometricCorner className="bottom-0 left-0" rotate={270} />
     </div>
   );
-};
+});
 
-const TimeDisplay = ({ time, className = "", smallSuffix = true }: { time: string, className?: string, smallSuffix?: boolean }) => {
+const TimeDisplay = React.memo(({ time, className = "", smallSuffix = true }: { time: string, className?: string, smallSuffix?: boolean }) => {
   if (!time) return null;
 
   const normalizedTime = time.trim();
@@ -129,11 +129,11 @@ const TimeDisplay = ({ time, className = "", smallSuffix = true }: { time: strin
       {!smallSuffix && <span className="ml-2">{match[2]}</span>}
     </span>
   );
-};
+});
 
 /* --- SLIDES COMPONENT DEFINITIONS --- */
 
-const ClockSlide = ({ hours, minutes, seconds, displayAmPm, nextPrayerName, timeUntilIqamah, hijriDate, formatDate, currentTime, prayers }: any) => {
+const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPrayerName, timeUntilIqamah, hijriDate, formatDate, currentTime, prayers }: any) => {
     return (
         <div className="w-full h-full flex flex-col relative z-10 p-6 animate-in fade-in duration-700">
             {/* 1. Clock Section - Top */}
@@ -190,9 +190,9 @@ const ClockSlide = ({ hours, minutes, seconds, displayAmPm, nextPrayerName, time
             </div>
         </div>
     );
-}
+});
 
-const AnnouncementSlide = ({ config }: { config: AnnouncementSlideConfig }) => {
+const AnnouncementSlide = React.memo(({ config }: { config: AnnouncementSlideConfig }) => {
     const { styles, content } = config;
     
     // Gradient animation class
@@ -207,33 +207,21 @@ const AnnouncementSlide = ({ config }: { config: AnnouncementSlideConfig }) => {
                       : 'text-4xl leading-relaxed';
 
     return (
-        <div 
-           className="w-full h-full flex items-center justify-center p-12 text-center relative overflow-hidden"
+        <div
+           className="w-full h-full flex items-center justify-center p-12 text-center relative overflow-hidden gpu-accelerated"
            style={{ backgroundColor: styles.backgroundColor }}
         >
-            <style>{`
-               @keyframes gradient-text {
-                 0% { background-position: 0% 50%; }
-                 50% { background-position: 100% 50%; }
-                 100% { background-position: 0% 50%; }
-               }
-               .animate-gradient-text {
-                 animation: gradient-text 3s ease infinite;
-               }
-               .bg-300% { background-size: 300% 300%; }
-            `}</style>
-            
             {/* Background Texture if solid color is dark */}
             <div className="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')]"></div>
-            
+
             <div className={`font-serif font-bold ${fontSizeClass} whitespace-pre-line drop-shadow-md z-10`} style={{ color: styles.textAnimation === 'gradient-flow' ? undefined : styles.textColor }}>
                <span className={animationClass}>{content}</span>
             </div>
         </div>
     );
-};
+});
 
-const ScheduleSlide = ({ config, excelSchedule, manualOverrides, maghribOffset }: { config: ScheduleSlideConfig, excelSchedule: any, manualOverrides: any, maghribOffset: number }) => {
+const ScheduleSlide = React.memo(({ config, excelSchedule, manualOverrides, maghribOffset }: { config: ScheduleSlideConfig, excelSchedule: any, manualOverrides: any, maghribOffset: number }) => {
 
     const scheduleData = useMemo(() => {
         const days = [];
@@ -304,7 +292,7 @@ const ScheduleSlide = ({ config, excelSchedule, manualOverrides, maghribOffset }
           </div>
        </div>
     );
-};
+});
 
 /* --- MAIN COMPONENT --- */
 
@@ -397,7 +385,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     return () => clearInterval(timer);
   }, []); // Empty dependency array - runs once and keeps ticking
 
-  const parseTime = (timeStr: string, now: Date): Date | null => {
+  const parseTime = useCallback((timeStr: string, now: Date): Date | null => {
     if (!timeStr) return null;
 
     // Normalize: trim and handle multiple spaces
@@ -432,9 +420,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     // Create date for today at specified time
     const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
     return date;
-  };
+  }, []);
 
-  const calculateNextIqamah = (now: Date) => {
+  const calculateNextIqamah = useCallback((now: Date) => {
     const nowTime = now.getTime();
 
     // CRITICAL: Always use IQAMAH times, never START times
@@ -487,29 +475,29 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
       setTimeUntilIqamah(`${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
     }
-  };
+  }, [prayers, parseTime]);
 
-  const formatDate = (date: Date) => {
+  const formatDate = useCallback((date: Date) => {
     return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
-  };
+  }, []);
 
-  const formatTimeParts = (date: Date) => {
+  const formatTimeParts = useCallback((date: Date) => {
     const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
     const parts = timeStr.split(' ');
     const timeComponents = parts[0].split(':');
     return { hours: timeComponents[0], minutes: timeComponents[1], seconds: timeComponents[2], ampm: parts[1] };
-  };
+  }, []);
 
-  const rows = [
+  const rows = useMemo(() => [
     { name: 'Fajr', start: prayers.fajr.start, iqamah: prayers.fajr.iqamah },
     { name: 'Dhuhr', start: prayers.dhuhr.start, iqamah: prayers.dhuhr.iqamah },
     { name: 'Asr', start: prayers.asr.start, iqamah: prayers.asr.iqamah },
     { name: 'Maghrib', start: prayers.maghrib.start, iqamah: prayers.maghrib.iqamah },
     { name: 'Isha', start: prayers.isha.start, iqamah: prayers.isha.iqamah },
     { name: 'Jumu\'ah', start: jumuah.start, iqamah: jumuah.iqamah, isJumuah: true },
-  ];
+  ], [prayers, jumuah]);
 
-  const getActiveRowIndex = () => {
+  const getActiveRowIndex = useCallback(() => {
     const now = new Date();
     const isFriday = now.getDay() === 5; // 5 is Friday
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -521,10 +509,10 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
        if (modifier === 'AM' && hours === 12) hours = 0;
        return hours * 60 + minutes;
     };
-    
+
     // Find next prayer row (excluding Jumuah from this standard check)
     let index = rows.findIndex((row, idx) => !row.isJumuah && parseToMinutes(row.iqamah || '') > currentMinutes);
-    
+
     // If all passed (index -1), effectively next is Fajr (0) of tomorrow
     if (index === -1) index = 0;
 
@@ -534,7 +522,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     }
 
     return index;
-  };
+  }, [rows]);
   
   const activeIndex = getActiveRowIndex();
   const { hours, minutes, seconds, ampm: displayAmPm } = formatTimeParts(currentTime);
@@ -574,14 +562,14 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   const tickerTextClass = tickerBg === 'navy' ? 'text-white' : 'text-mosque-navy';
 
   // Helper to render items for the seamless loop
-  const renderTickerItems = () => (
+  const renderTickerItems = useCallback(() => (
      <div className={`flex items-center px-4 whitespace-nowrap ${tickerTextClass}`}>
         {announcement.items.map((item) => (
            <React.Fragment key={item.id}>
              <span style={{ color: item.color }} className="mx-8 text-4xl">•</span>
              <span className="animate-subtle-pulse inline-block">
-                <span 
-                    style={{ color: item.color }} 
+                <span
+                    style={{ color: item.color }}
                     className={`text-5xl font-semibold tracking-wide inline-block ${item.animation === 'pulse' ? 'animate-text-pulse' : item.animation === 'blink' ? 'animate-text-blink' : ''}`}
                 >
                     {item.text}
@@ -590,7 +578,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
            </React.Fragment>
         ))}
      </div>
-  );
+  ), [announcement.items, tickerTextClass]);
 
   return (
     <div className="w-full h-full flex flex-col font-serif text-white overflow-hidden">
@@ -695,53 +683,20 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       <div className={`h-[10%] ${tickerContainerClass} relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden transition-colors duration-500 flex`}>
           {/* Seamless Marquee Container using Duplicated Content */}
           <div className="flex-1 flex overflow-hidden relative z-10 items-center">
-               <div 
-                   className="flex animate-scroll items-center shrink-0 min-w-full"
+               <div
+                   className="flex animate-scroll items-center shrink-0 min-w-full gpu-accelerated"
                    style={{ animationDuration: `${marqueeDuration}s` }}
                >
                   {renderTickerItems()}
                </div>
-               <div 
-                   className="flex animate-scroll items-center shrink-0 min-w-full"
+               <div
+                   className="flex animate-scroll items-center shrink-0 min-w-full gpu-accelerated"
                    style={{ animationDuration: `${marqueeDuration}s` }}
                >
                   {renderTickerItems()}
                </div>
           </div>
       </div>
-
-      <style>{`
-        @keyframes scroll {
-          0% { transform: translate3d(0, 0, 0); }
-          100% { transform: translate3d(-100%, 0, 0); }
-        }
-        .animate-scroll {
-           animation: scroll linear infinite;
-        }
-
-        /* Subtle global pulse */
-        @keyframes subtle-pulse {
-           0%, 100% { opacity: 1; transform: scale(1); }
-           50% { opacity: 0.85; transform: scale(0.99); }
-        }
-        .animate-subtle-pulse {
-           animation: subtle-pulse 4s ease-in-out infinite;
-        }
-
-        /* Existing Animations */
-        @keyframes textPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.95); } }
-        @keyframes textBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-        @keyframes text-shine {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 100% 50%; }
-        }
-        
-        .animate-text-pulse { animation: textPulse 1.5s infinite ease-in-out; }
-        .animate-text-blink { animation: textBlink 1s infinite steps(1); }
-        .animate-text-shine {
-            animation: text-shine 3s linear infinite;
-        }
-      `}</style>
     </div>
   );
 };
