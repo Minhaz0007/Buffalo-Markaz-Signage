@@ -149,7 +149,7 @@ const ClockSlide = ({ hours, minutes, seconds, displayAmPm, nextPrayerName, time
                 
                 <div className="mt-8 flex flex-col items-center w-full">
                     <span className="text-4xl uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-0">
-                    {nextPrayerName} IN
+                    {nextPrayerName} IQAMAH IN
                     </span>
                     <span className="font-serif text-[9.5rem] font-bold text-mosque-navy tabular-nums tracking-tight leading-none">
                     {timeUntilIqamah}
