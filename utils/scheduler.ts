@@ -198,14 +198,14 @@ export const getScheduleForDate = (
 
   // 4. Apply Manual Overrides (Highest Priority)
   // NOTE: Maghrib is excluded - always uses sunset + offset calculation
+  // NOTE: Jumu'ah iqamah is excluded - always uses Dhuhr iqamah (per user requirement)
   manualOverrides.forEach(override => {
      if (dateStr >= override.startDate && dateStr <= override.endDate) {
         if (override.prayerKey === 'jumuah') {
-            // Ensure manual override Jumu'ah times have AM/PM
-            newJumuah = {
-              start: ensureAmPm(override.start, true),
-              iqamah: ensureAmPm(override.iqamah, true)
-            };
+            // Allow manual override of Jumu'ah START time (khutbah time)
+            // But DO NOT override iqamah - it must always match Dhuhr iqamah
+            newJumuah.start = ensureAmPm(override.start, true);
+            // iqamah is NOT overridden - keeps Dhuhr iqamah value set above
         } else if (override.prayerKey !== 'maghrib') {
             // It's a daily prayer (but NOT maghrib - maghrib is always auto-calculated)
             const key = override.prayerKey as keyof Omit<DailyPrayers, 'sunrise'|'sunset'>;
@@ -221,6 +221,11 @@ export const getScheduleForDate = (
         }
      }
   });
+
+  // 5. FINAL ENFORCEMENT: Jumu'ah iqamah MUST always equal Dhuhr iqamah
+  // This happens AFTER all overrides to ensure it's never changed
+  // Manual overrides can still change Jumu'ah start time, but never iqamah
+  newJumuah.iqamah = ensureAmPm(newPrayers.dhuhr.iqamah, true);
 
   return { prayers: newPrayers, jumuah: newJumuah };
 };
