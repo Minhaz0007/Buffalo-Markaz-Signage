@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ScreenPrayerTimes } from './components/ScreenPrayerTimes';
 import { SettingsModal } from './components/SettingsModal';
 import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AutoAlertSettings, MobileSilentAlertSettings } from './types';
@@ -24,9 +24,9 @@ import { isSupabaseConfigured, supabase } from './utils/supabase';
 // --- Background Components ---
 
 const StarryBackground = React.memo(() => {
-  // Generate a stable set of stars - INCREASED COUNT & SIZE
+  // Generate a stable set of stars - optimized count for performance
   const stars = React.useMemo(() => {
-    return Array.from({ length: 150 }).map((_, i) => ({
+    return Array.from({ length: 100 }).map((_, i) => ({
       id: i,
       left: Math.random() * 100,
       top: Math.random() * 100,
@@ -60,7 +60,8 @@ const StarryBackground = React.memo(() => {
              animation: `star-twinkle ${star.duration}s ease-in-out infinite`,
              animationDelay: `-${star.delay}s`,
              opacity: 0.4,
-             willChange: 'opacity, transform'
+             willChange: 'opacity, transform',
+             transform: 'translateZ(0)' // Force GPU acceleration
            }}
          />
        ))}
@@ -68,7 +69,7 @@ const StarryBackground = React.memo(() => {
   );
 });
 
-const BackgroundManager = ({ theme }: { theme: string }) => {
+const BackgroundManager = React.memo(({ theme }: { theme: string }) => {
   switch (theme) {
     case 'starry':
       return <StarryBackground />;
@@ -77,7 +78,7 @@ const BackgroundManager = ({ theme }: { theme: string }) => {
       return (
         <div className="absolute inset-0 z-0 bg-mosque-navy overflow-hidden">
            <div className="absolute inset-0 bg-[#08152b]"></div>
-           <div className="absolute inset-0 text-mosque-gold opacity-10">
+           <div className="absolute inset-0 text-mosque-gold opacity-10" style={{ transform: 'translateZ(0)' }}>
               <svg width="100%" height="100%">
                 <pattern id="lattice" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
                    <path d="M30 0 L60 30 L30 60 L0 30 Z" fill="none" stroke="currentColor" strokeWidth="1" />
@@ -97,7 +98,7 @@ const BackgroundManager = ({ theme }: { theme: string }) => {
         <div className="absolute inset-0 z-0 bg-[#0B1E3B] overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-[#112442] to-[#050F1E]"></div>
           {/* Uniform Subtle Arabesque */}
-          <div className="absolute inset-0 text-[#E2E8F0] opacity-[0.07]">
+          <div className="absolute inset-0 text-[#E2E8F0] opacity-[0.07]" style={{ transform: 'translateZ(0)' }}>
             <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <pattern id="subtle-arabesque" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
@@ -115,7 +116,7 @@ const BackgroundManager = ({ theme }: { theme: string }) => {
         </div>
       );
   }
-};
+});
 
 // --- Custom Hooks ---
 
@@ -414,15 +415,15 @@ const App: React.FC = () => {
       // Set Display - Only update if values actually changed (prevent unnecessary re-renders)
       setDisplayedPrayerTimes(prev => {
         const next = todaySchedule.prayers;
-        // Deep comparison of prayer time values
-        if (JSON.stringify(prev) === JSON.stringify(next)) {
+        // Efficient comparison of prayer time values
+        if (prayerTimesEqual(prev, next)) {
           return prev; // Return same reference if values unchanged
         }
         return next;
       });
       setDisplayedJumuahTimes(prev => {
         const next = todaySchedule.jumuah;
-        if (JSON.stringify(prev) === JSON.stringify(next)) {
+        if (prev.start === next.start && prev.iqamah === next.iqamah) {
           return prev;
         }
         return next;
