@@ -3,7 +3,7 @@ import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Tr
 import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig, AutoAlertSettings, MobileSilentAlertSettings } from '../types';
 import { ALERT_MESSAGES } from '../constants';
 import * as XLSX from 'xlsx';
-import { saveExcelScheduleToDatabase } from '../utils/database';
+import { saveExcelScheduleToDatabase, clearExcelScheduleFromDatabase } from '../utils/database';
 import { getScheduleForDate } from '../utils/scheduler';
 import { isSupabaseConfigured } from '../utils/supabase';
 
@@ -365,15 +365,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       }
       setExcelSchedule(newSchedule);
 
-      // Save to Supabase database
+      // Save to Supabase database (with fresh replacement)
       if (!isSupabaseConfigured()) {
         setUploadStatus(`⚠️ Imported ${count} days (LOCAL ONLY - Supabase not configured). Set environment variables to enable cloud sync.`);
       } else {
-        setUploadStatus(`Saving to database...`);
+        // STEP 1: Clear all old Excel data from database
+        setUploadStatus(`Clearing old data from database...`);
+        const clearResult = await clearExcelScheduleFromDatabase();
+
+        if (!clearResult.success) {
+          setUploadStatus(`⚠️ Failed to clear old data. Upload aborted. Please try again.`);
+          return;
+        }
+
+        // STEP 2: Save new Excel data to database
+        setUploadStatus(`Saving ${count} new days to database...`);
         const dbResult = await saveExcelScheduleToDatabase(newSchedule);
 
         if (dbResult.success) {
-          setUploadStatus(`✅ Success! Imported ${count} days and saved to cloud database. Data will persist across all devices.`);
+          setUploadStatus(`✅ Success! Replaced database with ${count} new days. Old data cleared. Changes synced to all devices.`);
         } else {
           setUploadStatus(`⚠️ Imported ${count} days locally, but cloud save failed. Data may not sync across devices.`);
         }
