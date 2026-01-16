@@ -448,7 +448,16 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
          nextPrayer = { name: 'Fajr', time: fajrTime };
        }
     }
-    
+
+    // Special Friday Logic: Replace Dhuhr with Jumu'ah on Fridays
+    const isFriday = now.getDay() === 5;
+    if (isFriday && nextPrayer && nextPrayer.name === 'Dhuhr') {
+      const jumuahTime = parseTime(jumuah.iqamah || '', now);
+      if (jumuahTime) {
+        nextPrayer = { name: 'Jumu\'ah', time: jumuahTime, raw: jumuah.iqamah };
+      }
+    }
+
     // Check if we are in the 5-minute pre-Iqamah window
     let freeze = false;
     if (nextPrayer && nextPrayer.time) {
@@ -475,7 +484,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
       setTimeUntilIqamah(`${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
     }
-  }, [prayers, parseTime]);
+  }, [prayers, jumuah, parseTime]);
 
   const formatDate = useCallback((date: Date) => {
     return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
