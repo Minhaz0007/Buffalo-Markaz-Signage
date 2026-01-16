@@ -5,6 +5,40 @@ import { ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AutoAl
 // EXCEL SCHEDULE OPERATIONS
 // ============================================================
 
+/**
+ * Clears ALL Excel schedule data from the database
+ * This ensures a fresh start when uploading a new year-round calendar
+ */
+export const clearExcelScheduleFromDatabase = async () => {
+  if (!isSupabaseConfigured()) {
+    console.warn('Supabase not configured. Cannot clear database.');
+    return { success: false, error: 'Supabase not configured' };
+  }
+
+  try {
+    // Delete all rows from excel_schedule table
+    const { error } = await supabase!
+      .from('excel_schedule')
+      .delete()
+      .gte('date', '1900-01-01'); // Match all dates (effectively deletes everything)
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found (acceptable)
+      throw error;
+    }
+
+    console.log('✅ Cleared all Excel schedule data from Supabase');
+    return { success: true };
+  } catch (error) {
+    console.error('Error clearing Excel schedule from Supabase:', error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * Saves Excel schedule to database
+ * WARNING: This uses upsert, which only updates/adds rows.
+ * Use clearExcelScheduleFromDatabase() first to ensure a clean replacement.
+ */
 export const saveExcelScheduleToDatabase = async (schedule: Record<string, ExcelDaySchedule>) => {
   if (!isSupabaseConfigured()) {
     console.warn('Supabase not configured. Data will only be stored in localStorage.');
