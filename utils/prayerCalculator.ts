@@ -59,52 +59,60 @@ const getTimeZoneParts = (date: Date, timeZone: string) => {
 };
 
 /**
- * Converts a Date to the target timezone for display
- * Takes a UTC Date and formats it for the target timezone
- */
-const toTargetTimeZone = (date: Date, timeZone: string): Date => {
-  // Get the date/time components in the target timezone
-  const parts = getTimeZoneParts(date, timeZone);
-
-  // Create a new Date with these components
-  // Note: This creates a Date in the system's local timezone (UTC),
-  // but with the hour/minute values from the target timezone
-  // This is what we want for display purposes
-  return new Date(
-    Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second)
-  );
-};
-
-/**
  * Calculates prayer times for a specific date in Buffalo, NY
  *
  * TIMEZONE HANDLING:
  * - This code may run on servers in different timezones (e.g., UTC)
- * - We need to calculate for Buffalo, NY timezone (America/New_York)
- * - The adhan library works with Date objects in the system's local timezone
- * - Solution: Get the date in Buffalo timezone, calculate in system time, convert results back
+ * - The adhan library calculates astronomical times but returns Date objects in system timezone
+ * - Solution: Pass a Date representing midnight in Buffalo timezone to the adhan library
+ * - This ensures the library calculates for the correct civil date in Buffalo
+ * - Prayer times are returned as Date objects whose hours/minutes represent Buffalo local time
  *
  * DAYLIGHT SAVING TIME (DST) SUPPORT:
  * - Buffalo, NY observes DST (America/New_York timezone: EST/EDT)
- * - Intl.DateTimeFormat automatically handles DST transitions
+ * - Midnight in Buffalo is 5:00 AM UTC during EST (winter) or 4:00 AM UTC during EDT (summer)
+ * - We dynamically find the correct UTC hour that corresponds to midnight Buffalo time
  * - Prayer times will automatically adjust during DST changes
  *
  * @param date - The date to calculate prayer times for (defaults to today)
  * @returns DailyPrayers object with calculated times
  */
 export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
-  // Get the current date/time in Buffalo timezone
+  // Get the current date in Buffalo timezone
   const buffaloParts = getTimeZoneParts(date, BUFFALO_TIMEZONE);
 
-  // Create a Date object for midnight in Buffalo on this date
-  // We create it in UTC (the system timezone) but with Buffalo's date
-  const calculationDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, 0, 0, 0));
+  // CRITICAL: We need to create a Date that represents midnight in Buffalo
+  // The adhan library uses this date to calculate prayer times
+  // We need to find what UTC hour corresponds to midnight Buffalo time
+  // This changes with DST: EST (winter) = UTC-5, EDT (summer) = UTC-4
 
-  // Calculate prayer times - this returns Date objects in UTC
+  // Find midnight in Buffalo by testing which UTC hour gives us 00:00 in Buffalo
+  let calculationDate: Date;
+  for (let hour = 0; hour < 24; hour++) {
+    const testDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, hour, 0, 0));
+    const testParts = getTimeZoneParts(testDate, BUFFALO_TIMEZONE);
+
+    // Check if this UTC time is midnight in Buffalo
+    if (testParts.hour === 0 && testParts.minute === 0 &&
+        testParts.year === buffaloParts.year &&
+        testParts.month === buffaloParts.month &&
+        testParts.day === buffaloParts.day) {
+      calculationDate = testDate;
+      break;
+    }
+  }
+
+  // Fallback if not found (shouldn't happen)
+  if (!calculationDate!) {
+    calculationDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, 5, 0, 0));
+  }
+
+  // Calculate prayer times using the adhan library
   const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
 
-  // Convert from UTC to Buffalo timezone for display
-  const toBuffaloTime = (time: Date) => toTargetTimeZone(time, BUFFALO_TIMEZONE);
+  // Format times directly - they're already in the correct timezone because
+  // we passed midnight Buffalo time to the adhan library
+  const formatPrayerTime = (time: Date) => formatTime(time);
 
   // Calculate Iqamah times (typically 10-15 minutes after adhan)
   // These are reasonable defaults, can be adjusted based on masjid practice
@@ -117,31 +125,31 @@ export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
   return {
     fajr: {
       name: 'Fajr',
-      start: formatTime(toBuffaloTime(prayerTimes.fajr)),
-      iqamah: formatTime(toBuffaloTime(fajrIqamah))
+      start: formatPrayerTime(prayerTimes.fajr),
+      iqamah: formatPrayerTime(fajrIqamah)
     },
-    sunrise: formatTime(toBuffaloTime(prayerTimes.sunrise)),
+    sunrise: formatPrayerTime(prayerTimes.sunrise),
     dhuhr: {
       name: 'Dhuhr',
-      start: formatTime(toBuffaloTime(prayerTimes.dhuhr)),
-      iqamah: formatTime(toBuffaloTime(dhuhrIqamah))
+      start: formatPrayerTime(prayerTimes.dhuhr),
+      iqamah: formatPrayerTime(dhuhrIqamah)
     },
     asr: {
       name: 'Asr',
-      start: formatTime(toBuffaloTime(prayerTimes.asr)),
-      iqamah: formatTime(toBuffaloTime(asrIqamah))
+      start: formatPrayerTime(prayerTimes.asr),
+      iqamah: formatPrayerTime(asrIqamah)
     },
     maghrib: {
       name: 'Maghrib',
-      start: formatTime(toBuffaloTime(prayerTimes.maghrib)),
-      iqamah: formatTime(toBuffaloTime(maghribIqamah))
+      start: formatPrayerTime(prayerTimes.maghrib),
+      iqamah: formatPrayerTime(maghribIqamah)
     },
     isha: {
       name: 'Isha',
-      start: formatTime(toBuffaloTime(prayerTimes.isha)),
-      iqamah: formatTime(toBuffaloTime(ishaIqamah))
+      start: formatPrayerTime(prayerTimes.isha),
+      iqamah: formatPrayerTime(ishaIqamah)
     },
-    sunset: formatTime(toBuffaloTime(prayerTimes.sunset))
+    sunset: formatPrayerTime(prayerTimes.sunset)
   };
 }
 
@@ -181,17 +189,30 @@ export function getNextPrayer(prayerTimes: DailyPrayers): string {
  * @returns Object with start (Khutbah) and iqamah times
  */
 export function calculateJumuahTimes(date: Date = new Date()): { start: string; iqamah: string } {
-  // Get the current date/time in Buffalo timezone
+  // Get the current date in Buffalo timezone
   const buffaloParts = getTimeZoneParts(date, BUFFALO_TIMEZONE);
 
-  // Create a Date object for midnight in Buffalo on this date
-  const calculationDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, 0, 0, 0));
+  // Find midnight in Buffalo (same logic as calculatePrayerTimes)
+  let calculationDate: Date;
+  for (let hour = 0; hour < 24; hour++) {
+    const testDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, hour, 0, 0));
+    const testParts = getTimeZoneParts(testDate, BUFFALO_TIMEZONE);
+
+    if (testParts.hour === 0 && testParts.minute === 0 &&
+        testParts.year === buffaloParts.year &&
+        testParts.month === buffaloParts.month &&
+        testParts.day === buffaloParts.day) {
+      calculationDate = testDate;
+      break;
+    }
+  }
+
+  if (!calculationDate!) {
+    calculationDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, 5, 0, 0));
+  }
 
   // Calculate prayer times
   const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
-
-  // Convert from UTC to Buffalo timezone for display
-  const toBuffaloTime = (time: Date) => toTargetTimeZone(time, BUFFALO_TIMEZONE);
 
   // Khutbah typically starts 15-20 minutes before Dhuhr time
   const khutbahStart = new Date(prayerTimes.dhuhr.getTime() - 15 * 60 * 1000);
@@ -199,7 +220,7 @@ export function calculateJumuahTimes(date: Date = new Date()): { start: string; 
   const salahTime = new Date(prayerTimes.dhuhr.getTime() + 5 * 60 * 1000);
 
   return {
-    start: formatTime(toBuffaloTime(khutbahStart)),
-    iqamah: formatTime(toBuffaloTime(salahTime))
+    start: formatTime(khutbahStart),
+    iqamah: formatTime(salahTime)
   };
 }
