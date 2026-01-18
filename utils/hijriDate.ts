@@ -61,17 +61,26 @@ export function getHijriDate(date: Date = new Date()): string {
   try {
     const buffaloTime = getBuffaloTime(date);
 
-    // Determine which civil date to use for Hijri calculation
+    // CRITICAL ADJUSTMENT:
+    // JavaScript's Islamic calendar uses traditional sunset-based date changes
+    // Shariah Board NY uses 1 AM date changes
+    // This causes JS to be ~1 day ahead of Shariah Board NY
+    // Solution: subtract 1 day from civil date before querying
+
     let dateForHijri: Date;
 
     if (buffaloTime.hour < HIJRI_TRANSITION_HOUR) {
-      // Before 1:00 AM - use PREVIOUS day's Hijri date
-      // Subtract 1 day from the current date
+      // Before 1:00 AM on day D
+      // We want day D-1's Hijri date (Shariah Board NY)
+      // JS calendar is ahead, so ask for day D-2
+      dateForHijri = new Date(date);
+      dateForHijri.setDate(dateForHijri.getDate() - 2);
+    } else {
+      // 1:00 AM or later on day D
+      // We want day D's Hijri date (Shariah Board NY)
+      // JS calendar is ahead, so ask for day D-1
       dateForHijri = new Date(date);
       dateForHijri.setDate(dateForHijri.getDate() - 1);
-    } else {
-      // 1:00 AM or later - use current day's Hijri date
-      dateForHijri = date;
     }
 
     // Format the Hijri date using JavaScript Intl API
