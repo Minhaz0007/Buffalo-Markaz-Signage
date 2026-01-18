@@ -5,6 +5,7 @@ import { MOSQUE_NAME } from '../constants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getScheduleForDate } from '../utils/scheduler';
 import { MobileSilentAlert } from './MobileSilentAlert';
+import { getHijriDate } from '../utils/hijriDate';
 
 interface ScreenPrayerTimesProps {
   prayers: DailyPrayers;
@@ -458,16 +459,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     setCurrentTime(now);
     calculateNextIqamah(now);
 
-    try {
-      const hijri = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      }).format(now);
-      setHijriDate(hijri.replace(' AH', '').toUpperCase());
-    } catch (e) {
-      setHijriDate("HIJRI DATE UNAVAILABLE");
-    }
+    // Calculate Hijri date using Shariah Board NY convention
+    // (date changes at 1:00 AM EST/EDT, not at sunset)
+    setHijriDate(getHijriDate(now));
   }, [calculateNextIqamah, prayers, jumuah]);
 
   // Continuous clock update (independent of prayers changes)
@@ -477,16 +471,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       setCurrentTime(now);
       calculateNextIqamah(now);
 
-      try {
-        const hijri = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        }).format(now);
-        setHijriDate(hijri.replace(' AH', '').toUpperCase());
-      } catch (e) {
-        setHijriDate("HIJRI DATE UNAVAILABLE");
-      }
+      // Calculate Hijri date using Shariah Board NY convention
+      // (date changes at 1:00 AM EST/EDT, not at sunset)
+      setHijriDate(getHijriDate(now));
 
     }, 1000);
     return () => clearInterval(timer);
