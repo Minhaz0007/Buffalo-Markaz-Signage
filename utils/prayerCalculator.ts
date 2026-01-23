@@ -13,22 +13,6 @@ const CALCULATION_PARAMS = CalculationMethod.NorthAmerica();
 // Can be changed to Madhab.Shafi if needed
 CALCULATION_PARAMS.madhab = Madhab.Hanafi;
 
-/**
- * Formats a Date object to "H:MM AM/PM" format
- */
-function formatTime(date: Date): string {
-  let hours = date.getHours();
-  const minutes = date.getMinutes();
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-
-  hours = hours % 12;
-  hours = hours ? hours : 12; // the hour '0' should be '12'
-
-  const minutesStr = minutes < 10 ? '0' + minutes : minutes;
-
-  return `${hours}:${minutesStr} ${ampm}`;
-}
-
 // Memoization cache for Intl.DateTimeFormat instances
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
 
@@ -66,6 +50,23 @@ const getTimeZoneParts = (date: Date, timeZone: string) => {
     second: Number(values.second)
   };
 };
+
+/**
+ * Formats a Date object to "H:MM AM/PM" format in Buffalo timezone
+ */
+function formatTime(date: Date): string {
+  const parts = getTimeZoneParts(date, BUFFALO_TIMEZONE);
+  let hours = parts.hour;
+  const minutes = parts.minute;
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+
+  const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+
+  return `${hours}:${minutesStr} ${ampm}`;
+}
 
 /**
  * Finds the Date object corresponding to midnight in the Buffalo timezone for a given date.
@@ -168,7 +169,10 @@ export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
  */
 export function getNextPrayer(prayerTimes: DailyPrayers): string {
   const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes();
+
+  // Get current time in Buffalo
+  const buffaloParts = getTimeZoneParts(now, BUFFALO_TIMEZONE);
+  const currentTime = buffaloParts.hour * 60 + buffaloParts.minute;
 
   const parseToMinutes = (timeStr: string): number => {
     const [time, modifier] = timeStr.split(' ');
