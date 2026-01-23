@@ -162,27 +162,27 @@ export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({
         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')] pointer-events-none"></div>
 
         {/* --- UPPER HALF: COUNTDOWN --- */}
-        <div className="flex-1 flex flex-col items-center justify-center w-full relative z-10 border-b-4 border-white/20">
-            <div className="text-3xl font-bold uppercase tracking-[0.3em] mb-4 opacity-80">
+        <div className="flex-1 flex flex-col items-center justify-center w-full relative z-10 border-b-8 border-white/20">
+            <div className="text-6xl font-bold uppercase tracking-[0.3em] mb-8 opacity-80">
                 Iqamah In
             </div>
-            <div className="text-[14rem] font-bold font-serif leading-none tracking-tighter tabular-nums drop-shadow-2xl">
+            <div className="text-[28rem] font-bold font-serif leading-none tracking-tighter tabular-nums drop-shadow-2xl">
                 {timeLeft}
             </div>
         </div>
 
         {/* --- LOWER HALF: ALERT MESSAGE --- */}
-        <div className="flex-1 flex flex-col items-center justify-center w-full relative z-10 p-12 text-center">
+        <div className="flex-1 flex flex-col items-center justify-center w-full relative z-10 p-24 text-center">
             
             <motion.div 
-              className="mb-10 p-8 bg-white/20 rounded-full backdrop-blur-sm border-2 border-white/30"
+              className="mb-20 p-16 bg-white/20 rounded-full backdrop-blur-sm border-4 border-white/30"
               animate={settings.animation}
               variants={iconVariants}
             >
-               <Icon className="w-40 h-40 text-white" strokeWidth={1.5} />
+               <Icon className="w-[20rem] h-[20rem] text-white" strokeWidth={1.5} />
             </motion.div>
 
-            <h2 className="text-7xl font-bold font-serif leading-tight drop-shadow-lg max-w-5xl">
+            <h2 className="text-[9rem] font-bold font-serif leading-tight drop-shadow-lg max-w-full">
                 {settings.text}
             </h2>
         </div>
