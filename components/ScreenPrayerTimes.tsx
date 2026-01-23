@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { getScheduleForDate, ScheduleIndex } from '../utils/scheduler';
 import { MobileSilentAlert } from './MobileSilentAlert';
 import { getHijriDate } from '../utils/hijriDate';
-import { useRefreshRate } from '../utils/useRefreshRate';
+import { SeamlessTicker } from './SeamlessTicker';
 
 interface ScreenPrayerTimesProps {
   prayers: DailyPrayers;
@@ -344,24 +344,6 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     return () => clearTimeout(timer);
   }, [currentSlideIndex, isSlideshowActive, activeSlides, isIqamahFreeze, isAlertActive, alertSettings.mode]);
 
-  // === ADAPTIVE REFRESH RATE SMOOTH SCROLLING ===
-  const refreshRate = useRefreshRate();
-
-  // Calculate duration to ensure exact integer pixel movement per frame
-  // Jitter happens when pixels/frame is fractional (e.g. 2.4px/frame)
-  // We want exactly 2 pixels per frame for standard speed, or 1px for slow, 3px for fast
-  const pixelsPerFrame = 2;
-
-  const tickerItemsCharCount = announcement.items.reduce((acc, item) => acc + item.text.length, 0);
-  // Estimate width: ~30px per char for large font + spacing
-  // We must ensure the width is sufficient for the loop
-  const estimatedContentWidth = Math.max(2500, tickerItemsCharCount * 35);
-
-  // Speed (pixels/second) = pixelsPerFrame * refreshRate
-  // Duration (seconds) = Width / Speed
-  const scrollSpeedPxPerSec = pixelsPerFrame * refreshRate;
-  const marqueeDuration = estimatedContentWidth / scrollSpeedPxPerSec;
-
   useEffect(() => {
     latestScheduleRef.current = { prayers, jumuah };
   }, [prayers, jumuah]);
@@ -698,21 +680,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
       {/* === BOTTOM FOOTER: ANNOUNCEMENT TICKER === */}
       <div className={`h-[10%] ${tickerContainerClass} relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden transition-colors duration-500 flex ticker-container-optimized`}>
-          {/* Seamless Marquee Container using Duplicated Content */}
-          <div className="flex-1 flex overflow-hidden relative z-10 items-center ticker-container-optimized">
-               <div
-                   className="flex animate-scroll items-center shrink-0 min-w-full gpu-accelerated"
-                   style={{ animationDuration: `${marqueeDuration}s` }}
-               >
-                  {renderTickerItems()}
-               </div>
-               <div
-                   className="flex animate-scroll items-center shrink-0 min-w-full gpu-accelerated"
-                   style={{ animationDuration: `${marqueeDuration}s` }}
-               >
-                  {renderTickerItems()}
-               </div>
-          </div>
+          <SeamlessTicker baseSpeed={60}>
+              {renderTickerItems()}
+          </SeamlessTicker>
       </div>
     </div>
   );
