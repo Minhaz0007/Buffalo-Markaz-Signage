@@ -7,10 +7,10 @@ import { useEffect, useRef, useState } from 'react';
  * with a smooth transition to prevent jarring blank screens on TV displays.
  *
  * How it works:
- * 1. Fetches index.html every 5 minutes to check build version
+ * 1. Fetches index.html every 1 minute to check build version
  * 2. Compares meta tag build timestamp with current version
  * 3. When new version detected, fades screen to mosque navy
- * 4. Reloads page after 500ms fade
+ * 4. Reloads page after 1s fade
  *
  * This ensures mosque TVs always display the latest version without manual intervention.
  */
@@ -82,9 +82,10 @@ export const AutoUpdate: React.FC = () => {
     setIsUpdating(true);
 
     // Reload after fade completes
+    // Increased fade duration to 1000ms for extra smoothness
     setTimeout(() => {
       window.location.reload();
-    }, 500);
+    }, 1000);
   };
 
   useEffect(() => {
@@ -93,10 +94,10 @@ export const AutoUpdate: React.FC = () => {
       checkForUpdates();
     }, 30000);
 
-    // Set up periodic checks every 5 minutes
+    // Set up periodic checks every 1 minute (was 5 minutes)
     checkIntervalRef.current = setInterval(() => {
       checkForUpdates();
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 60 * 1000); // 1 minute
 
     return () => {
       clearTimeout(initialTimeout);
@@ -107,15 +108,15 @@ export const AutoUpdate: React.FC = () => {
   }, []);
 
   // Render fade overlay when updating
-  if (!isUpdating) return null;
-
+  // Using opacity transition for smoothness
   return (
     <div
-      className="fixed inset-0 z-[9999] bg-mosque-navy transition-opacity duration-500 flex items-center justify-center"
-      style={{ opacity: 1 }}
+      className={`fixed inset-0 z-[9999] bg-mosque-navy flex items-center justify-center transition-opacity duration-1000 ease-in-out ${
+        isUpdating ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+      }`}
     >
-      <div className="text-white text-2xl font-semibold animate-pulse">
-        Updating...
+      <div className="text-white text-2xl font-semibold animate-pulse tracking-widest uppercase">
+        Updating Display...
       </div>
     </div>
   );
