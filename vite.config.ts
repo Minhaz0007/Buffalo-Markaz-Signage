@@ -1,6 +1,14 @@
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+
+// Plugin to inject build timestamp for auto-update detection
+const injectBuildTimestamp = (): Plugin => ({
+  name: 'inject-build-timestamp',
+  transformIndexHtml(html) {
+    return html.replace('BUILD_TIMESTAMP', new Date().toISOString());
+  },
+});
 
 // Vite automatically loads environment variables prefixed with VITE_
 // For Vercel deployment, set VITE_GEMINI_API_KEY in environment variables
@@ -11,7 +19,7 @@ export default defineConfig({
     port: 5173, // Updated to match Electron dev server expectation
     host: '0.0.0.0',
   },
-  plugins: [react()],
+  plugins: [react(), injectBuildTimestamp()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
