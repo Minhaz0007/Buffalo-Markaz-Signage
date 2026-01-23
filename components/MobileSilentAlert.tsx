@@ -85,28 +85,34 @@ export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({
 
   // Effect to handle the countdown
   useEffect(() => {
+    // Update more frequently (every 100ms) to ensure we catch every second transition
+    // This prevents skipped seconds even when browser throttles background tabs
     const timer = setInterval(() => {
       const now = new Date();
       const diff = targetTime.getTime() - now.getTime();
-      
+
       if (diff <= 0) {
-        setTimeLeft("IQAMAH");
+        // Only update if not already showing IQAMAH
+        setTimeLeft(prev => prev === "IQAMAH" ? prev : "IQAMAH");
         return;
       }
 
       const minutes = Math.floor(diff / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      
-      setTimeLeft(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+      const newTimeLeft = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+      // Only update state if the displayed time actually changed
+      // This prevents unnecessary re-renders while ensuring smooth countdown
+      setTimeLeft(prev => prev === newTimeLeft ? prev : newTimeLeft);
 
       // Urgent threshold (last 30 seconds)
       if (diff <= 30000 && !isUrgent) {
         setIsUrgent(true);
       }
-    }, 1000);
+    }, 100); // Check 10 times per second for smooth, jitter-free countdown
 
     return () => clearInterval(timer);
-  }, [targetTime]);
+  }, [targetTime, isUrgent]);
 
   // Effect to handle the repeating audio loop
   useEffect(() => {
