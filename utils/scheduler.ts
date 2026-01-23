@@ -111,12 +111,12 @@ export const getScheduleForDate = (
   } catch (error) {
     // Fallback to defaults if calculation fails
     console.warn('Auto-calculation failed, using defaults:', error);
-    newPrayers = { ...DEFAULT_PRAYER_TIMES };
+    // Deep copy default prayers to avoid mutation of constant
+    newPrayers = JSON.parse(JSON.stringify(DEFAULT_PRAYER_TIMES));
     newJumuah = { ...DEFAULT_JUMUAH_TIMES };
   }
 
   // 2. Apply Excel (if exists for date) - WITH YEAR-ROUND EXTRAPOLATION
-  let hasExcelMaghrib = false;
   let excelDataForDate: ExcelDaySchedule | null = null;
 
   // First, try exact date match
@@ -141,43 +141,27 @@ export const getScheduleForDate = (
 
   // Apply the Excel data if found (either exact match or year-round match)
   // NOTE: Maghrib is EXCLUDED from Excel - always calculated from sunset + offset
+  // NOTE: Start Times are Autonomous (Calculated) - Excel only updates Iqamah
   // IMPORTANT: Apply ensureAmPm to all Excel times to ensure AM/PM formatting
   if (excelDataForDate) {
     const day = excelDataForDate;
 
-    // Apply Excel data with AM/PM formatting
+    // Apply Excel data (Iqamah ONLY)
     if (day.fajr) {
-      newPrayers.fajr = {
-        name: 'Fajr',
-        start: ensureAmPm(day.fajr.start, false),  // Fajr is morning
-        iqamah: ensureAmPm(day.fajr.iqamah, false)
-      };
+      newPrayers.fajr.iqamah = ensureAmPm(day.fajr.iqamah, false);
     }
     if (day.dhuhr) {
-      newPrayers.dhuhr = {
-        name: 'Dhuhr',
-        start: ensureAmPm(day.dhuhr.start, true),  // Dhuhr is afternoon
-        iqamah: ensureAmPm(day.dhuhr.iqamah, true)
-      };
+      newPrayers.dhuhr.iqamah = ensureAmPm(day.dhuhr.iqamah, true);
     }
     if (day.asr) {
-      newPrayers.asr = {
-        name: 'Asr',
-        start: ensureAmPm(day.asr.start, true),  // Asr is afternoon
-        iqamah: ensureAmPm(day.asr.iqamah, true)
-      };
+      newPrayers.asr.iqamah = ensureAmPm(day.asr.iqamah, true);
     }
-    // newPrayers.maghrib = { name: 'Maghrib', ...day.maghrib }; // SKIP MAGHRIB - always auto-calculated
+    // Maghrib is skipped (handled by offset below)
     if (day.isha) {
-      newPrayers.isha = {
-        name: 'Isha',
-        start: ensureAmPm(day.isha.start, true),  // Isha is evening/night
-        iqamah: ensureAmPm(day.isha.iqamah, true)
-      };
+      newPrayers.isha.iqamah = ensureAmPm(day.isha.iqamah, true);
     }
 
     // Override Jumu'ah iqamah from Excel if available
-    // Note: Jumu'ah start ALWAYS uses Dhuhr start (set below)
     if (day.jumuahIqamah) {
        newJumuah.iqamah = ensureAmPm(day.jumuahIqamah, true);
     }
@@ -214,6 +198,7 @@ export const getScheduleForDate = (
                 const isAfternoonPrayer = ['dhuhr', 'asr'].includes(override.prayerKey);
                 newPrayers[key] = {
                     ...newPrayers[key],
+                    // Allow manual override to set start time (manual is explicit)
                     start: ensureAmPm(override.start, isAfternoonPrayer || override.prayerKey !== 'fajr'),
                     iqamah: ensureAmPm(override.iqamah, isAfternoonPrayer || override.prayerKey !== 'fajr')
                 };
