@@ -4,7 +4,7 @@ import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, Slide
 import { ALERT_MESSAGES } from '../constants';
 import * as XLSX from 'xlsx';
 import { saveExcelScheduleToDatabase, clearExcelScheduleFromDatabase } from '../utils/database';
-import { getScheduleForDate } from '../utils/scheduler';
+import { getScheduleForDate, ScheduleIndex } from '../utils/scheduler';
 import { isSupabaseConfigured } from '../utils/supabase';
 
 // --- Types ---
@@ -34,6 +34,7 @@ interface SettingsModalProps {
   mobileAlertSettings: MobileSilentAlertSettings;
   setMobileAlertSettings: (settings: MobileSilentAlertSettings) => void;
   setIsPreviewAlert: (isPreview: boolean) => void;
+  scheduleIndex?: ScheduleIndex;
 }
 
 // --- Reusable UI Components (SCALED UP FOR 1920x1080) ---
@@ -249,7 +250,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   tickerBg, setTickerBg,
   slidesConfig, setSlidesConfig,
   mobileAlertSettings, setMobileAlertSettings,
-  setIsPreviewAlert
+  setIsPreviewAlert,
+  scheduleIndex
 }) => {
   const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization' | 'slideshow' | 'silentAlert'>('schedule');
   const [uploadStatus, setUploadStatus] = useState<string>("");
@@ -422,7 +424,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       newOverride.startDate,
       excelSchedule,
       manualOverrides,
-      maghribOffset
+      maghribOffset,
+      scheduleIndex
     );
     let inferredStart: string | undefined;
     if (prayerKey === 'jumuah') {

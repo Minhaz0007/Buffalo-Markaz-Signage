@@ -5,7 +5,7 @@ import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride, Announcem
 import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES, DEFAULT_ANNOUNCEMENT, DEFAULT_MOBILE_SILENT_ALERT } from './constants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Maximize, Minimize } from 'lucide-react';
-import { getScheduleForDate } from './utils/scheduler';
+import { getScheduleForDate, buildScheduleIndex } from './utils/scheduler';
 import { MobileSilentAlert } from './components/MobileSilentAlert';
 import { AutoUpdate } from './components/AutoUpdate';
 import {
@@ -175,6 +175,8 @@ const DEFAULT_AUTO_ALERTS: AutoAlertSettings = {
 const App: React.FC = () => {
   // --- State (Persistent for Offline Mode) ---
   const [excelSchedule, setExcelSchedule] = usePersistentState<Record<string, ExcelDaySchedule>>('schedule_data', {});
+  const scheduleIndex = useMemo(() => buildScheduleIndex(excelSchedule), [excelSchedule]);
+
   const [manualOverrides, setManualOverrides] = usePersistentState<ManualOverride[]>('manual_overrides', []);
   const [announcement, setAnnouncement] = usePersistentState<Announcement>('announcement_config', DEFAULT_ANNOUNCEMENT);
   const [currentTheme, setCurrentTheme] = usePersistentState<string>('app_theme', 'starry');
@@ -411,8 +413,8 @@ const App: React.FC = () => {
       const tomorrowKey = tomorrow.toISOString().split('T')[0];
 
       // Calculate Schedules
-      const todaySchedule = getScheduleForDate(todayKey, excelSchedule, manualOverrides, maghribOffset);
-      const tomorrowSchedule = getScheduleForDate(tomorrowKey, excelSchedule, manualOverrides, maghribOffset);
+      const todaySchedule = getScheduleForDate(todayKey, excelSchedule, manualOverrides, maghribOffset, scheduleIndex);
+      const tomorrowSchedule = getScheduleForDate(tomorrowKey, excelSchedule, manualOverrides, maghribOffset, scheduleIndex);
 
       // Set Display - Only update if values actually changed (prevent unnecessary re-renders)
       setDisplayedPrayerTimes(prev => {
@@ -625,6 +627,7 @@ const App: React.FC = () => {
                     isAlertActive={isMobileAlertActive || isPreviewAlert}
                     alertSettings={mobileAlertSettings}
                     nextIqamahTime={effectiveTargetTime}
+                    scheduleIndex={scheduleIndex}
                   />
                 </motion.div>
              )}
@@ -670,6 +673,7 @@ const App: React.FC = () => {
           mobileAlertSettings={mobileAlertSettings}
           setMobileAlertSettings={setMobileAlertSettings}
           setIsPreviewAlert={setIsPreviewAlert}
+          scheduleIndex={scheduleIndex}
         />
 
         {/* Auto-update component for Vercel deployments */}
