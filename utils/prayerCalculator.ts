@@ -29,20 +29,29 @@ function formatTime(date: Date): string {
   return `${hours}:${minutesStr} ${ampm}`;
 }
 
+// Memoization cache for Intl.DateTimeFormat instances
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+
 /**
- * Gets the date components for a specific timezone
+ * Gets the date components for a specific timezone, with memoization for performance.
  */
 const getTimeZoneParts = (date: Date, timeZone: string) => {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
+  let formatter = formatterCache.get(timeZone);
+
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    formatterCache.set(timeZone, formatter);
+  }
+
   const parts = formatter.formatToParts(date);
   const values = Object.fromEntries(
     parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value])
@@ -56,6 +65,32 @@ const getTimeZoneParts = (date: Date, timeZone: string) => {
     minute: Number(values.minute),
     second: Number(values.second)
   };
+};
+
+/**
+ * Finds the Date object corresponding to midnight in the Buffalo timezone for a given date.
+ * This is crucial for correctly calculating prayer times across different server timezones and DST changes.
+ */
+const findBuffaloMidnight = (date: Date): Date => {
+  const buffaloParts = getTimeZoneParts(date, BUFFALO_TIMEZONE);
+
+  for (let hour = 0; hour < 24; hour++) {
+    const testDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, hour, 0, 0));
+    const testParts = getTimeZoneParts(testDate, BUFFALO_TIMEZONE);
+
+    if (
+      testParts.hour === 0 &&
+      testParts.minute === 0 &&
+      testParts.year === buffaloParts.year &&
+      testParts.month === buffaloParts.month &&
+      testParts.day === buffaloParts.day
+    ) {
+      return testDate;
+    }
+  }
+
+  // Fallback if not found (shouldn't happen in practice)
+  return new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, 5, 0, 0));
 };
 
 /**
@@ -78,34 +113,7 @@ const getTimeZoneParts = (date: Date, timeZone: string) => {
  * @returns DailyPrayers object with calculated times
  */
 export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
-  // Get the current date in Buffalo timezone
-  const buffaloParts = getTimeZoneParts(date, BUFFALO_TIMEZONE);
-
-  // CRITICAL: We need to create a Date that represents midnight in Buffalo
-  // The adhan library uses this date to calculate prayer times
-  // We need to find what UTC hour corresponds to midnight Buffalo time
-  // This changes with DST: EST (winter) = UTC-5, EDT (summer) = UTC-4
-
-  // Find midnight in Buffalo by testing which UTC hour gives us 00:00 in Buffalo
-  let calculationDate: Date;
-  for (let hour = 0; hour < 24; hour++) {
-    const testDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, hour, 0, 0));
-    const testParts = getTimeZoneParts(testDate, BUFFALO_TIMEZONE);
-
-    // Check if this UTC time is midnight in Buffalo
-    if (testParts.hour === 0 && testParts.minute === 0 &&
-        testParts.year === buffaloParts.year &&
-        testParts.month === buffaloParts.month &&
-        testParts.day === buffaloParts.day) {
-      calculationDate = testDate;
-      break;
-    }
-  }
-
-  // Fallback if not found (shouldn't happen)
-  if (!calculationDate!) {
-    calculationDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, 5, 0, 0));
-  }
+  const calculationDate = findBuffaloMidnight(date);
 
   // Calculate prayer times using the adhan library
   const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
@@ -189,27 +197,7 @@ export function getNextPrayer(prayerTimes: DailyPrayers): string {
  * @returns Object with start (Khutbah) and iqamah times
  */
 export function calculateJumuahTimes(date: Date = new Date()): { start: string; iqamah: string } {
-  // Get the current date in Buffalo timezone
-  const buffaloParts = getTimeZoneParts(date, BUFFALO_TIMEZONE);
-
-  // Find midnight in Buffalo (same logic as calculatePrayerTimes)
-  let calculationDate: Date;
-  for (let hour = 0; hour < 24; hour++) {
-    const testDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, hour, 0, 0));
-    const testParts = getTimeZoneParts(testDate, BUFFALO_TIMEZONE);
-
-    if (testParts.hour === 0 && testParts.minute === 0 &&
-        testParts.year === buffaloParts.year &&
-        testParts.month === buffaloParts.month &&
-        testParts.day === buffaloParts.day) {
-      calculationDate = testDate;
-      break;
-    }
-  }
-
-  if (!calculationDate!) {
-    calculationDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, 5, 0, 0));
-  }
+  const calculationDate = findBuffaloMidnight(date);
 
   // Calculate prayer times
   const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
