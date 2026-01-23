@@ -59,6 +59,47 @@ const getTimeZoneParts = (date: Date, timeZone: string) => {
 };
 
 /**
+ * Helper to find the UTC date that corresponds to midnight in Buffalo
+ * Optimized to check likely offsets (EST/EDT) first
+ */
+function findBuffaloMidnightUTC(buffaloParts: { year: number, month: number, day: number }): Date {
+  // Try likely offsets first: EST (UTC-5) -> 5:00 UTC, EDT (UTC-4) -> 4:00 UTC
+  // We check 5 first because standard time is the "base"
+  const likelyHours = [5, 4];
+
+  for (const hour of likelyHours) {
+    const testDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, hour, 0, 0));
+    const testParts = getTimeZoneParts(testDate, BUFFALO_TIMEZONE);
+
+    if (testParts.hour === 0 && testParts.minute === 0 &&
+        testParts.year === buffaloParts.year &&
+        testParts.month === buffaloParts.month &&
+        testParts.day === buffaloParts.day) {
+      return testDate;
+    }
+  }
+
+  // Fallback to searching all hours (just in case of weird timezone rules or changes)
+  for (let hour = 0; hour < 24; hour++) {
+    // Skip hours we already checked
+    if (likelyHours.includes(hour)) continue;
+
+    const testDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, hour, 0, 0));
+    const testParts = getTimeZoneParts(testDate, BUFFALO_TIMEZONE);
+
+    if (testParts.hour === 0 && testParts.minute === 0 &&
+        testParts.year === buffaloParts.year &&
+        testParts.month === buffaloParts.month &&
+        testParts.day === buffaloParts.day) {
+      return testDate;
+    }
+  }
+
+  // Ultimate fallback
+  return new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, 5, 0, 0));
+}
+
+/**
  * Calculates prayer times for a specific date in Buffalo, NY
  *
  * TIMEZONE HANDLING:
@@ -87,25 +128,8 @@ export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
   // This changes with DST: EST (winter) = UTC-5, EDT (summer) = UTC-4
 
   // Find midnight in Buffalo by testing which UTC hour gives us 00:00 in Buffalo
-  let calculationDate: Date;
-  for (let hour = 0; hour < 24; hour++) {
-    const testDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, hour, 0, 0));
-    const testParts = getTimeZoneParts(testDate, BUFFALO_TIMEZONE);
-
-    // Check if this UTC time is midnight in Buffalo
-    if (testParts.hour === 0 && testParts.minute === 0 &&
-        testParts.year === buffaloParts.year &&
-        testParts.month === buffaloParts.month &&
-        testParts.day === buffaloParts.day) {
-      calculationDate = testDate;
-      break;
-    }
-  }
-
-  // Fallback if not found (shouldn't happen)
-  if (!calculationDate!) {
-    calculationDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, 5, 0, 0));
-  }
+  // Optimized to check likely hours first
+  const calculationDate = findBuffaloMidnightUTC(buffaloParts);
 
   // Calculate prayer times using the adhan library
   const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
@@ -193,23 +217,8 @@ export function calculateJumuahTimes(date: Date = new Date()): { start: string; 
   const buffaloParts = getTimeZoneParts(date, BUFFALO_TIMEZONE);
 
   // Find midnight in Buffalo (same logic as calculatePrayerTimes)
-  let calculationDate: Date;
-  for (let hour = 0; hour < 24; hour++) {
-    const testDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, hour, 0, 0));
-    const testParts = getTimeZoneParts(testDate, BUFFALO_TIMEZONE);
-
-    if (testParts.hour === 0 && testParts.minute === 0 &&
-        testParts.year === buffaloParts.year &&
-        testParts.month === buffaloParts.month &&
-        testParts.day === buffaloParts.day) {
-      calculationDate = testDate;
-      break;
-    }
-  }
-
-  if (!calculationDate!) {
-    calculationDate = new Date(Date.UTC(buffaloParts.year, buffaloParts.month - 1, buffaloParts.day, 5, 0, 0));
-  }
+  // Optimized to check likely hours first
+  const calculationDate = findBuffaloMidnightUTC(buffaloParts);
 
   // Calculate prayer times
   const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
