@@ -3,7 +3,7 @@ import { DailyPrayers, Announcement, SlideConfig, AnnouncementSlideConfig, Sched
 import { Sunrise, Sunset } from 'lucide-react';
 import { MOSQUE_NAME } from '../constants';
 import { AnimatePresence, motion } from 'framer-motion';
-import { getScheduleForDate } from '../utils/scheduler';
+import { getScheduleForDate, ScheduleIndex } from '../utils/scheduler';
 import { MobileSilentAlert } from './MobileSilentAlert';
 import { getHijriDate } from '../utils/hijriDate';
 
@@ -21,6 +21,7 @@ interface ScreenPrayerTimesProps {
   isAlertActive: boolean;
   alertSettings: MobileSilentAlertSettings;
   nextIqamahTime: Date | null;
+  scheduleIndex?: ScheduleIndex;
 }
 
 const GeometricCorner = React.memo(({ className, rotate }: { className?: string, rotate?: number }) => (
@@ -222,7 +223,7 @@ const AnnouncementSlide = React.memo(({ config }: { config: AnnouncementSlideCon
     );
 });
 
-const ScheduleSlide = React.memo(({ config, excelSchedule, manualOverrides, maghribOffset }: { config: ScheduleSlideConfig, excelSchedule: any, manualOverrides: any, maghribOffset: number }) => {
+const ScheduleSlide = React.memo(({ config, excelSchedule, manualOverrides, maghribOffset, scheduleIndex }: { config: ScheduleSlideConfig, excelSchedule: any, manualOverrides: any, maghribOffset: number, scheduleIndex?: ScheduleIndex }) => {
 
     const scheduleData = useMemo(() => {
         const days = [];
@@ -237,7 +238,7 @@ const ScheduleSlide = React.memo(({ config, excelSchedule, manualOverrides, magh
            const d = new Date(start);
            d.setDate(start.getDate() + i);
            const dateKey = d.toISOString().split('T')[0];
-           const { prayers } = getScheduleForDate(dateKey, excelSchedule, manualOverrides, maghribOffset);
+           const { prayers } = getScheduleForDate(dateKey, excelSchedule, manualOverrides, maghribOffset, scheduleIndex);
            
            days.push({
               dateDisplay: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -246,7 +247,7 @@ const ScheduleSlide = React.memo(({ config, excelSchedule, manualOverrides, magh
            });
         }
         return days;
-    }, [config.daysToShow, excelSchedule, manualOverrides, maghribOffset]);
+    }, [config.daysToShow, excelSchedule, manualOverrides, maghribOffset, scheduleIndex]);
 
     // Simple Time formatter just for this table
     const fmt = (t: string) => t.replace(/(AM|PM)/, '').trim();
@@ -302,7 +303,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     slidesConfig, 
     excelSchedule, manualOverrides, maghribOffset,
     tickerBg,
-    isAlertActive, alertSettings, nextIqamahTime
+    isAlertActive, alertSettings, nextIqamahTime,
+    scheduleIndex
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timeUntilIqamah, setTimeUntilIqamah] = useState<string>("");
@@ -553,7 +555,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
         if (activeSlide.type === 'ANNOUNCEMENT') {
             RightPanelContent = <AnnouncementSlide config={activeSlide as AnnouncementSlideConfig} />;
         } else if (activeSlide.type === 'SCHEDULE') {
-            RightPanelContent = <ScheduleSlide config={activeSlide as ScheduleSlideConfig} excelSchedule={excelSchedule} manualOverrides={manualOverrides} maghribOffset={maghribOffset} />;
+            RightPanelContent = <ScheduleSlide config={activeSlide as ScheduleSlideConfig} excelSchedule={excelSchedule} manualOverrides={manualOverrides} maghribOffset={maghribOffset} scheduleIndex={scheduleIndex} />;
         }
       }
   }

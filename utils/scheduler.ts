@@ -69,11 +69,40 @@ export const addMinutesToTime = (timeStr: string, minutesToAdd: number): string 
   return `${newHours}:${newMinutes.toString().padStart(2, '0')} ${newAmpm}`;
 };
 
+export type ScheduleIndex = Record<string, ExcelDaySchedule>;
+
+/**
+ * Pre-indexes the excel schedule by MM-DD for O(1) lookup.
+ * When multiple years exist for the same MM-DD, the most recent year is prioritized.
+ */
+export const buildScheduleIndex = (excelSchedule: Record<string, ExcelDaySchedule>): ScheduleIndex => {
+  const index: ScheduleIndex = {};
+
+  // Sort entries by year descending to ensure most recent year takes precedence
+  const sortedEntries = Object.entries(excelSchedule).sort(([keyA], [keyB]) => keyB.localeCompare(keyA));
+
+  for (const [dateStr, schedule] of sortedEntries) {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const monthDay = `${parts[1]}-${parts[2]}`; // MM-DD
+
+      // Since we sorted descending (newest year first), the first time we see a month-day,
+      // it's from the most recent year available for that date.
+      if (!index[monthDay]) {
+        index[monthDay] = schedule;
+      }
+    }
+  }
+
+  return index;
+};
+
 export const getScheduleForDate = (
   dateStr: string, // YYYY-MM-DD
   excelSchedule: Record<string, ExcelDaySchedule>,
   manualOverrides: ManualOverride[],
-  maghribOffset: number
+  maghribOffset: number,
+  scheduleIndex?: ScheduleIndex // Optional optimized index for O(1) fallback lookup
 ): { prayers: DailyPrayers, jumuah: { start: string, iqamah: string } } => {
 
   /**
@@ -128,14 +157,22 @@ export const getScheduleForDate = (
     const [year, month, day] = dateStr.split('-');
     const monthDay = `${month}-${day}`; // e.g., "01-15"
 
-    // Find all Excel entries with the same month-day
-    const matchingEntries = Object.entries(excelSchedule)
-      .filter(([key]) => key.endsWith(monthDay)) // Match MM-DD suffix
-      .sort(([keyA], [keyB]) => keyB.localeCompare(keyA)); // Sort descending (most recent year first)
+    if (scheduleIndex) {
+      // O(1) lookup using pre-built index
+      if (scheduleIndex[monthDay]) {
+        excelDataForDate = scheduleIndex[monthDay];
+      }
+    } else {
+      // Fallback: O(N) search (Original logic)
+      // Find all Excel entries with the same month-day
+      const matchingEntries = Object.entries(excelSchedule)
+        .filter(([key]) => key.endsWith(monthDay)) // Match MM-DD suffix
+        .sort(([keyA], [keyB]) => keyB.localeCompare(keyA)); // Sort descending (most recent year first)
 
-    // Use the most recent year's data for this month-day
-    if (matchingEntries.length > 0) {
-      excelDataForDate = matchingEntries[0][1];
+      // Use the most recent year's data for this month-day
+      if (matchingEntries.length > 0) {
+        excelDataForDate = matchingEntries[0][1];
+      }
     }
   }
 
