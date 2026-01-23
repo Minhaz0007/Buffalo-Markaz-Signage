@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { getScheduleForDate } from '../utils/scheduler';
 import { MobileSilentAlert } from './MobileSilentAlert';
 import { getHijriDate } from '../utils/hijriDate';
+import { useRefreshRate } from '../utils/useRefreshRate';
 
 interface ScreenPrayerTimesProps {
   prayers: DailyPrayers;
@@ -341,13 +342,23 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     return () => clearTimeout(timer);
   }, [currentSlideIndex, isSlideshowActive, activeSlides, isIqamahFreeze, isAlertActive, alertSettings.mode]);
 
-  // Calculate consistent marquee duration based on estimated content width
-  // Optimized for 60Hz displays: 120px/s = 2 pixels per frame (16.67ms) for ultra-smooth scrolling
+  // === ADAPTIVE REFRESH RATE SMOOTH SCROLLING ===
+  const refreshRate = useRefreshRate();
+
+  // Calculate duration to ensure exact integer pixel movement per frame
+  // Jitter happens when pixels/frame is fractional (e.g. 2.4px/frame)
+  // We want exactly 2 pixels per frame for standard speed, or 1px for slow, 3px for fast
+  const pixelsPerFrame = 2;
+
   const tickerItemsCharCount = announcement.items.reduce((acc, item) => acc + item.text.length, 0);
-  const estimatedContentWidth = Math.max(1500, tickerItemsCharCount * 30); // 1500px min width (screen width approx), or approx 30px per char
-  // Speed: 120px per second (2px per frame at 60Hz). Duration = Width / Speed
-  // Round to 2 decimal places to avoid sub-frame timing issues
-  const marqueeDuration = Math.round((estimatedContentWidth / 120) * 100) / 100;
+  // Estimate width: ~30px per char for large font + spacing
+  // We must ensure the width is sufficient for the loop
+  const estimatedContentWidth = Math.max(2500, tickerItemsCharCount * 35);
+
+  // Speed (pixels/second) = pixelsPerFrame * refreshRate
+  // Duration (seconds) = Width / Speed
+  const scrollSpeedPxPerSec = pixelsPerFrame * refreshRate;
+  const marqueeDuration = estimatedContentWidth / scrollSpeedPxPerSec;
 
   useEffect(() => {
     latestScheduleRef.current = { prayers, jumuah };
