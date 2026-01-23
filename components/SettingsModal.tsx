@@ -1003,7 +1003,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                  <div className={`p-4 rounded-xl ${slide.type === 'CLOCK' ? 'bg-blue-500/20 text-blue-400' : slide.type === 'ANNOUNCEMENT' ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}`}>
                                                      {slide.type === 'CLOCK' ? <Clock className="w-10 h-10" /> : slide.type === 'ANNOUNCEMENT' ? <MessageSquare className="w-10 h-10" /> : <CalendarIcon className="w-10 h-10" />}
                                                  </div>
-                                                 <Toggle checked={slide.enabled} onChange={(v) => updateSlideConfig(slide.id, { enabled: v })} />
+                         {slide.type === 'CLOCK' ? (
+                            <div className="flex items-center gap-3 px-5 py-3 bg-white/5 rounded-full border border-white/5 cursor-not-allowed" title="This slide is mandatory">
+                                <Lock className="w-5 h-5 text-mosque-gold" />
+                                <span className="text-sm font-bold text-white/40 uppercase tracking-widest">Always On</span>
+                            </div>
+                         ) : (
+                            <Toggle checked={slide.enabled} onChange={(v) => updateSlideConfig(slide.id, { enabled: v })} />
+                         )}
                                              </div>
                                              <h4 className="text-3xl font-bold text-white mb-2">{typeLabel}</h4>
                                              <div className="flex items-center justify-between">
