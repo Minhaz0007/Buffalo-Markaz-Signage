@@ -2,11 +2,15 @@ import path from 'path';
 import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// Determine build version: use Vercel commit SHA if available, otherwise current timestamp
+// This is calculated once at config load time to ensure stability during dev server operation
+const buildVersion = process.env.VERCEL_GIT_COMMIT_SHA || new Date().toISOString();
+
 // Plugin to inject build timestamp for auto-update detection
 const injectBuildTimestamp = (): Plugin => ({
   name: 'inject-build-timestamp',
   transformIndexHtml(html) {
-    return html.replace('BUILD_TIMESTAMP', new Date().toISOString());
+    return html.replace('BUILD_TIMESTAMP', buildVersion);
   },
 });
 
