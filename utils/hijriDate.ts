@@ -12,22 +12,31 @@
 const BUFFALO_TIMEZONE = 'America/New_York';
 const HIJRI_TRANSITION_HOUR = 1; // 1:00 AM
 
+// CACHED FORMATTERS
+const buffaloTimeFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: BUFFALO_TIMEZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false
+});
+
+const hijriDateFormatter = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
+  timeZone: BUFFALO_TIMEZONE,
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric'
+});
+
+
 /**
  * Gets the date/time components in Buffalo timezone
  */
 function getBuffaloTime(date: Date = new Date()) {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: BUFFALO_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
-
-  const parts = formatter.formatToParts(date);
+  const parts = buffaloTimeFormatter.formatToParts(date);
   const values = Object.fromEntries(
     parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value])
   );
@@ -84,12 +93,7 @@ export function getHijriDate(date: Date = new Date()): string {
     }
 
     // Format the Hijri date using JavaScript Intl API
-    const hijriFormatted = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
-      timeZone: BUFFALO_TIMEZONE,
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    }).format(dateForHijri);
+    const hijriFormatted = hijriDateFormatter.format(dateForHijri);
 
     // Convert to uppercase and remove "AH" suffix
     // Example: "27 Rajab 1447 AH" → "27 RAJAB 1447"
