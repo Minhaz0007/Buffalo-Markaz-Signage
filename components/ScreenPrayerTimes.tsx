@@ -342,10 +342,12 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   }, [currentSlideIndex, isSlideshowActive, activeSlides, isIqamahFreeze, isAlertActive, alertSettings.mode]);
 
   // Calculate consistent marquee duration based on estimated content width
+  // Optimized for 60Hz displays: 120px/s = 2 pixels per frame (16.67ms) for ultra-smooth scrolling
   const tickerItemsCharCount = announcement.items.reduce((acc, item) => acc + item.text.length, 0);
   const estimatedContentWidth = Math.max(1500, tickerItemsCharCount * 30); // 1500px min width (screen width approx), or approx 30px per char
-  // Speed: 100px per second. Duration = Width / Speed
-  const marqueeDuration = estimatedContentWidth / 100;
+  // Speed: 120px per second (2px per frame at 60Hz). Duration = Width / Speed
+  // Round to 2 decimal places to avoid sub-frame timing issues
+  const marqueeDuration = Math.round((estimatedContentWidth / 120) * 100) / 100;
 
   useEffect(() => {
     latestScheduleRef.current = { prayers, jumuah };
@@ -569,7 +571,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
         {announcement.items.map((item) => (
            <React.Fragment key={item.id}>
              <span style={{ color: item.color }} className="mx-8 text-4xl">•</span>
-             <span className="animate-subtle-pulse inline-block">
+             <span className="inline-block">
                 <span
                     style={{ color: item.color }}
                     className={`text-5xl font-semibold tracking-wide inline-block ${item.animation === 'pulse' ? 'animate-text-pulse' : item.animation === 'blink' ? 'animate-text-blink' : ''}`}
@@ -682,9 +684,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       </div>
 
       {/* === BOTTOM FOOTER: ANNOUNCEMENT TICKER === */}
-      <div className={`h-[10%] ${tickerContainerClass} relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden transition-colors duration-500 flex`}>
+      <div className={`h-[10%] ${tickerContainerClass} relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden transition-colors duration-500 flex ticker-container-optimized`}>
           {/* Seamless Marquee Container using Duplicated Content */}
-          <div className="flex-1 flex overflow-hidden relative z-10 items-center">
+          <div className="flex-1 flex overflow-hidden relative z-10 items-center ticker-container-optimized">
                <div
                    className="flex animate-scroll items-center shrink-0 min-w-full gpu-accelerated"
                    style={{ animationDuration: `${marqueeDuration}s` }}

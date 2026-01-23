@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Maximize, Minimize } from 'lucide-react';
 import { getScheduleForDate } from './utils/scheduler';
 import { MobileSilentAlert } from './components/MobileSilentAlert';
+import { AutoUpdate } from './components/AutoUpdate';
 import {
   loadExcelScheduleFromDatabase,
   loadManualOverridesFromDatabase,
@@ -647,7 +648,7 @@ const App: React.FC = () => {
           {isFullscreen ? <Minimize className="w-8 h-8" /> : <Maximize className="w-8 h-8" />}
         </button>
 
-        <SettingsModal 
+        <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
           excelSchedule={excelSchedule}
@@ -670,7 +671,10 @@ const App: React.FC = () => {
           setMobileAlertSettings={setMobileAlertSettings}
           setIsPreviewAlert={setIsPreviewAlert}
         />
-        
+
+        {/* Auto-update component for Vercel deployments */}
+        <AutoUpdate />
+
       </div>
     </div>
   );

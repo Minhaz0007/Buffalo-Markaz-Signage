@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="build-version" content="BUILD_TIMESTAMP" />
     <title>Buffalo Markaz Masjid Signage</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
@@ -36,13 +37,28 @@
 
       /* Performance-optimized animations - defined once globally */
       @keyframes scroll {
-        0% { transform: translate3d(0, 0, 0); }
-        100% { transform: translate3d(-100%, 0, 0); }
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-100%); }
       }
 
       .animate-scroll {
         animation: scroll linear infinite;
         will-change: transform;
+        /* Critical optimizations for 60Hz smooth scrolling */
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        transform-style: preserve-3d;
+        -webkit-transform-style: preserve-3d;
+        /* Prevent sub-pixel rendering blur */
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+        /* Font rendering optimization */
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        /* Force hardware acceleration */
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
       }
 
       @keyframes subtle-pulse {
@@ -84,8 +100,29 @@
       /* GPU acceleration for animated elements */
       .gpu-accelerated {
         transform: translateZ(0);
+        -webkit-transform: translateZ(0);
         backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
         perspective: 1000px;
+        -webkit-perspective: 1000px;
+        transform-style: preserve-3d;
+        -webkit-transform-style: preserve-3d;
+      }
+
+      /* Optimized container for smooth scrolling ticker */
+      .ticker-container-optimized {
+        /* Ensure smooth rendering */
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        /* Force GPU compositing */
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+        /* Prevent layout shifts */
+        contain: layout style paint;
+        /* Optimize font rendering */
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
       }
     </style>
   </head>
