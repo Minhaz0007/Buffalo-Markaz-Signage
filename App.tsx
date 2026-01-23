@@ -137,10 +137,21 @@ function usePersistentState<T>(key: string, initialValue: T): [T, React.Dispatch
 
   // Write to LS whenever state changes
   useEffect(() => {
-    try {
-      window.localStorage.setItem(key, JSON.stringify(state));
-    } catch (error) {
-      console.warn(`Error writing localStorage key "${key}":`, error);
+    const saveData = () => {
+      try {
+        window.localStorage.setItem(key, JSON.stringify(state));
+      } catch (error) {
+        console.warn(`Error writing localStorage key "${key}":`, error);
+      }
+    };
+
+    // Use requestIdleCallback to avoid blocking the main thread during UI updates
+    if ('requestIdleCallback' in window) {
+      const handle = (window as any).requestIdleCallback(saveData);
+      return () => (window as any).cancelIdleCallback(handle);
+    } else {
+      const handle = setTimeout(saveData, 500);
+      return () => clearTimeout(handle);
     }
   }, [key, state]);
 
