@@ -680,7 +680,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
       {/* === BOTTOM FOOTER: ANNOUNCEMENT TICKER === */}
       <div className={`h-[10%] ${tickerContainerClass} relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden transition-colors duration-500 flex ticker-container-optimized`}>
-          <SeamlessTicker baseSpeed={120}>
+          <SeamlessTicker baseSpeed={60}>
               {renderTickerItems()}
           </SeamlessTicker>
       </div>
