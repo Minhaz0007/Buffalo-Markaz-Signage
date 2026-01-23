@@ -163,10 +163,10 @@ export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({
 
         {/* --- UPPER HALF: COUNTDOWN --- */}
         <div className="flex-1 flex flex-col items-center justify-center w-full relative z-10 border-b-4 border-white/20">
-            <div className="text-5xl font-bold uppercase tracking-[0.3em] mb-8 opacity-80">
+            <div className="text-[4.5rem] font-bold uppercase tracking-[0.3em] mb-8 opacity-80">
                 Iqamah In
             </div>
-            <div className="text-[24rem] font-bold font-serif leading-none tracking-tighter tabular-nums drop-shadow-2xl">
+            <div className="text-[18rem] font-bold font-serif leading-none tracking-tighter tabular-nums drop-shadow-2xl">
                 {timeLeft}
             </div>
         </div>
@@ -179,10 +179,10 @@ export const MobileSilentAlert: React.FC<MobileSilentAlertProps> = ({
               animate={settings.animation}
               variants={iconVariants}
             >
-               <Icon className="w-52 h-52 text-white" strokeWidth={1.5} />
+               <Icon className="w-36 h-36 text-white" strokeWidth={1.5} />
             </motion.div>
 
-            <h2 className="text-8xl font-bold font-serif leading-tight drop-shadow-lg max-w-7xl">
+            <h2 className="text-[9rem] font-bold font-serif leading-tight drop-shadow-lg max-w-7xl">
                 {settings.text}
             </h2>
         </div>
