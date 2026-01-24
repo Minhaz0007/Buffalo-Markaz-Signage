@@ -82,7 +82,7 @@ const ElegantFrame = React.memo(() => {
   );
 });
 
-const TimeDisplay = React.memo(({ time, className = "", smallSuffix = true }: { time: string, className?: string, smallSuffix?: boolean }) => {
+const TimeDisplay = React.memo(({ time, className = "", colorClassName = "", smallSuffix = true }: { time: string, className?: string, colorClassName?: string, smallSuffix?: boolean }) => {
   if (!time) return null;
 
   const normalizedTime = time.trim();
@@ -119,14 +119,15 @@ const TimeDisplay = React.memo(({ time, className = "", smallSuffix = true }: { 
   }
 
   // If still no match, return as-is
-  if (!match) return <span className={className}>{normalizedTime}</span>;
+  if (!match) return <span className={`${className} ${colorClassName}`}>{normalizedTime}</span>;
 
-  const suffixClassName = className.includes('text-transparent')
-    ? `${className} text-[0.5em] ml-1 font-sans font-bold uppercase tracking-wide opacity-80`
+  // We only pass colorClassName to suffix, preserving standard sizing classes
+  const suffixClassName = colorClassName.includes('text-transparent')
+    ? `${colorClassName} text-[0.5em] ml-1 font-sans font-bold uppercase tracking-wide opacity-80`
     : 'text-[0.5em] ml-1 font-sans font-bold uppercase tracking-wide opacity-80';
 
   return (
-    <span className={`font-serif flex items-baseline justify-center ${className}`}>
+    <span className={`font-serif flex items-baseline justify-center ${className} ${colorClassName}`}>
       {match[1]}
       {smallSuffix && <span className={suffixClassName}>{match[2]}</span>}
       {!smallSuffix && <span className="ml-2">{match[2]}</span>}
@@ -650,10 +651,18 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                         </span>
                     </div>
                     <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
-                        <TimeDisplay time={row.start} className={`transition-all duration-500 ${timeLineHeight} ${timeSize} ${timeColor}`} />
+                        <TimeDisplay
+                          time={row.start}
+                          className={`transition-all duration-500 ${timeLineHeight} ${timeSize}`}
+                          colorClassName={timeColor}
+                        />
                     </div>
                     <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} ${iqamahBgClass} py-1`}>
-                        <TimeDisplay time={row.iqamah || ''} className={`transition-all duration-500 ${timeLineHeight} ${timeSize} ${timeColor}`} />
+                        <TimeDisplay
+                          time={row.iqamah || ''}
+                          className={`transition-all duration-500 ${timeLineHeight} ${timeSize}`}
+                          colorClassName={timeColor}
+                        />
                     </div>
                   </div>
                 );
