@@ -385,6 +385,7 @@ export const saveGlobalSettingsToDatabase = async (settings: {
       mobile_alert_beep_enabled: settings.mobileAlertSettings.beepEnabled,
       mobile_alert_beep_type: settings.mobileAlertSettings.beepType,
       mobile_alert_beep_volume: settings.mobileAlertSettings.beepVolume,
+      mobile_alert_disable_for_jumuah: settings.mobileAlertSettings.disableForJumuah,
     };
 
     const { error } = await supabase!
@@ -436,6 +437,7 @@ export const loadGlobalSettingsFromDatabase = async () => {
         beepEnabled: data.mobile_alert_beep_enabled,
         beepType: data.mobile_alert_beep_type,
         beepVolume: data.mobile_alert_beep_volume,
+        disableForJumuah: data.mobile_alert_disable_for_jumuah ?? true, // Default to true if not present
       },
     };
 

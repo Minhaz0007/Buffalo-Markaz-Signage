@@ -497,7 +497,8 @@ const App: React.FC = () => {
              .filter(Boolean) as Date[];
          
          // Special case for Jumuah on Friday
-         if (now.getDay() === 5 && todaySchedule.jumuah.iqamah) {
+         // Skip if disableForJumuah is enabled
+         if (now.getDay() === 5 && todaySchedule.jumuah.iqamah && !mobileAlertSettings.disableForJumuah) {
              const jTime = parseTime(todaySchedule.jumuah.iqamah);
              if (jTime) iqamahTimes.push(jTime);
          }
