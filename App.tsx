@@ -402,8 +402,86 @@ const App: React.FC = () => {
 
   // --- Logic: Priority Scheduler & Alerts ---
   
+  // Track current date string to trigger daily updates
+  const [todayDateStr, setTodayDateStr] = useState(() => new Date().toISOString().split('T')[0]);
+
+  // Memoized Schedule Calculation - Separation of Concerns
+  const { todaySchedule, tomorrowSchedule } = useMemo(() => {
+    const todayDate = new Date(todayDateStr + 'T12:00:00');
+    const tomorrowDate = new Date(todayDate);
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const tomorrowDateStr = tomorrowDate.toISOString().split('T')[0];
+
+    const tSchedule = getScheduleForDate(todayDateStr, excelSchedule, manualOverrides, maghribOffset, scheduleIndex);
+    const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule, manualOverrides, maghribOffset, scheduleIndex);
+
+    return { todaySchedule: tSchedule, tomorrowSchedule: tmSchedule };
+  }, [todayDateStr, excelSchedule, manualOverrides, maghribOffset, scheduleIndex]);
+
+  // Update Display State & System Alerts (Only when schedule changes)
+  useEffect(() => {
+    // Set Display - Only update if values actually changed (prevent unnecessary re-renders)
+    setDisplayedPrayerTimes(prev => {
+      const next = todaySchedule.prayers;
+      // Efficient comparison of prayer time values
+      if (prayerTimesEqual(prev, next)) {
+        return prev; // Return same reference if values unchanged
+      }
+      return next;
+    });
+    setDisplayedJumuahTimes(prev => {
+      const next = todaySchedule.jumuah;
+      if (prev.start === next.start && prev.iqamah === next.iqamah) {
+        return prev;
+      }
+      return next;
+    });
+
+    // --- Change Detection Logic (System Alert) ---
+    // NOTE: Maghrib is excluded because it changes daily (tied to sunset + offset)
+    const changes: string[] = [];
+    const norm = (t?: string) => t?.replace(/\s+/g, '').toUpperCase() || '';
+    const pushChange = (label: string, time?: string) => {
+      if (time) {
+        changes.push(`${label} Salah is at ${time}`);
+      }
+    };
+
+    if (norm(todaySchedule.prayers.fajr.iqamah) !== norm(tomorrowSchedule.prayers.fajr.iqamah)) {
+      pushChange('Fajr', tomorrowSchedule.prayers.fajr.iqamah);
+    }
+    if (norm(todaySchedule.prayers.dhuhr.iqamah) !== norm(tomorrowSchedule.prayers.dhuhr.iqamah)) {
+      pushChange('Dhuhr', tomorrowSchedule.prayers.dhuhr.iqamah);
+    }
+    if (norm(todaySchedule.prayers.asr.iqamah) !== norm(tomorrowSchedule.prayers.asr.iqamah)) {
+      pushChange('Asr', tomorrowSchedule.prayers.asr.iqamah);
+    }
+    // SKIP MAGHRIB - it changes daily by design (sunset + offset), no alert needed
+    if (norm(todaySchedule.prayers.isha.iqamah) !== norm(tomorrowSchedule.prayers.isha.iqamah)) {
+      pushChange('Isha', tomorrowSchedule.prayers.isha.iqamah);
+    }
+
+    // Check for Friday
+    const todayDate = new Date(todayDateStr + 'T12:00:00');
+    const tomorrowDate = new Date(todayDate);
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+
+    if (tomorrowDate.getDay() === 5) { // 5 = Friday
+      if (norm(todaySchedule.jumuah.iqamah) !== norm(tomorrowSchedule.jumuah.iqamah)) {
+        pushChange(`Jumu'ah`, tomorrowSchedule.jumuah.iqamah);
+      }
+    }
+
+    if (changes.length > 0 && autoAlertSettings.enabled) {
+      const alertText = `⚠️ Attention: From tomorrow, ${changes.join(', ')}`;
+      setSystemAlert(alertText);
+    } else {
+      setSystemAlert("");
+    }
+  }, [todaySchedule, tomorrowSchedule, autoAlertSettings, todayDateStr]);
+
   // Helper to parse time string to Date object for today
-  const parseTime = (timeStr: string | undefined): Date | null => {
+  const parseTime = useCallback((timeStr: string | undefined): Date | null => {
     if (!timeStr) return null;
     const [time, modifier] = timeStr.split(' ');
     let [hours, minutes] = time.split(':').map(Number);
@@ -412,120 +490,65 @@ const App: React.FC = () => {
     const date = new Date();
     date.setHours(hours, minutes, 0, 0);
     return date;
-  };
+  }, []);
 
+  // Frequent Update Loop (Timer)
   useEffect(() => {
-    const updateTimes = () => {
+    const tick = () => {
       const now = new Date();
-      const todayKey = now.toISOString().split('T')[0];
+      const currentIsoDate = now.toISOString().split('T')[0];
 
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowKey = tomorrow.toISOString().split('T')[0];
-
-      // Calculate Schedules
-      const todaySchedule = getScheduleForDate(todayKey, excelSchedule, manualOverrides, maghribOffset, scheduleIndex);
-      const tomorrowSchedule = getScheduleForDate(tomorrowKey, excelSchedule, manualOverrides, maghribOffset, scheduleIndex);
-
-      // Set Display - Only update if values actually changed (prevent unnecessary re-renders)
-      setDisplayedPrayerTimes(prev => {
-        const next = todaySchedule.prayers;
-        // Efficient comparison of prayer time values
-        if (prayerTimesEqual(prev, next)) {
-          return prev; // Return same reference if values unchanged
-        }
-        return next;
-      });
-      setDisplayedJumuahTimes(prev => {
-        const next = todaySchedule.jumuah;
-        if (prev.start === next.start && prev.iqamah === next.iqamah) {
-          return prev;
-        }
-        return next;
-      });
-
-      // --- Change Detection Logic ---
-      // NOTE: Maghrib is excluded because it changes daily (tied to sunset + offset)
-      const changes: string[] = [];
-      const norm = (t?: string) => t?.replace(/\s+/g, '').toUpperCase() || '';
-      const pushChange = (label: string, time?: string) => {
-        if (time) {
-          changes.push(`${label} Salah is at ${time}`);
-        }
-      };
-
-      if (norm(todaySchedule.prayers.fajr.iqamah) !== norm(tomorrowSchedule.prayers.fajr.iqamah)) {
-        pushChange('Fajr', tomorrowSchedule.prayers.fajr.iqamah);
-      }
-      if (norm(todaySchedule.prayers.dhuhr.iqamah) !== norm(tomorrowSchedule.prayers.dhuhr.iqamah)) {
-        pushChange('Dhuhr', tomorrowSchedule.prayers.dhuhr.iqamah);
-      }
-      if (norm(todaySchedule.prayers.asr.iqamah) !== norm(tomorrowSchedule.prayers.asr.iqamah)) {
-        pushChange('Asr', tomorrowSchedule.prayers.asr.iqamah);
-      }
-      // SKIP MAGHRIB - it changes daily by design (sunset + offset), no alert needed
-      if (norm(todaySchedule.prayers.isha.iqamah) !== norm(tomorrowSchedule.prayers.isha.iqamah)) {
-        pushChange('Isha', tomorrowSchedule.prayers.isha.iqamah);
+      // 1. Check for Midnight Transition
+      if (currentIsoDate !== todayDateStr) {
+        setTodayDateStr(currentIsoDate);
+        return; // State update will trigger re-render and schedule update
       }
 
-      if (tomorrow.getDay() === 5) { // 5 = Friday
-         if (norm(todaySchedule.jumuah.iqamah) !== norm(tomorrowSchedule.jumuah.iqamah)) {
-            pushChange(`Jumu'ah`, tomorrowSchedule.jumuah.iqamah);
-         }
-      }
-
-      if (changes.length > 0 && autoAlertSettings.enabled) {
-        const alertText = `⚠️ Attention: From tomorrow, ${changes.join(', ')}`;
-        setSystemAlert(alertText);
-      } else {
-        setSystemAlert("");
-      }
-
-      // --- Mobile Silent Alert Logic ---
+      // 2. Mobile Silent Alert Logic
       if (mobileAlertSettings.enabled && !isPreviewAlert) {
-         const prayersList = [
-            todaySchedule.prayers.fajr,
-            todaySchedule.prayers.dhuhr,
-            todaySchedule.prayers.asr,
-            todaySchedule.prayers.maghrib,
-            todaySchedule.prayers.isha
-         ];
+        const prayersList = [
+          todaySchedule.prayers.fajr,
+          todaySchedule.prayers.dhuhr,
+          todaySchedule.prayers.asr,
+          todaySchedule.prayers.maghrib,
+          todaySchedule.prayers.isha
+        ];
 
-         // Determine which Iqamah is coming up
-         const iqamahTimes = prayersList
-             .map(p => parseTime(p.iqamah))
-             .filter(Boolean) as Date[];
-         
-         // Special case for Jumuah on Friday
-         // Skip if disableForJumuah is enabled
-         if (now.getDay() === 5 && todaySchedule.jumuah.iqamah && !mobileAlertSettings.disableForJumuah) {
-             const jTime = parseTime(todaySchedule.jumuah.iqamah);
-             if (jTime) iqamahTimes.push(jTime);
-         }
+        // Determine which Iqamah is coming up
+        const iqamahTimes = prayersList
+          .map(p => parseTime(p.iqamah))
+          .filter(Boolean) as Date[];
 
-         // Find the next active iqamah or currently happening one
-         const upcoming = iqamahTimes.find(time => {
-            const diff = time.getTime() - now.getTime();
-            // Check if within trigger window AND not yet passed
-            const triggerMs = mobileAlertSettings.triggerMinutes * 60 * 1000;
-            return diff > 0 && diff <= triggerMs;
-         });
+        // Special case for Jumuah on Friday
+        // Skip if disableForJumuah is enabled
+        if (now.getDay() === 5 && todaySchedule.jumuah.iqamah && !mobileAlertSettings.disableForJumuah) {
+          const jTime = parseTime(todaySchedule.jumuah.iqamah);
+          if (jTime) iqamahTimes.push(jTime);
+        }
 
-         if (upcoming) {
-            setIsMobileAlertActive(true);
-            setAlertTargetTime(upcoming);
-         } else {
-            setIsMobileAlertActive(false);
-            setAlertTargetTime(null);
-         }
+        // Find the next active iqamah or currently happening one
+        const upcoming = iqamahTimes.find(time => {
+          const diff = time.getTime() - now.getTime();
+          // Check if within trigger window AND not yet passed
+          const triggerMs = mobileAlertSettings.triggerMinutes * 60 * 1000;
+          return diff > 0 && diff <= triggerMs;
+        });
+
+        if (upcoming) {
+          setIsMobileAlertActive(true);
+          setAlertTargetTime(upcoming);
+        } else {
+          setIsMobileAlertActive(false);
+          setAlertTargetTime(null);
+        }
       }
     };
 
-    updateTimes();
-    const interval = setInterval(updateTimes, 1000); // Check every second for accurate alert triggering
+    tick();
+    const interval = setInterval(tick, 1000); // Check every second for accurate alert triggering
     return () => clearInterval(interval);
 
-  }, [excelSchedule, manualOverrides, maghribOffset, autoAlertSettings, mobileAlertSettings, isPreviewAlert]);
+  }, [todayDateStr, mobileAlertSettings, isPreviewAlert, todaySchedule, parseTime]);
 
   // Combine system alerts with manually added announcement items
   const effectiveAnnouncement: Announcement = React.useMemo(() => {
