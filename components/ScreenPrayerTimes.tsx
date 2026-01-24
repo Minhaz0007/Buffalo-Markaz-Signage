@@ -164,7 +164,7 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
             {/* 2. Date Section - Middle */}
             <div className="flex-[1] flex flex-col items-center justify-center border-b border-mosque-navy/10 py-1 space-y-2 shrink-0 bg-white/30 backdrop-blur-sm rounded-lg my-2 shadow-inner">
                 <div className="text-5xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-navy drop-shadow-sm">{hijriDate}</div>
-                <div className="text-4xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/80">{formatDate(currentTime)}</div>
+                <div className="text-4xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-navy/80">{formatDate(currentTime)}</div>
             </div>
 
             {/* 3. Footer: Sunrise / Sunset - Bottom */}
@@ -594,8 +594,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       {/* === MAIN CONTENT (SPLIT VIEW) === */}
       <div className="flex-1 flex overflow-hidden h-full">
           
-          {/* === LEFT COLUMN: PRAYER TABLE (60%) === */}
-          <div className="w-[60%] flex flex-col border-r-4 border-black/30 relative z-10 shadow-xl h-full">
+          {/* === LEFT COLUMN: PRAYER TABLE (63%) === */}
+          <div className="w-[63%] flex flex-col border-r-4 border-black/30 relative z-10 shadow-xl h-full">
             {/* Header Row */}
             <div className="h-16 flex items-end pb-1 bg-mosque-navy/40 border-b border-white/10 shrink-0">
               <div className="w-[34%] text-center border-white/5">
@@ -670,8 +670,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
             </div>
           </div>
 
-          {/* === RIGHT COLUMN: SLIDESHOW CONTAINER (40%) === */}
-          <div className="w-[40%] bg-[#E5E5E5] text-mosque-navy flex flex-col z-10 shadow-2xl h-full relative overflow-hidden">
+          {/* === RIGHT COLUMN: SLIDESHOW CONTAINER (37%) === */}
+          <div className="w-[37%] bg-[#E5E5E5] text-mosque-navy flex flex-col z-10 shadow-2xl h-full relative overflow-hidden">
               {/* Frame now moved to top level of this container with z-50 to ensure it overlays everything including colored announcements */}
               <ElegantFrame />
               <div className="w-full h-full relative z-10">
