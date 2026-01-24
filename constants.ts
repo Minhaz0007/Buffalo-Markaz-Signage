@@ -59,7 +59,8 @@ export const DEFAULT_MOBILE_SILENT_ALERT: MobileSilentAlertSettings = {
   animation: 'pulse',
   beepEnabled: true,
   beepType: 'single',
-  beepVolume: 75 // Default 75%
+  beepVolume: 75, // Default 75%
+  disableForJumuah: true // Alert will not trigger before Jumuah iqamah by default
 };
 
 export const ALERT_MESSAGES = [

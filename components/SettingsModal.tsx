@@ -862,6 +862,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                              <Toggle checked={mobileAlertSettings.enabled} onChange={(v) => setMobileAlertSettings({...mobileAlertSettings, enabled: v})} />
                         </Card>
 
+                        <Card className="flex items-center justify-between border-l-8 border-l-amber-500">
+                             <div>
+                                 <h4 className="text-3xl font-bold text-white">Disable for Jumuah</h4>
+                                 <p className="text-white/50 text-xl">When enabled, the alert will NOT trigger before Jumuah prayer.</p>
+                             </div>
+                             <Toggle checked={mobileAlertSettings.disableForJumuah} onChange={(v) => setMobileAlertSettings({...mobileAlertSettings, disableForJumuah: v})} />
+                        </Card>
+
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
                             {/* Behavior */}
                             <Card>

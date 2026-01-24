@@ -140,6 +140,7 @@ CREATE TABLE IF NOT EXISTS global_settings (
     mobile_alert_beep_enabled BOOLEAN NOT NULL DEFAULT true,
     mobile_alert_beep_type VARCHAR(20) NOT NULL DEFAULT 'single',
     mobile_alert_beep_volume INTEGER NOT NULL DEFAULT 50,
+    mobile_alert_disable_for_jumuah BOOLEAN NOT NULL DEFAULT true,
 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

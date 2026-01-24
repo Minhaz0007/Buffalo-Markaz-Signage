@@ -114,4 +114,5 @@ export interface MobileSilentAlertSettings {
   beepEnabled: boolean;
   beepType: 'single' | 'double' | 'sonar' | 'soft';
   beepVolume: number; // 0 to 100
+  disableForJumuah: boolean; // When true, alert will not trigger before Jumuah iqamah
 }
