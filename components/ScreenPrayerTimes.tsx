@@ -638,9 +638,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                 const nameSize = isActive ? 'text-[5.5rem]' : 'text-[4.5rem]';
                 const timeSize = isActive ? 'text-[7.5rem] font-black' : 'text-[6.5rem] font-bold';
 
-                // Gradient text needs slightly more line-height to prevent clipping
-                const nameLineHeight = isJumuah ? 'leading-[1.0]' : 'leading-[0.9]';
-                const timeLineHeight = isJumuah ? 'leading-[0.95]' : 'leading-[0.85]';
+                // Use consistent line-height for all rows including Jumuah
+                const nameLineHeight = 'leading-[0.9]';
+                const timeLineHeight = 'leading-[0.85]';
 
                 return (
                   <div key={idx} className={`flex-1 flex items-center ${bgClass} border-b ${borderClass} transition-all duration-700 ease-out relative py-1`}>
