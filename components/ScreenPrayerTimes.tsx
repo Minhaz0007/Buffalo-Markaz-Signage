@@ -169,24 +169,24 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
             {/* 3. Footer: Sunrise / Sunset - Bottom */}
             <div className="flex-[3] shrink-0 flex flex-col justify-center relative">
                 <div className="flex items-center justify-around h-full">
-                    
+
                     {/* Sunrise Item */}
                     <div className="flex flex-col items-center justify-center">
-                    <Sunrise className="w-24 h-24 text-mosque-navy mb-4 drop-shadow-md" strokeWidth={1.5} />
-                    <span className="text-3xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-1">Sunrise</span>
-                    <span className="text-8xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunrise.replace(/AM|PM/, '').trim()}</span>
-                    <span className="text-5xl font-bold text-mosque-navy tracking-widest uppercase mt-2">AM</span>
+                    <Sunrise className="w-20 h-20 text-mosque-navy mb-3 drop-shadow-md" strokeWidth={1.5} />
+                    <span className="text-2xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-1">Sunrise</span>
+                    <span className="text-7xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunrise.replace(/AM|PM/, '').trim()}</span>
+                    <span className="text-3xl font-bold text-mosque-navy tracking-widest uppercase mt-1">AM</span>
                     </div>
-                    
+
                     {/* Vertical Divider */}
                     <div className="h-40 w-px bg-gradient-to-b from-transparent via-mosque-navy/20 to-transparent"></div>
 
                     {/* Sunset Item */}
                     <div className="flex flex-col items-center justify-center">
-                    <Sunset className="w-24 h-24 text-mosque-navy mb-4 drop-shadow-md" strokeWidth={1.5} />
-                    <span className="text-3xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-1">Sunset</span>
-                    <span className="text-8xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunset.replace(/AM|PM/, '').trim()}</span>
-                    <span className="text-5xl font-bold text-mosque-navy tracking-widest uppercase mt-2">PM</span>
+                    <Sunset className="w-20 h-20 text-mosque-navy mb-3 drop-shadow-md" strokeWidth={1.5} />
+                    <span className="text-2xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-1">Sunset</span>
+                    <span className="text-7xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunset.replace(/AM|PM/, '').trim()}</span>
+                    <span className="text-3xl font-bold text-mosque-navy tracking-widest uppercase mt-1">PM</span>
                     </div>
 
                 </div>
