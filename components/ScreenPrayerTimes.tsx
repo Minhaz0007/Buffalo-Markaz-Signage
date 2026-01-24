@@ -162,7 +162,7 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
             </div>
 
             {/* 2. Date Section - Middle */}
-            <div className="flex-[1] flex flex-col items-center justify-center border-b border-mosque-navy/10 py-1 space-y-2 shrink-0 bg-white/30 backdrop-blur-sm rounded-lg my-2 shadow-inner">
+            <div className="flex-[1] flex flex-col items-center justify-center border-b border-mosque-navy/10 py-1 space-y-2 shrink-0 bg-mosque-gold backdrop-blur-sm rounded-lg my-2 shadow-inner">
                 <div className="text-5xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-navy drop-shadow-sm">{hijriDate}</div>
                 <div className="text-4xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/80">{formatDate(currentTime)}</div>
             </div>
@@ -175,8 +175,10 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
                     <div className="flex flex-col items-center justify-center">
                     <Sunrise className="w-20 h-20 text-mosque-navy mb-3 drop-shadow-md" strokeWidth={1.5} />
                     <span className="text-2xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-1">Sunrise</span>
-                    <span className="text-7xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunrise.replace(/AM|PM/, '').trim()}</span>
-                    <span className="text-3xl font-bold text-mosque-navy tracking-widest uppercase mt-1">AM</span>
+                    <div className="flex items-baseline justify-center">
+                        <span className="text-[6.5rem] font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunrise.replace(/AM|PM/, '').trim()}</span>
+                        <span className="text-3xl font-bold text-mosque-navy tracking-widest uppercase ml-3">AM</span>
+                    </div>
                     </div>
 
                     {/* Vertical Divider */}
@@ -186,8 +188,10 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
                     <div className="flex flex-col items-center justify-center">
                     <Sunset className="w-20 h-20 text-mosque-navy mb-3 drop-shadow-md" strokeWidth={1.5} />
                     <span className="text-2xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-1">Sunset</span>
-                    <span className="text-7xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunset.replace(/AM|PM/, '').trim()}</span>
-                    <span className="text-3xl font-bold text-mosque-navy tracking-widest uppercase mt-1">PM</span>
+                    <div className="flex items-baseline justify-center">
+                        <span className="text-[6.5rem] font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunset.replace(/AM|PM/, '').trim()}</span>
+                        <span className="text-3xl font-bold text-mosque-navy tracking-widest uppercase ml-3">PM</span>
+                    </div>
                     </div>
 
                 </div>
