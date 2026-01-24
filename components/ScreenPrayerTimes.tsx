@@ -141,7 +141,7 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
     return (
         <div className="w-full h-full flex flex-col relative z-10 p-6 animate-in fade-in duration-700">
             {/* 1. Clock Section - Top */}
-            <div className="flex-[4] flex flex-col items-center justify-center border-b border-mosque-navy/10 relative">
+            <div className="flex-[4] flex flex-col items-center justify-center relative">
                 <div className="flex items-baseline justify-center w-full px-4 mt-4 whitespace-nowrap overflow-visible">
                     <span className="text-[15rem] leading-[0.8] font-serif tracking-tight text-mosque-navy font-bold drop-shadow-sm tabular-nums">
                         {hours}:{minutes}
@@ -162,9 +162,9 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
             </div>
 
             {/* 2. Date Section - Middle */}
-            <div className="flex-[1] flex flex-col items-center justify-center border-b border-mosque-navy/10 py-1 space-y-2 shrink-0 bg-white/30 backdrop-blur-sm rounded-lg my-2 shadow-inner">
+            <div className="flex-[1] flex flex-col items-center justify-center py-2 space-y-1 shrink-0 bg-mosque-gold rounded-lg my-2 shadow-md w-full">
                 <div className="text-5xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-navy drop-shadow-sm">{hijriDate}</div>
-                <div className="text-4xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/80">{formatDate(currentTime)}</div>
+                <div className="text-4xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-navy">{formatDate(currentTime)}</div>
             </div>
 
             {/* 3. Footer: Sunrise / Sunset - Bottom */}
