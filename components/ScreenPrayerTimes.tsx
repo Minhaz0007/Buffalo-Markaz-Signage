@@ -596,15 +596,15 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
           {/* === LEFT COLUMN: PRAYER TABLE (60%) === */}
           <div className="w-[60%] flex flex-col border-r-4 border-black/30 relative z-10 shadow-xl h-full">
             {/* Header Row */}
-            <div className="h-20 flex items-end pb-2 bg-mosque-navy/40 border-b border-white/10 shrink-0">
+            <div className="h-16 flex items-end pb-1 bg-mosque-navy/40 border-b border-white/10 shrink-0">
               <div className="w-[34%] text-center border-white/5">
-                  <span className="text-3xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Salah</span>
+                  <span className="text-4xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Salah</span>
               </div>
               <div className="w-[33%] text-center border-l border-white/5">
-                  <span className="text-3xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Starts</span>
+                  <span className="text-4xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Starts</span>
               </div>
               <div className="w-[33%] text-center border-l border-white/5">
-                  <span className="text-3xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Iqamah</span>
+                  <span className="text-4xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Iqamah</span>
               </div>
             </div>
 
@@ -635,21 +635,21 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                 }
 
                 const iqamahBgClass = isActive ? '' : 'bg-black/5';
-                const nameSize = isActive ? 'text-6xl' : 'text-5xl';
-                const timeSize = isActive ? 'text-8xl font-black' : 'text-7xl font-bold';
+                const nameSize = isActive ? 'text-[5.5rem]' : 'text-[4.5rem]';
+                const timeSize = isActive ? 'text-[7.5rem] font-black' : 'text-[6.5rem] font-bold';
 
                 return (
-                  <div key={idx} className={`flex-1 flex items-center ${bgClass} border-b ${borderClass} transition-all duration-700 ease-out relative`}>
-                    <div className="w-[34%] flex items-center justify-center">
-                        <span className={`block font-bold uppercase tracking-wider leading-none transition-all duration-500 ${nameSize} ${nameColor}`}>
+                  <div key={idx} className={`flex-1 flex items-center ${bgClass} border-b ${borderClass} transition-all duration-700 ease-out relative py-1`}>
+                    <div className="w-[34%] flex items-center justify-center py-1">
+                        <span className={`block font-bold uppercase tracking-wider leading-[0.9] transition-all duration-500 ${nameSize} ${nameColor}`}>
                           {row.name}
                         </span>
                     </div>
-                    <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass}`}>
-                        <TimeDisplay time={row.start} className={`transition-all duration-500 ${timeSize} ${timeColor}`} />
+                    <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
+                        <TimeDisplay time={row.start} className={`transition-all duration-500 leading-[0.85] ${timeSize} ${timeColor}`} />
                     </div>
-                    <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} ${iqamahBgClass}`}>
-                        <TimeDisplay time={row.iqamah || ''} className={`transition-all duration-500 ${timeSize} ${timeColor}`} />
+                    <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} ${iqamahBgClass} py-1`}>
+                        <TimeDisplay time={row.iqamah || ''} className={`transition-all duration-500 leading-[0.85] ${timeSize} ${timeColor}`} />
                     </div>
                   </div>
                 );
