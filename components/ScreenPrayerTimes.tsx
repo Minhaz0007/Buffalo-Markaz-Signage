@@ -167,30 +167,34 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
                 <div className="text-4xl font-sans uppercase tracking-[0.15em] font-semibold text-mosque-navy/80">{formatDate(currentTime)}</div>
             </div>
 
-            {/* 3. Footer: Sunrise / Sunset - Bottom */}
-            <div className="flex-[3] shrink-0 flex flex-col justify-center relative">
-                <div className="flex items-center justify-around h-full">
+            {/* 3. Footer: Sunrise / Sunset - Bottom (Option 2: Split Cards) */}
+            <div className="flex-[3] shrink-0 flex items-center justify-center gap-6 px-6 pb-6">
 
-                    {/* Sunrise Item */}
-                    <div className="flex flex-col items-center justify-center">
-                    <Sunrise className="w-20 h-20 text-mosque-navy mb-3 drop-shadow-md" strokeWidth={1.5} />
-                    <span className="text-2xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-1">Sunrise</span>
-                    <span className="text-7xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunrise.replace(/AM|PM/, '').trim()}</span>
-                    <span className="text-3xl font-bold text-mosque-navy tracking-widest uppercase mt-1">AM</span>
+                {/* Sunrise Card */}
+                <div className="flex-1 h-full max-h-[220px] bg-mosque-navy rounded-2xl shadow-xl flex flex-col items-center justify-center border border-mosque-gold/20 relative overflow-hidden group">
+                     {/* Gentle gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
+
+                    <Sunrise className="w-14 h-14 text-mosque-gold mb-2 drop-shadow-md relative z-10" strokeWidth={1.5} />
+                    <span className="text-lg uppercase tracking-[0.25em] font-bold text-mosque-gold/80 mb-0 relative z-10">Sunrise</span>
+                    <div className="flex items-baseline relative z-10">
+                         <span className="text-6xl font-serif font-bold text-white tabular-nums tracking-tight">{prayers.sunrise.replace(/AM|PM/, '').trim()}</span>
+                         <span className="text-xl font-bold text-white/60 tracking-widest uppercase ml-2">AM</span>
                     </div>
-
-                    {/* Vertical Divider */}
-                    <div className="h-40 w-px bg-gradient-to-b from-transparent via-mosque-navy/20 to-transparent"></div>
-
-                    {/* Sunset Item */}
-                    <div className="flex flex-col items-center justify-center">
-                    <Sunset className="w-20 h-20 text-mosque-navy mb-3 drop-shadow-md" strokeWidth={1.5} />
-                    <span className="text-2xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-1">Sunset</span>
-                    <span className="text-7xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunset.replace(/AM|PM/, '').trim()}</span>
-                    <span className="text-3xl font-bold text-mosque-navy tracking-widest uppercase mt-1">PM</span>
-                    </div>
-
                 </div>
+
+                {/* Sunset Card */}
+                <div className="flex-1 h-full max-h-[220px] bg-mosque-navy rounded-2xl shadow-xl flex flex-col items-center justify-center border border-mosque-gold/20 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
+
+                    <Sunset className="w-14 h-14 text-mosque-gold mb-2 drop-shadow-md relative z-10" strokeWidth={1.5} />
+                    <span className="text-lg uppercase tracking-[0.25em] font-bold text-mosque-gold/80 mb-0 relative z-10">Sunset</span>
+                    <div className="flex items-baseline relative z-10">
+                        <span className="text-6xl font-serif font-bold text-white tabular-nums tracking-tight">{prayers.sunset.replace(/AM|PM/, '').trim()}</span>
+                        <span className="text-xl font-bold text-white/60 tracking-widest uppercase ml-2">PM</span>
+                    </div>
+                </div>
+
             </div>
         </div>
     );
