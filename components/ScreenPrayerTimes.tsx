@@ -163,8 +163,8 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
 
             {/* 2. Date Section - Middle */}
             <div className="flex-[1.3] flex flex-col items-center justify-center border-b border-mosque-gold/30 py-3 space-y-1 shrink-0 bg-mosque-gold rounded-lg my-2 shadow-lg">
-                <div className="text-5xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-navy drop-shadow-sm">{hijriDate}</div>
-                <div className="text-5xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-navy drop-shadow-sm">{formatDate(currentTime)}</div>
+                <div className="text-4xl font-sans uppercase tracking-[0.1em] font-bold text-mosque-navy drop-shadow-sm whitespace-nowrap">{hijriDate}</div>
+                <div className="text-4xl font-sans uppercase tracking-[0.1em] font-bold text-mosque-navy drop-shadow-sm whitespace-nowrap">{formatDate(currentTime)}</div>
             </div>
 
             {/* 3. Footer: Sunrise / Sunset - Bottom */}
