@@ -142,10 +142,10 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
             {/* 1. Clock Section - Top */}
             <div className="flex-[4] flex flex-col items-center justify-center border-b border-mosque-navy/10 relative">
                 <div className="flex items-baseline justify-center w-full px-4 mt-4 whitespace-nowrap overflow-visible">
-                    <span className="text-[11.4rem] leading-[0.8] font-serif tracking-tight text-mosque-navy font-bold drop-shadow-sm tabular-nums">
-                        {hours}:{minutes}:{seconds}
+                    <span className="text-[15rem] leading-[0.8] font-serif tracking-tight text-mosque-navy font-bold drop-shadow-sm tabular-nums">
+                        {hours}:{minutes}
                     </span>
-                    <span className="text-[5.4rem] ml-4 font-sans font-bold uppercase tracking-widest text-mosque-navy">
+                    <span className="text-[7rem] ml-6 font-sans font-bold uppercase tracking-widest text-mosque-navy">
                         {displayAmPm}
                     </span>
                 </div>
