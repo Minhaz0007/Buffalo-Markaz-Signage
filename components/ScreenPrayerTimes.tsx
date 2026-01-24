@@ -638,18 +638,22 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                 const nameSize = isActive ? 'text-[5.5rem]' : 'text-[4.5rem]';
                 const timeSize = isActive ? 'text-[7.5rem] font-black' : 'text-[6.5rem] font-bold';
 
+                // Gradient text needs slightly more line-height to prevent clipping
+                const nameLineHeight = isJumuah ? 'leading-[1.0]' : 'leading-[0.9]';
+                const timeLineHeight = isJumuah ? 'leading-[0.95]' : 'leading-[0.85]';
+
                 return (
                   <div key={idx} className={`flex-1 flex items-center ${bgClass} border-b ${borderClass} transition-all duration-700 ease-out relative py-1`}>
                     <div className="w-[34%] flex items-center justify-center py-1">
-                        <span className={`block font-bold uppercase tracking-wider leading-[0.9] transition-all duration-500 ${nameSize} ${nameColor}`}>
+                        <span className={`block font-bold uppercase tracking-wider ${nameLineHeight} transition-all duration-500 ${nameSize} ${nameColor}`}>
                           {row.name}
                         </span>
                     </div>
                     <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
-                        <TimeDisplay time={row.start} className={`transition-all duration-500 leading-[0.85] ${timeSize} ${timeColor}`} />
+                        <TimeDisplay time={row.start} className={`transition-all duration-500 ${timeLineHeight} ${timeSize} ${timeColor}`} />
                     </div>
                     <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} ${iqamahBgClass} py-1`}>
-                        <TimeDisplay time={row.iqamah || ''} className={`transition-all duration-500 leading-[0.85] ${timeSize} ${timeColor}`} />
+                        <TimeDisplay time={row.iqamah || ''} className={`transition-all duration-500 ${timeLineHeight} ${timeSize} ${timeColor}`} />
                     </div>
                   </div>
                 );
