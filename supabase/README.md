@@ -2,37 +2,45 @@
 
 This directory contains database migration files for the Buffalo Markaz Signage project.
 
-## Quick Start
+## 🚀 Recommended: Fully Automated Migrations
 
-### Option 1: Automatic Migration with Supabase CLI (Recommended)
+**GitHub Actions automatically runs migrations whenever you push to the main branch!**
 
-1. **Install Supabase CLI** (if not already installed):
-   ```bash
-   npm install -g supabase
-   ```
+👉 **See [.github/MIGRATION_SETUP.md](../.github/MIGRATION_SETUP.md) for one-time setup instructions**
 
-2. **Link your project to Supabase**:
-   ```bash
-   supabase link --project-ref YOUR_PROJECT_REF
-   ```
+Once set up, you just:
+1. Create a migration file in `supabase/migrations/`
+2. Commit and push to Git
+3. **Done!** Migrations run automatically ✨
 
-   To find your project ref:
-   - Go to your Supabase dashboard
-   - Look at the URL: `https://app.supabase.com/project/YOUR_PROJECT_REF`
-   - Or go to Settings → General → Reference ID
+---
 
-3. **Run migrations**:
-   ```bash
-   supabase db push
-   ```
+## Alternative Methods
 
-   This will push all migration files to your database.
-
-### Option 2: Manual Migration via SQL Editor
+### Option 1: Manual Migration via SQL Editor (Quickest for one-off)
 
 1. Go to your Supabase Dashboard → SQL Editor
 2. Copy the contents of the migration file you want to run
 3. Paste and execute in the SQL Editor
+
+### Option 2: Local Supabase CLI (For manual control)
+
+1. **Install Supabase CLI**:
+   ```bash
+   brew install supabase/tap/supabase  # Mac
+   scoop install supabase              # Windows
+   ```
+
+2. **Link your project** (one-time):
+   ```bash
+   npm run db:link
+   # Enter your project reference ID when prompted
+   ```
+
+3. **Run migrations**:
+   ```bash
+   npm run db:migrate
+   ```
 
 ## Creating New Migrations
 
