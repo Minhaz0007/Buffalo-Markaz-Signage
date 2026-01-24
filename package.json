@@ -12,7 +12,9 @@
     "electron:build": "cross-env ELECTRON=true vite build && electron-builder",
     "electron:build:mac": "cross-env ELECTRON=true vite build && electron-builder --mac",
     "electron:build:mac:arm64": "cross-env ELECTRON=true vite build && electron-builder --mac --arm64",
-    "electron:build:mac:x64": "cross-env ELECTRON=true vite build && electron-builder --mac --x64"
+    "electron:build:mac:x64": "cross-env ELECTRON=true vite build && electron-builder --mac --x64",
+    "db:migrate": "supabase db push",
+    "db:link": "supabase link"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",
