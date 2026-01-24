@@ -614,7 +614,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
               {rows.map((row, idx) => {
                 const isActive = idx === activeIndex;
                 const isJumuah = !!row.isJumuah;
-                const bgClass = isActive ? 'bg-[#E5E5E5] scale-[1.02] z-10 shadow-y-lg' : 'bg-transparent';
+                const bgClass = isActive ? 'bg-[#E5E5E5] z-10 shadow-y-lg' : 'bg-transparent';
                 const borderClass = isActive ? 'border-mosque-navy/10' : 'border-white/10';
                 
                 let nameColor = isActive ? 'text-mosque-navy' : 'text-white opacity-90';
@@ -636,8 +636,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                 }
 
                 const iqamahBgClass = isActive ? '' : 'bg-black/5';
-                const nameSize = isActive ? 'text-[5.5rem]' : 'text-[4.5rem]';
-                const timeSize = isActive ? 'text-[7.5rem] font-black' : 'text-[6.5rem] font-bold';
+                const nameSize = 'text-[4.5rem]';
+                const timeSize = 'text-[6.5rem] font-bold';
 
                 // Use consistent line-height for all rows including Jumuah
                 const nameLineHeight = 'leading-[0.9]';
