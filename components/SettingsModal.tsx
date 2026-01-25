@@ -685,8 +685,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                 <div className="col-span-8 space-y-8">
                                                     <div className="grid grid-cols-2 gap-8">
                                                         <div>
-                                                            <label className={labelBase}>{prayer === 'jumuah' ? 'Start Time' : 'Adhan'}</label>
-                                                            <TimeDropdown value={newOverride.start || ''} onChange={v => setNewOverride((prev) => ({ ...prev, start: v }))} placeholder={prayer === 'jumuah' ? 'Select start time' : 'Select adhan time'} />
+                                                            <label className={labelBase}>Start Time</label>
+                                                            <TimeDropdown value={newOverride.start || ''} onChange={v => setNewOverride((prev) => ({ ...prev, start: v }))} placeholder="Select start time" />
                                                         </div>
                                                         <div>
                                                             <label className={labelBase}>Iqamah</label>
