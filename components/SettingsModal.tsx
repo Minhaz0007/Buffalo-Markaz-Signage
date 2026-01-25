@@ -420,6 +420,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       return;
     }
 
+    // Check for overlaps with existing overrides for the same prayer
+    const existingForPrayer = manualOverrides.filter(o => o.prayerKey === prayerKey);
+    const newStart = newOverride.startDate;
+    const newEnd = newOverride.endDate;
+
+    for (const o of existingForPrayer) {
+       // Check overlap: StartA <= EndB && EndA >= StartB
+       if (o.startDate <= newEnd && o.endDate >= newStart) {
+          const conflictDate = o.startDate > newStart ? o.startDate : newStart;
+          // Capitalize first letter for display
+          const prayerName = prayerKey.charAt(0).toUpperCase() + prayerKey.slice(1);
+          setOverrideStatus(`${prayerName} time already set for date ${conflictDate}`);
+          setTimeout(() => setOverrideStatus(''), 3000);
+          return;
+       }
+    }
+
     const scheduleForStartDate = getScheduleForDate(
       newOverride.startDate,
       excelSchedule,
@@ -682,7 +699,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                     </div>
                                                     <button onClick={() => handleAddOverride(prayer)} className="w-full py-6 bg-mosque-gold hover:bg-white text-mosque-navy font-bold text-2xl rounded-2xl transition-colors">Save Override</button>
                                                     {overrideStatus && (
-                                                      <div className="text-center font-mono text-xl text-mosque-gold mt-4">
+                                                      <div className={`text-center font-mono text-xl mt-4 ${overrideStatus.includes('successfully') ? 'text-mosque-gold' : 'text-red-400'}`}>
                                                         {overrideStatus}
                                                       </div>
                                                     )}
