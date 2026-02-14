@@ -5,9 +5,12 @@ import { DailyPrayers } from '../types';
 const BUFFALO_COORDINATES = new Coordinates(42.8864, -78.8784);
 const BUFFALO_TIMEZONE = 'America/New_York';
 
-// Use ISNA (Islamic Society of North America) calculation method
-// This is the most commonly used method in North America
+// Use custom calculation parameters for Hanafi madhab
+// 18 degrees for both Fajr and Isha angles (Hanafi standard for Buffalo, NY)
+// ISNA uses 15 degrees, but Hanafi madhab requires 18 degrees
 const CALCULATION_PARAMS = CalculationMethod.NorthAmerica();
+CALCULATION_PARAMS.fajrAngle = 18;  // Change from 15 to 18 for Hanafi
+CALCULATION_PARAMS.ishaAngle = 18;  // Change from 15 to 18 for Hanafi
 
 // Use Hanafi madhab for Asr calculation (common in many communities)
 // Can be changed to Madhab.Shafi if needed
