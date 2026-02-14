@@ -220,8 +220,12 @@ export const getScheduleForDate = (
   // 4. Apply Manual Overrides (Highest Priority)
   // NOTE: Maghrib is excluded - always uses sunset + offset calculation
   // NOTE: Jumu'ah iqamah is excluded - always uses Dhuhr iqamah (per user requirement)
+  // IMPORTANT FIX: Manual overrides should ONLY affect IQAMAH times, NOT START times
+  // START times must always come from auto-calculation for accuracy
   manualOverrides.forEach(override => {
      if (dateStr >= override.startDate && dateStr <= override.endDate) {
+        console.log(`⚠️  Manual override active for ${override.prayerKey}:`, override);
+
         if (override.prayerKey === 'jumuah') {
             // Allow manual override of Jumu'ah START time (khutbah time)
             // But DO NOT override iqamah - it must always match Dhuhr iqamah
@@ -233,12 +237,17 @@ export const getScheduleForDate = (
             if (newPrayers[key]) {
                 // Determine if this is an afternoon prayer to correctly handle AM/PM
                 const isAfternoonPrayer = ['dhuhr', 'asr'].includes(override.prayerKey);
+
+                // CRITICAL FIX: Only override IQAMAH, keep calculated START time
+                // This ensures prayer times always reflect accurate calculations (18° for Hanafi)
                 newPrayers[key] = {
                     ...newPrayers[key],
-                    // Allow manual override to set start time (manual is explicit)
-                    start: ensureAmPm(override.start, isAfternoonPrayer || override.prayerKey !== 'fajr'),
+                    // DO NOT override start time - keep calculated value!
+                    // start: ensureAmPm(override.start, isAfternoonPrayer || override.prayerKey !== 'fajr'),  // REMOVED
                     iqamah: ensureAmPm(override.iqamah, isAfternoonPrayer || override.prayerKey !== 'fajr')
                 };
+
+                console.log(`📝 Applied manual override for ${override.prayerKey} (iqamah only, preserving calculated start time)`);
             }
         }
      }
@@ -248,6 +257,13 @@ export const getScheduleForDate = (
   // This happens AFTER all overrides to ensure it's never changed
   // Manual overrides can still change Jumu'ah start time, but never iqamah
   newJumuah.iqamah = ensureAmPm(newPrayers.dhuhr.iqamah, true);
+
+  console.log(`📅 Final times for ${dateStr}:`, {
+    fajr: newPrayers.fajr.start,
+    isha: newPrayers.isha.start,
+    excelDataUsed: excelDataForDate ? 'Yes (iqamah only)' : 'No',
+    manualOverridesApplied: manualOverrides.filter(o => dateStr >= o.startDate && dateStr <= o.endDate).length
+  });
 
   return { prayers: newPrayers, jumuah: newJumuah };
 };

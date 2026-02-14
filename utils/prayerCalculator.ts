@@ -119,6 +119,15 @@ const findBuffaloMidnight = (date: Date): Date => {
 export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
   const calculationDate = findBuffaloMidnight(date);
 
+  // Log calculation parameters for debugging
+  console.log('🕌 Prayer Time Calculation:', {
+    date: calculationDate.toISOString().split('T')[0],
+    fajrAngle: CALCULATION_PARAMS.fajrAngle,
+    ishaAngle: CALCULATION_PARAMS.ishaAngle,
+    ishaInterval: CALCULATION_PARAMS.ishaInterval,
+    madhab: 'Hanafi'
+  });
+
   // Calculate prayer times using the adhan library
   const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
 
@@ -134,7 +143,7 @@ export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
   const maghribIqamah = new Date(prayerTimes.maghrib.getTime() + 5 * 60 * 1000); // +5 min
   const ishaIqamah = new Date(prayerTimes.isha.getTime() + 15 * 60 * 1000); // +15 min
 
-  return {
+  const result = {
     fajr: {
       name: 'Fajr',
       start: formatPrayerTime(prayerTimes.fajr),
@@ -163,6 +172,13 @@ export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
     },
     sunset: formatPrayerTime(prayerTimes.sunset)
   };
+
+  console.log('✅ Calculated Prayer Times:', {
+    fajr: result.fajr.start,
+    isha: result.isha.start
+  });
+
+  return result;
 }
 
 /**
