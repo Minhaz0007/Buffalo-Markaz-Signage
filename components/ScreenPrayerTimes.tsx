@@ -162,21 +162,23 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
             </div>
 
             {/* 2. Date Section - Middle */}
-            <div className="flex-[1] flex flex-col items-center justify-center py-2 space-y-1 shrink-0 bg-mosque-gold rounded-lg my-2 shadow-md w-full">
-                <div className="text-4xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-navy drop-shadow-sm">{hijriDate}</div>
-                <div className="text-3xl font-sans uppercase tracking-[0.15em] font-bold text-mosque-navy">{formatDate(currentTime)}</div>
+            <div className="flex-[2] flex flex-col items-center justify-center py-2 shrink-0 w-full relative">
+                <div className="w-[85%] h-px bg-mosque-navy/30 mb-2"></div>
+                <div className="text-[3.25rem] font-sans font-bold uppercase tracking-wide text-mosque-navy opacity-80 leading-none whitespace-nowrap">{hijriDate}</div>
+                <div className="text-[3.25rem] font-sans font-bold uppercase tracking-wide text-mosque-navy opacity-80 leading-none whitespace-nowrap">{formatDate(currentTime)}</div>
+                <div className="w-[85%] h-px bg-mosque-navy/30 mt-2"></div>
             </div>
 
             {/* 3. Footer: Sunrise / Sunset - Bottom */}
-            <div className="flex-[3] shrink-0 flex flex-col justify-center relative">
-                <div className="flex items-center justify-around h-full">
+            <div className="flex-[2] shrink-0 flex flex-col justify-end relative pb-2">
+                <div className="flex items-center justify-around w-full">
 
                     {/* Sunrise Item */}
                     <div className="flex flex-col items-center justify-center">
-                    <span className="text-4xl uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-0">SUNRISE</span>
+                    <span className="text-4xl uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-0 leading-none">SUNRISE</span>
                     <TimeDisplay
                         time={prayers.sunrise}
-                        className="text-[6.5rem] font-bold tracking-tighter"
+                        className="text-[6.5rem] font-bold tracking-tighter leading-none"
                         colorClassName="text-mosque-navy"
                     />
                     </div>
@@ -186,10 +188,10 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
 
                     {/* Sunset Item */}
                     <div className="flex flex-col items-center justify-center">
-                    <span className="text-4xl uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-0">SUNSET</span>
+                    <span className="text-4xl uppercase tracking-[0.3em] font-sans font-bold text-mosque-navy/60 mb-0 leading-none">SUNSET</span>
                     <TimeDisplay
                         time={prayers.sunset}
-                        className="text-[6.5rem] font-bold tracking-tighter"
+                        className="text-[6.5rem] font-bold tracking-tighter leading-none"
                         colorClassName="text-mosque-navy"
                     />
                     </div>
