@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { DailyPrayers, Announcement, SlideConfig, AnnouncementSlideConfig, ScheduleSlideConfig, ExcelDaySchedule, ManualOverride, MobileSilentAlertSettings } from '../types';
-import { Sunrise, Sunset } from 'lucide-react';
 import { MOSQUE_NAME } from '../constants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getScheduleForDate, ScheduleIndex } from '../utils/scheduler';
@@ -173,10 +172,12 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
 
                     {/* Sunrise Item */}
                     <div className="flex flex-col items-center justify-center">
-                    <Sunrise className="w-20 h-20 text-mosque-navy mb-3 drop-shadow-md" strokeWidth={1.5} />
-                    <span className="text-2xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-1">Sunrise</span>
-                    <span className="text-7xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunrise.replace(/AM|PM/, '').trim()}</span>
-                    <span className="text-3xl font-bold text-mosque-navy tracking-widest uppercase mt-1">AM</span>
+                    <span className="text-2xl uppercase tracking-[0.3em] font-bold text-mosque-navy/60 mb-1">Sunrise</span>
+                    <TimeDisplay
+                        time={prayers.sunrise}
+                        className="text-7xl font-bold tracking-tight leading-none"
+                        colorClassName="text-mosque-navy"
+                    />
                     </div>
 
                     {/* Vertical Divider */}
@@ -184,10 +185,12 @@ const ClockSlide = React.memo(({ hours, minutes, seconds, displayAmPm, nextPraye
 
                     {/* Sunset Item */}
                     <div className="flex flex-col items-center justify-center">
-                    <Sunset className="w-20 h-20 text-mosque-navy mb-3 drop-shadow-md" strokeWidth={1.5} />
-                    <span className="text-2xl uppercase tracking-[0.3em] font-bold text-mosque-navy/50 mb-1">Sunset</span>
-                    <span className="text-7xl font-serif font-bold text-mosque-navy tabular-nums tracking-tight">{prayers.sunset.replace(/AM|PM/, '').trim()}</span>
-                    <span className="text-3xl font-bold text-mosque-navy tracking-widest uppercase mt-1">PM</span>
+                    <span className="text-2xl uppercase tracking-[0.3em] font-bold text-mosque-navy/60 mb-1">Sunset</span>
+                    <TimeDisplay
+                        time={prayers.sunset}
+                        className="text-7xl font-bold tracking-tight leading-none"
+                        colorClassName="text-mosque-navy"
+                    />
                     </div>
 
                 </div>
