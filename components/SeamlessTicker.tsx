@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { useRefreshRate } from '../utils/useRefreshRate';
 
 interface SeamlessTickerProps {
   children: React.ReactNode;
@@ -34,13 +33,16 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
 
   const posRef = useRef(0);
   const requestRef = useRef<number>();
-  const refreshRate = useRefreshRate(); // Starts at 60, updates after 1s
 
-  // Determine pixels per frame
+  // Fixed 30 FPS target for smoother playback on TVs
+  // We limit the frame rate to ensure consistent motion and reduce load
+  const TARGET_FPS = 30;
+  const FRAME_INTERVAL = 1000 / TARGET_FPS;
+
+  // Determine pixels per frame based on 30 FPS
   // We snap to the nearest integer to avoid sub-pixel rendering artifacts (blur/jitter)
-  // At 60Hz, 120px/s => 2px/frame.
-  // At 120Hz, 120px/s => 1px/frame.
-  const pixelsPerFrame = Math.max(1, Math.round(baseSpeed / Math.max(30, refreshRate)));
+  // At 30Hz target: 120px/s => 4px/frame
+  const pixelsPerFrame = Math.max(1, Math.round(baseSpeed / TARGET_FPS));
 
   // Measure content width and container width
   const measure = useCallback(() => {
@@ -91,26 +93,33 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
   useEffect(() => {
     if (!isReady || contentWidth === 0) return;
 
-    // Reset position if we resized significantly?
-    // Actually, just let it flow.
+    let lastTime = performance.now();
 
-    const animate = () => {
-        posRef.current += pixelsPerFrame;
-
-        // Wrap around logic
-        // Once we have scrolled past the first element (contentWidth), we reset to 0.
-        // This gives the illusion of infinite scroll because the second element is exactly at 0.
-        if (posRef.current >= contentWidth) {
-            posRef.current -= contentWidth;
-        }
-
-        if (containerRef.current) {
-            // Use translate3d for GPU acceleration
-            const x = direction === 'left' ? -posRef.current : posRef.current;
-            containerRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
-        }
-
+    const animate = (time: number) => {
         requestRef.current = requestAnimationFrame(animate);
+
+        const elapsed = time - lastTime;
+
+        // Only update if enough time has passed (30fps cap)
+        if (elapsed > FRAME_INTERVAL) {
+            // Adjust for drift, but don't let it spiral if tab was inactive
+            lastTime = time - (elapsed % FRAME_INTERVAL);
+
+            posRef.current += pixelsPerFrame;
+
+            // Wrap around logic
+            // Once we have scrolled past the first element (contentWidth), we reset to 0.
+            // This gives the illusion of infinite scroll because the second element is exactly at 0.
+            if (posRef.current >= contentWidth) {
+                posRef.current -= contentWidth;
+            }
+
+            if (containerRef.current) {
+                // Use translate3d for GPU acceleration
+                const x = direction === 'left' ? -posRef.current : posRef.current;
+                containerRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
+            }
+        }
     };
 
     requestRef.current = requestAnimationFrame(animate);
@@ -118,7 +127,7 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
     return () => {
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [isReady, contentWidth, pixelsPerFrame, direction]);
+  }, [isReady, contentWidth, pixelsPerFrame, direction, FRAME_INTERVAL]);
 
   return (
     <div
