@@ -1,5 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<!--
+  background-color on <html> (not just <body>) ensures the navy background
+  is painted by the browser BEFORE any CSS or JS loads, preventing the
+  momentary green/white compositor flash that appears when Chrome's GPU
+  layer is empty during a page reload.
+-->
+<html lang="en" style="background-color:#0B1E3B;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,6 +14,46 @@
     <meta http-equiv="Expires" content="0" />
     <meta name="build-version" content="BUILD_TIMESTAMP" />
     <title>Buffalo Markaz Masjid Signage</title>
+
+    <!--
+      CHUNK-LOAD GUARD — must run synchronously before any module loads.
+      When Vercel deploys, old JS chunk filenames (with old content hashes)
+      no longer exist. If the running page tries to load one → 404 → React
+      crashes → Chrome compositor flashes green.
+      This handler catches the failure immediately and reloads before React
+      has a chance to crash, keeping the screen navy throughout.
+    -->
+    <script>
+      (function () {
+        function isChunkError(msg) {
+          return (
+            msg && (
+              msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
+              msg.indexOf('Importing a module script failed') !== -1 ||
+              msg.indexOf('error loading dynamically imported module') !== -1 ||
+              msg.indexOf('ChunkLoadError') !== -1
+            )
+          );
+        }
+        // Synchronous script errors (rare for ES modules but covers edge cases)
+        window.addEventListener('error', function (e) {
+          if (isChunkError(e.message)) {
+            console.warn('[SignageGuard] Chunk load failure detected — reloading.');
+            window.location.reload();
+          }
+        });
+        // Unhandled promise rejections — the primary path for dynamic import failures
+        window.addEventListener('unhandledrejection', function (e) {
+          var msg = (e.reason && (e.reason.message || e.reason.toString())) || '';
+          if (isChunkError(msg)) {
+            console.warn('[SignageGuard] Chunk load failure (promise) — reloading.');
+            e.preventDefault(); // suppress console error
+            window.location.reload();
+          }
+        });
+      })();
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
     <script>

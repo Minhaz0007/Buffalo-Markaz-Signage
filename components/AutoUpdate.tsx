@@ -1,122 +1,147 @@
 import { useEffect, useRef, useState } from 'react';
+import { supabase, isSupabaseConfigured } from '../utils/supabase';
 
 /**
- * AutoUpdate Component
+ * AutoUpdate — zero-green-screen deployment handler
  *
- * Automatically checks for new deployments on Vercel and reloads the page
- * with a smooth transition to prevent jarring blank screens on TV displays.
+ * Problems solved:
  *
- * How it works:
- * 1. Fetches index.html every 1 minute to check build version
- * 2. Compares meta tag build timestamp with current version
- * 3. When new version detected, fades screen to mosque navy
- * 4. Reloads page after 1s fade
+ * 1. GREEN SCREEN on new Vercel deployment
+ *    Vercel replaces JS chunk files with new content-hash filenames. If the
+ *    running app tries to lazy-load an old chunk URL → 404 → React crash →
+ *    Chrome GPU compositor flashes green. A synchronous guard in index.html
+ *    catches those failures first (see the <script> block in index.html).
+ *    This component handles the graceful version-change reload path.
  *
- * This ensures mosque TVs always display the latest version without manual intervention.
+ * 2. TABS RELOADING OUT OF SYNC
+ *    Each Chrome tab previously polled independently. Tab 1 could reload
+ *    60 seconds before Tab 2, so the two HDMI screens showed different
+ *    content for up to a minute.
+ *    Fix: Supabase Realtime BROADCAST (not postgres_changes — no SQL needed,
+ *    pure WebSocket). The first tab to detect a new build broadcasts
+ *    "reload" to the shared channel. ALL subscribed tabs receive it in
+ *    milliseconds and reload simultaneously.
+ *
+ * 3. 30-SECOND BLIND WINDOW
+ *    The old component waited 30 s before the first check. During that
+ *    window a chunk-load crash could occur with no reload guard.
+ *    Fix: first check runs after 5 s (enough time for the app to settle).
  */
+
+const BROADCAST_CHANNEL = 'signage-app-updates';
+const BROADCAST_EVENT    = 'reload';
+const POLL_INTERVAL_MS   = 60_000; // 1 minute fallback poll
+const INITIAL_DELAY_MS   =  5_000; // 5 s — enough for app to fully mount
+
 export const AutoUpdate: React.FC = () => {
   const [isUpdating, setIsUpdating] = useState(false);
-  const currentVersionRef = useRef<string | null>(null);
-  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Extract build version from current page
-  const getCurrentVersion = (): string | null => {
-    const metaTag = document.querySelector('meta[name="build-version"]');
-    return metaTag?.getAttribute('content') || null;
+  // Stable refs — never need to re-create the effect
+  const currentVersionRef  = useRef<string | null>(null);
+  const reloadScheduledRef = useRef(false);       // guard against double-reload
+  const channelRef         = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // ── Smooth reload ──────────────────────────────────────────────────────────
+  // Shows a navy overlay for 800 ms (long enough to hide any compositor
+  // flash) then reloads. The html/body navy background in index.html means
+  // the screen stays dark navy throughout — no green, no white.
+  const performSmoothReload = () => {
+    if (reloadScheduledRef.current) return; // prevent double-trigger
+    reloadScheduledRef.current = true;
+    console.log('[AutoUpdate] Performing smooth reload...');
+    setIsUpdating(true);
+    setTimeout(() => window.location.reload(), 800);
   };
 
-  // Check for updates by fetching the index.html
+  // ── Broadcast reload signal to ALL tabs ───────────────────────────────────
+  // Supabase Realtime Broadcast sends a raw WebSocket message to every
+  // client subscribed to the same channel. No database write, no SQL.
+  // The sending tab also calls performSmoothReload() immediately after.
+  const broadcastReload = async (newVersion: string) => {
+    if (!channelRef.current) { performSmoothReload(); return; }
+    try {
+      await channelRef.current.send({
+        type:    'broadcast',
+        event:   BROADCAST_EVENT,
+        payload: { version: newVersion },
+      });
+    } catch (err) {
+      console.warn('[AutoUpdate] Broadcast failed, reloading locally only.', err);
+    }
+    // Always reload this tab too (sender doesn't receive its own broadcast)
+    performSmoothReload();
+  };
+
+  // ── Version check ──────────────────────────────────────────────────────────
   const checkForUpdates = async () => {
     try {
-      // Fetch with cache-busting to ensure fresh copy
-      const response = await fetch(`/index.html?t=${Date.now()}`, {
+      const res = await fetch(`/index.html?_=${Date.now()}`, {
         cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
       });
+      if (!res.ok) return;
 
-      if (!response.ok) {
-        console.warn('Failed to check for updates:', response.status);
-        return;
-      }
+      const html = await res.text();
+      const match = html.match(/<meta name="build-version" content="([^"]+)"/);
+      const fetched = match?.[1] ?? null;
+      if (!fetched) return;
 
-      const html = await response.text();
-
-      // Extract build version from fetched HTML
-      const versionMatch = html.match(/<meta name="build-version" content="([^"]+)"/);
-      const newVersion = versionMatch ? versionMatch[1] : null;
-
-      if (!newVersion) {
-        console.warn('No build version found in fetched HTML');
-        return;
-      }
-
-      // Initialize current version on first check
       if (!currentVersionRef.current) {
-        currentVersionRef.current = getCurrentVersion() || newVersion;
-        console.log('Auto-update initialized. Current version:', currentVersionRef.current);
+        // First check — establish baseline
+        const localMeta = document.querySelector<HTMLMetaElement>('meta[name="build-version"]');
+        currentVersionRef.current = localMeta?.content || fetched;
+        console.log('[AutoUpdate] Version baseline:', currentVersionRef.current);
         return;
       }
 
-      // Check if version has changed
-      if (newVersion !== currentVersionRef.current) {
-        console.log('New version detected!', {
-          current: currentVersionRef.current,
-          new: newVersion
-        });
-
-        // Trigger smooth reload
-        performSmoothReload();
+      if (fetched !== currentVersionRef.current) {
+        console.log('[AutoUpdate] New version detected:', fetched, '(was:', currentVersionRef.current + ')');
+        // Broadcast to all tabs → all reload simultaneously
+        broadcastReload(fetched);
       }
-    } catch (error) {
-      console.error('Error checking for updates:', error);
-      // Don't block on errors - continue checking on next interval
+    } catch {
+      // Network errors are expected during deploys — ignore and retry next poll
     }
   };
 
-  // Perform smooth reload with fade transition
-  const performSmoothReload = () => {
-    console.log('Initiating smooth reload...');
-    setIsUpdating(true);
-
-    // Reload after fade completes
-    // Increased fade duration to 1000ms for extra smoothness
-    setTimeout(() => {
-      window.location.reload();
-    }, 1000);
-  };
-
+  // ── Effect: subscribe + poll ───────────────────────────────────────────────
   useEffect(() => {
-    // Initial check after 30 seconds (allow app to fully load first)
-    const initialTimeout = setTimeout(() => {
-      checkForUpdates();
-    }, 30000);
+    // Subscribe to the broadcast channel so this tab reloads when ANY other
+    // tab (or the same tab) broadcasts the reload signal.
+    if (isSupabaseConfigured() && supabase) {
+      const ch = supabase
+        .channel(BROADCAST_CHANNEL)
+        .on('broadcast', { event: BROADCAST_EVENT }, () => {
+          console.log('[AutoUpdate] Received reload broadcast — reloading now.');
+          performSmoothReload();
+        })
+        .subscribe();
+      channelRef.current = ch;
+    }
 
-    // Set up periodic checks every 1 minute (was 5 minutes)
-    checkIntervalRef.current = setInterval(() => {
-      checkForUpdates();
-    }, 60 * 1000); // 1 minute
+    // Initial check after a short settle delay, then poll every minute
+    const initialTimer = setTimeout(checkForUpdates, INITIAL_DELAY_MS);
+    const pollInterval = setInterval(checkForUpdates, POLL_INTERVAL_MS);
 
     return () => {
-      clearTimeout(initialTimeout);
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current);
+      clearTimeout(initialTimer);
+      clearInterval(pollInterval);
+      if (channelRef.current && supabase) {
+        supabase.removeChannel(channelRef.current);
       }
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — refs keep values stable
 
-  // Render fade overlay when updating
-  // Using opacity transition for smoothness
+  // ── Navy overlay ───────────────────────────────────────────────────────────
   return (
     <div
-      className={`fixed inset-0 z-[9999] bg-mosque-navy flex items-center justify-center transition-opacity duration-1000 ease-in-out ${
+      className={`fixed inset-0 z-[9999] bg-[#0B1E3B] flex items-center justify-center transition-opacity duration-700 ease-in-out ${
         isUpdating ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
       }`}
     >
       <div className="text-white text-2xl font-semibold animate-pulse tracking-widest uppercase">
-        Updating Display...
+        Updating Display…
       </div>
     </div>
   );
