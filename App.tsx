@@ -474,8 +474,8 @@ const App: React.FC = () => {
         const t1 = getTimeMinutes(todayTime);
         const t2 = getTimeMinutes(tomorrowTime);
 
-        // If valid times and different (diff > 0 means strict inequality)
-        if (t1 !== -1 && t2 !== -1 && t1 !== t2) {
+        // Alert when tomorrow has a valid time AND it differs from today (or today is missing)
+        if (t2 !== -1 && t1 !== t2) {
              tomorrowChanges.push(`${name} Salah is at ${tomorrowTime}`);
         }
     };
@@ -503,7 +503,9 @@ const App: React.FC = () => {
     }
 
     if (tomorrowChanges.length > 0) {
-      finalAlertParts.push(`⚠️ Notice: From tomorrow, ${tomorrowChanges.join(', ')}`);
+      const alertText = (autoAlertSettings.template || "⚠️ NOTICE: Iqamah changes tomorrow for {prayers}")
+        .replace('{prayers}', tomorrowChanges.join(' • '));
+      finalAlertParts.push(alertText);
     }
 
     if (finalAlertParts.length > 0 && autoAlertSettings.enabled) {

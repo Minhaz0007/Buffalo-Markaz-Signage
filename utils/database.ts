@@ -421,10 +421,10 @@ export const loadGlobalSettingsFromDatabase = async () => {
       tickerBg: data.ticker_bg,
       maghribOffset: data.maghrib_offset,
       autoAlertSettings: {
-        enabled: data.auto_alert_enabled,
-        template: data.auto_alert_template,
-        color: data.auto_alert_color,
-        animation: data.auto_alert_animation,
+        enabled: data.auto_alert_enabled ?? true,
+        template: data.auto_alert_template ?? "⚠️ NOTICE: Iqamah changes tomorrow for {prayers}",
+        color: data.auto_alert_color ?? '#ef4444',
+        animation: data.auto_alert_animation ?? 'pulse',
       },
       mobileAlertSettings: {
         enabled: data.mobile_alert_enabled,
