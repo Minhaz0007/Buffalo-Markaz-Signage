@@ -586,6 +586,11 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
      </div>
   ), [announcement.items, tickerTextClass]);
 
+  // Generate a unique key for the ticker based on content to force re-render/re-measure when content changes
+  const tickerKey = useMemo(() => {
+    return announcement.items.map(i => i.id + i.text + i.color + i.animation).join('|');
+  }, [announcement.items]);
+
   return (
     <div className="w-full h-full flex flex-col font-serif text-white overflow-hidden">
       
@@ -699,7 +704,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
       {/* === BOTTOM FOOTER: ANNOUNCEMENT TICKER === */}
       <div className={`h-[10%] ${tickerContainerClass} relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden transition-colors duration-500 flex ticker-container-optimized`}>
-          <SeamlessTicker baseSpeed={60}>
+          <SeamlessTicker key={tickerKey} baseSpeed={60}>
               {renderTickerItems()}
           </SeamlessTicker>
       </div>
