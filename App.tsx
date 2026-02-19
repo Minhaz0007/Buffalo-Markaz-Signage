@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ScreenPrayerTimes } from './components/ScreenPrayerTimes';
 import { SettingsModal } from './components/SettingsModal';
 import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AutoAlertSettings, MobileSilentAlertSettings } from './types';
@@ -124,40 +124,11 @@ const BackgroundManager = React.memo(({ theme }: { theme: string }) => {
 // --- Custom Hooks ---
 
 // Hook for persistent state (Offline capability)
-function usePersistentState<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-  // Initialize state function to avoid reading from LS on every render
-  const [state, setState] = useState<T>(() => {
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      console.warn(`Error reading localStorage key "${key}":`, error);
-      return initialValue;
-    }
-  });
-
-  // Write to LS whenever state changes
-  useEffect(() => {
-    const saveData = () => {
-      try {
-        window.localStorage.setItem(key, JSON.stringify(state));
-      } catch (error) {
-        console.warn(`Error writing localStorage key "${key}":`, error);
-      }
-    };
-
-    // Use requestIdleCallback to avoid blocking the main thread during UI updates
-    if ('requestIdleCallback' in window) {
-      const handle = (window as any).requestIdleCallback(saveData);
-      return () => (window as any).cancelIdleCallback(handle);
-    } else {
-      const handle = setTimeout(saveData, 500);
-      return () => clearTimeout(handle);
-    }
-  }, [key, state]);
-
-  return [state, setState];
-}
+// usePersistentState intentionally removed.
+// Supabase is the single source of truth. All state is loaded from Supabase on
+// mount and kept in sync via Realtime subscriptions. localStorage is NOT used
+// as a cache because stale local data causes different devices to show different
+// content (the exact problem this change fixes).
 
 const DEFAULT_SLIDES: SlideConfig[] = [
   { id: 'clock-main', type: 'CLOCK', enabled: true, duration: 15 },
@@ -185,22 +156,27 @@ const DEFAULT_AUTO_ALERTS: AutoAlertSettings = {
 };
 
 const App: React.FC = () => {
-  // --- State (Persistent for Offline Mode) ---
-  const [excelSchedule, setExcelSchedule] = usePersistentState<Record<string, ExcelDaySchedule>>('schedule_data', {});
+  // --- State (Supabase is the single source of truth — no localStorage cache) ---
+  const [excelSchedule, setExcelSchedule] = useState<Record<string, ExcelDaySchedule>>({});
   const scheduleIndex = useMemo(() => buildScheduleIndex(excelSchedule || {}), [excelSchedule]);
 
-  const [manualOverrides, setManualOverrides] = usePersistentState<ManualOverride[]>('manual_overrides', []);
-  const [announcement, setAnnouncement] = usePersistentState<Announcement>('announcement_config', DEFAULT_ANNOUNCEMENT);
-  const [currentTheme, setCurrentTheme] = usePersistentState<string>('app_theme', 'starry');
-  const [maghribOffset, setMaghribOffset] = usePersistentState<number>('maghrib_offset', 10);
-  
+  const [manualOverrides, setManualOverrides] = useState<ManualOverride[]>([]);
+  const [announcement, setAnnouncement] = useState<Announcement>(DEFAULT_ANNOUNCEMENT);
+  const [currentTheme, setCurrentTheme] = useState<string>('starry');
+  const [maghribOffset, setMaghribOffset] = useState<number>(10);
+
   // New Configs
-  const [autoAlertSettings, setAutoAlertSettings] = usePersistentState<AutoAlertSettings>('auto_alert_settings', DEFAULT_AUTO_ALERTS);
-  const [mobileAlertSettings, setMobileAlertSettings] = usePersistentState<MobileSilentAlertSettings>('mobile_alert_settings', DEFAULT_MOBILE_SILENT_ALERT);
-  const [tickerBg, setTickerBg] = usePersistentState<'white' | 'navy'>('ticker_bg', 'white');
-  
+  const [autoAlertSettings, setAutoAlertSettings] = useState<AutoAlertSettings>(DEFAULT_AUTO_ALERTS);
+  const [mobileAlertSettings, setMobileAlertSettings] = useState<MobileSilentAlertSettings>(DEFAULT_MOBILE_SILENT_ALERT);
+  const [tickerBg, setTickerBg] = useState<'white' | 'navy'>('white');
+
   // Slideshow State
-  const [slidesConfig, setSlidesConfig] = usePersistentState<SlideConfig[]>('slides_config', DEFAULT_SLIDES);
+  const [slidesConfig, setSlidesConfig] = useState<SlideConfig[]>(DEFAULT_SLIDES);
+
+  // Ref: tracks which tables were just updated from a Realtime event so the
+  // auto-save effects skip writing back to Supabase (prevents save-back loops
+  // where Device B re-saves what it just received, triggering Device A again).
+  const isRemoteUpdate = useRef<Set<string>>(new Set());
 
   // --- Ephemeral State ---
   const [displayedPrayerTimes, setDisplayedPrayerTimes] = useState<DailyPrayers>(DEFAULT_PRAYER_TIMES);
@@ -267,14 +243,21 @@ const App: React.FC = () => {
         console.log('✅ Loaded global settings from database');
       }
 
+      // Mark all tables as remote-updated so the save effects don't write
+      // the freshly-loaded Supabase data back to Supabase when isDataLoaded
+      // flips to true (which would re-trigger save effects for all deps).
+      isRemoteUpdate.current.add('excel_schedule');
+      isRemoteUpdate.current.add('manual_overrides');
+      isRemoteUpdate.current.add('announcement_items');
+      isRemoteUpdate.current.add('slideshow_config');
+      isRemoteUpdate.current.add('global_settings');
       setIsDataLoaded(true);
       console.log('✅ All data loaded from Supabase');
 
       // Warn if Supabase is not configured
       if (!isSupabaseConfigured()) {
-        console.warn('⚠️ Supabase is NOT configured! Data will only be stored in localStorage.');
-        console.warn('⚠️ To enable cloud sync, set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
-        setConnectionAlert('⚠️ Cloud sync disabled - data stored locally only. Check Supabase configuration.');
+        console.warn('⚠️ Supabase is NOT configured! Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+        setConnectionAlert('⚠️ Cloud sync disabled — Supabase not configured. All devices must connect to Supabase for sync to work.');
       }
     };
 
@@ -289,27 +272,36 @@ const App: React.FC = () => {
       .channel('settings-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_overrides' }, async () => {
         const { success, data } = await loadManualOverridesFromDatabase();
-        if (success) setManualOverrides(data);
+        if (success) {
+          isRemoteUpdate.current.add('manual_overrides');
+          setManualOverrides(data);
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'excel_schedule' }, async () => {
         const { success, data } = await loadExcelScheduleFromDatabase();
         if (success) {
+          isRemoteUpdate.current.add('excel_schedule');
           setExcelSchedule(data);
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'announcement_items' }, async () => {
         const { success, data } = await loadAnnouncementItemsFromDatabase();
-        if (success) setAnnouncement(prev => ({ ...prev, items: data }));
+        if (success) {
+          isRemoteUpdate.current.add('announcement_items');
+          setAnnouncement(prev => ({ ...prev, items: data }));
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'slideshow_config' }, async () => {
         const { success, data } = await loadSlideshowConfigFromDatabase();
         if (success) {
+          isRemoteUpdate.current.add('slideshow_config');
           setSlidesConfig(data);
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'global_settings' }, async () => {
         const { success, data } = await loadGlobalSettingsFromDatabase();
         if (success && data) {
+          isRemoteUpdate.current.add('global_settings');
           setCurrentTheme(data.theme);
           setTickerBg(data.tickerBg);
           setMaghribOffset(data.maghribOffset);
@@ -335,15 +327,24 @@ const App: React.FC = () => {
   ]);
 
   // Save Excel schedule to Supabase whenever it changes (after initial load)
+  // Skip if the change arrived from a Realtime event (data already in Supabase).
   useEffect(() => {
     if (!isDataLoaded) return;
-    if (Object.keys(excelSchedule).length === 0) return; // Don't save empty schedule
+    if (Object.keys(excelSchedule).length === 0) return;
+    if (isRemoteUpdate.current.has('excel_schedule')) {
+      isRemoteUpdate.current.delete('excel_schedule');
+      return;
+    }
     saveExcelScheduleToDatabase(excelSchedule);
   }, [excelSchedule, isDataLoaded]);
 
   // Save manual overrides to Supabase whenever they change (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (isRemoteUpdate.current.has('manual_overrides')) {
+      isRemoteUpdate.current.delete('manual_overrides');
+      return;
+    }
     saveManualOverridesToDatabase(manualOverrides).then(result => {
       if (!result.success) {
         setSaveError("⚠️ Database Error: Manual overrides not saved. Run SQL script.");
@@ -356,25 +357,30 @@ const App: React.FC = () => {
   // Save announcement items to Supabase whenever they change (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
-    console.log(`💾 Saving ${announcement.items.length} announcement items to Supabase`);
-    saveAnnouncementItemsToDatabase(announcement.items).then(result => {
-      if (result.success) {
-        console.log(`✅ Successfully saved ${announcement.items.length} announcements to Supabase`);
-      } else {
-        console.error(`❌ Failed to save announcements to Supabase:`, result.error);
-      }
-    });
+    if (isRemoteUpdate.current.has('announcement_items')) {
+      isRemoteUpdate.current.delete('announcement_items');
+      return;
+    }
+    saveAnnouncementItemsToDatabase(announcement.items);
   }, [announcement.items, isDataLoaded]);
 
   // Save slideshow config to Supabase whenever it changes (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (isRemoteUpdate.current.has('slideshow_config')) {
+      isRemoteUpdate.current.delete('slideshow_config');
+      return;
+    }
     saveSlideshowConfigToDatabase(slidesConfig);
   }, [slidesConfig, isDataLoaded]);
 
   // Save global settings to Supabase whenever they change (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (isRemoteUpdate.current.has('global_settings')) {
+      isRemoteUpdate.current.delete('global_settings');
+      return;
+    }
     saveGlobalSettingsToDatabase({
       theme: currentTheme,
       tickerBg,
