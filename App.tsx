@@ -476,7 +476,7 @@ const App: React.FC = () => {
 
         // Alert when tomorrow has a valid time AND it differs from today (or today is missing)
         if (t2 !== -1 && t1 !== t2) {
-             tomorrowChanges.push(`${name} Salah is at ${tomorrowTime}`);
+             tomorrowChanges.push(`${name} (${tomorrowTime})`);
         }
     };
 
