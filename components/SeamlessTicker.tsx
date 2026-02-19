@@ -76,7 +76,7 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
         ro.observe(outerRef.current);
     }
     return () => ro.disconnect();
-  }, [measure]);
+  }, [measure, children]);
 
   // Calculate how many copies we need to fill the screen + buffer
   // We need enough copies so that when we scroll by contentWidth, we still have content.

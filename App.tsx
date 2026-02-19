@@ -217,6 +217,13 @@ const App: React.FC = () => {
   // Supabase sync state
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+  // --- Supabase Sync Refs (Prevent Loops) ---
+  const skipSaveExcel = React.useRef(false);
+  const skipSaveManual = React.useRef(false);
+  const skipSaveAnnouncement = React.useRef(false);
+  const skipSaveSlides = React.useRef(false);
+  const skipSaveSettings = React.useRef(false);
+
   // Load data from Supabase on mount
   useEffect(() => {
     const loadFromDatabase = async () => {
@@ -292,27 +299,32 @@ const App: React.FC = () => {
       .channel('settings-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_overrides' }, async () => {
         const dbManualOverrides = await loadManualOverridesFromDatabase();
+        skipSaveManual.current = true;
         setManualOverrides(dbManualOverrides);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'excel_schedule' }, async () => {
         const dbExcelSchedule = await loadExcelScheduleFromDatabase();
         if (Object.keys(dbExcelSchedule).length > 0) {
+          skipSaveExcel.current = true;
           setExcelSchedule(dbExcelSchedule);
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'announcement_items' }, async () => {
         const dbAnnouncementItems = await loadAnnouncementItemsFromDatabase();
+        skipSaveAnnouncement.current = true;
         setAnnouncement(prev => ({ ...prev, items: dbAnnouncementItems }));
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'slideshow_config' }, async () => {
         const dbSlidesConfig = await loadSlideshowConfigFromDatabase();
         if (dbSlidesConfig && dbSlidesConfig.length > 0) {
+          skipSaveSlides.current = true;
           setSlidesConfig(dbSlidesConfig);
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'global_settings' }, async () => {
         const dbGlobalSettings = await loadGlobalSettingsFromDatabase();
         if (dbGlobalSettings) {
+          skipSaveSettings.current = true;
           setCurrentTheme(dbGlobalSettings.theme);
           setTickerBg(dbGlobalSettings.tickerBg);
           setMaghribOffset(dbGlobalSettings.maghribOffset);
@@ -340,6 +352,10 @@ const App: React.FC = () => {
   // Save Excel schedule to Supabase whenever it changes (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (skipSaveExcel.current) {
+      skipSaveExcel.current = false;
+      return;
+    }
     if (Object.keys(excelSchedule).length === 0) return; // Don't save empty schedule
     saveExcelScheduleToDatabase(excelSchedule);
   }, [excelSchedule, isDataLoaded]);
@@ -347,12 +363,20 @@ const App: React.FC = () => {
   // Save manual overrides to Supabase whenever they change (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (skipSaveManual.current) {
+      skipSaveManual.current = false;
+      return;
+    }
     saveManualOverridesToDatabase(manualOverrides);
   }, [manualOverrides, isDataLoaded]);
 
   // Save announcement items to Supabase whenever they change (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (skipSaveAnnouncement.current) {
+      skipSaveAnnouncement.current = false;
+      return;
+    }
     console.log(`💾 Saving ${announcement.items.length} announcement items to Supabase`);
     saveAnnouncementItemsToDatabase(announcement.items).then(result => {
       if (result.success) {
@@ -366,12 +390,20 @@ const App: React.FC = () => {
   // Save slideshow config to Supabase whenever it changes (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (skipSaveSlides.current) {
+      skipSaveSlides.current = false;
+      return;
+    }
     saveSlideshowConfigToDatabase(slidesConfig);
   }, [slidesConfig, isDataLoaded]);
 
   // Save global settings to Supabase whenever they change (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (skipSaveSettings.current) {
+      skipSaveSettings.current = false;
+      return;
+    }
     saveGlobalSettingsToDatabase({
       theme: currentTheme,
       tickerBg,
