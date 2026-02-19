@@ -223,45 +223,39 @@ const App: React.FC = () => {
       console.log('🔄 Loading data from Supabase...');
 
       // Load Excel schedule
-      const dbExcelSchedule = await loadExcelScheduleFromDatabase();
-      if (Object.keys(dbExcelSchedule).length > 0) {
+      const { success: successExcel, data: dbExcelSchedule } = await loadExcelScheduleFromDatabase();
+      if (successExcel) {
         setExcelSchedule(dbExcelSchedule);
         console.log(`✅ Loaded ${Object.keys(dbExcelSchedule).length} days from database`);
       }
 
       // Load manual overrides
-      const dbManualOverrides = await loadManualOverridesFromDatabase();
-      if (dbManualOverrides.length > 0) {
+      const { success: successOverrides, data: dbManualOverrides } = await loadManualOverridesFromDatabase();
+      if (successOverrides) {
         setManualOverrides(dbManualOverrides);
         console.log(`✅ Loaded ${dbManualOverrides.length} manual overrides from database`);
       }
 
       // Load announcement items
-      const dbAnnouncementItems = await loadAnnouncementItemsFromDatabase();
-      if (dbAnnouncementItems.length > 0) {
+      const { success: successAnnounce, data: dbAnnouncementItems } = await loadAnnouncementItemsFromDatabase();
+      if (successAnnounce) {
         console.log(`📥 Loading ${dbAnnouncementItems.length} announcement items from Supabase, overwriting any local changes`);
-        setAnnouncement(prev => {
-          const prevCount = prev.items.length;
-          if (prevCount > 0 && prevCount !== dbAnnouncementItems.length) {
-            console.warn(`⚠️ Local had ${prevCount} announcements, Supabase has ${dbAnnouncementItems.length}. Using Supabase data.`);
-          }
-          return { ...prev, items: dbAnnouncementItems };
-        });
+        setAnnouncement(prev => ({ ...prev, items: dbAnnouncementItems }));
         console.log(`✅ Loaded ${dbAnnouncementItems.length} announcement items from database`);
       } else {
-        console.log(`ℹ️ No announcement items found in Supabase, keeping local data`);
+        console.log(`ℹ️ Announcement load failed or not configured, keeping local data`);
       }
 
       // Load slideshow config
-      const dbSlidesConfig = await loadSlideshowConfigFromDatabase();
-      if (dbSlidesConfig && dbSlidesConfig.length > 0) {
+      const { success: successSlides, data: dbSlidesConfig } = await loadSlideshowConfigFromDatabase();
+      if (successSlides) {
         setSlidesConfig(dbSlidesConfig);
         console.log(`✅ Loaded ${dbSlidesConfig.length} slideshow slides from database`);
       }
 
       // Load global settings
-      const dbGlobalSettings = await loadGlobalSettingsFromDatabase();
-      if (dbGlobalSettings) {
+      const { success: successGlobal, data: dbGlobalSettings } = await loadGlobalSettingsFromDatabase();
+      if (successGlobal && dbGlobalSettings) {
         setCurrentTheme(dbGlobalSettings.theme);
         setTickerBg(dbGlobalSettings.tickerBg);
         setMaghribOffset(dbGlobalSettings.maghribOffset);
@@ -291,33 +285,33 @@ const App: React.FC = () => {
     const channel = supabase
       .channel('settings-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_overrides' }, async () => {
-        const dbManualOverrides = await loadManualOverridesFromDatabase();
-        setManualOverrides(dbManualOverrides);
+        const { success, data } = await loadManualOverridesFromDatabase();
+        if (success) setManualOverrides(data);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'excel_schedule' }, async () => {
-        const dbExcelSchedule = await loadExcelScheduleFromDatabase();
-        if (Object.keys(dbExcelSchedule).length > 0) {
-          setExcelSchedule(dbExcelSchedule);
+        const { success, data } = await loadExcelScheduleFromDatabase();
+        if (success) {
+          setExcelSchedule(data);
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'announcement_items' }, async () => {
-        const dbAnnouncementItems = await loadAnnouncementItemsFromDatabase();
-        setAnnouncement(prev => ({ ...prev, items: dbAnnouncementItems }));
+        const { success, data } = await loadAnnouncementItemsFromDatabase();
+        if (success) setAnnouncement(prev => ({ ...prev, items: data }));
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'slideshow_config' }, async () => {
-        const dbSlidesConfig = await loadSlideshowConfigFromDatabase();
-        if (dbSlidesConfig && dbSlidesConfig.length > 0) {
-          setSlidesConfig(dbSlidesConfig);
+        const { success, data } = await loadSlideshowConfigFromDatabase();
+        if (success) {
+          setSlidesConfig(data);
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'global_settings' }, async () => {
-        const dbGlobalSettings = await loadGlobalSettingsFromDatabase();
-        if (dbGlobalSettings) {
-          setCurrentTheme(dbGlobalSettings.theme);
-          setTickerBg(dbGlobalSettings.tickerBg);
-          setMaghribOffset(dbGlobalSettings.maghribOffset);
-          setAutoAlertSettings(dbGlobalSettings.autoAlertSettings);
-          setMobileAlertSettings(dbGlobalSettings.mobileAlertSettings);
+        const { success, data } = await loadGlobalSettingsFromDatabase();
+        if (success && data) {
+          setCurrentTheme(data.theme);
+          setTickerBg(data.tickerBg);
+          setMaghribOffset(data.maghribOffset);
+          setAutoAlertSettings(data.autoAlertSettings);
+          setMobileAlertSettings(data.mobileAlertSettings);
         }
       })
       .subscribe();

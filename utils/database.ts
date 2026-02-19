@@ -77,9 +77,9 @@ export const saveExcelScheduleToDatabase = async (schedule: Record<string, Excel
   }
 };
 
-export const loadExcelScheduleFromDatabase = async (): Promise<Record<string, ExcelDaySchedule>> => {
+export const loadExcelScheduleFromDatabase = async (): Promise<{ success: boolean, data: Record<string, ExcelDaySchedule> }> => {
   if (!isSupabaseConfigured()) {
-    return {};
+    return { success: false, data: {} };
   }
 
   try {
@@ -105,10 +105,10 @@ export const loadExcelScheduleFromDatabase = async (): Promise<Record<string, Ex
     });
 
     console.log(`✅ Loaded ${Object.keys(schedule).length} days from Supabase`);
-    return schedule;
+    return { success: true, data: schedule };
   } catch (error) {
     console.error('Error loading Excel schedule from Supabase:', error);
-    return {};
+    return { success: false, data: {} };
   }
 };
 
@@ -155,8 +155,8 @@ export const saveManualOverridesToDatabase = async (overrides: ManualOverride[])
   }
 };
 
-export const loadManualOverridesFromDatabase = async (): Promise<ManualOverride[]> => {
-  if (!isSupabaseConfigured()) return [];
+export const loadManualOverridesFromDatabase = async (): Promise<{ success: boolean, data: ManualOverride[] }> => {
+  if (!isSupabaseConfigured()) return { success: false, data: [] };
 
   try {
     const { data, error } = await supabase!
@@ -176,10 +176,10 @@ export const loadManualOverridesFromDatabase = async (): Promise<ManualOverride[
     })) || [];
 
     console.log(`✅ Loaded ${overrides.length} manual overrides from Supabase`);
-    return overrides;
+    return { success: true, data: overrides };
   } catch (error) {
     console.error('Error loading manual overrides from Supabase:', error);
-    return [];
+    return { success: false, data: [] };
   }
 };
 
@@ -225,8 +225,8 @@ export const saveAnnouncementItemsToDatabase = async (items: AnnouncementItem[])
   }
 };
 
-export const loadAnnouncementItemsFromDatabase = async (): Promise<AnnouncementItem[]> => {
-  if (!isSupabaseConfigured()) return [];
+export const loadAnnouncementItemsFromDatabase = async (): Promise<{ success: boolean, data: AnnouncementItem[] }> => {
+  if (!isSupabaseConfigured()) return { success: false, data: [] };
 
   try {
     const { data, error } = await supabase!
@@ -244,10 +244,10 @@ export const loadAnnouncementItemsFromDatabase = async (): Promise<AnnouncementI
     })) || [];
 
     console.log(`✅ Loaded ${items.length} announcement items from Supabase`);
-    return items;
+    return { success: true, data: items };
   } catch (error) {
     console.error('Error loading announcement items from Supabase:', error);
-    return [];
+    return { success: false, data: [] };
   }
 };
 
@@ -300,8 +300,8 @@ export const saveSlideshowConfigToDatabase = async (slides: SlideConfig[]) => {
   }
 };
 
-export const loadSlideshowConfigFromDatabase = async (): Promise<SlideConfig[] | null> => {
-  if (!isSupabaseConfigured()) return null;
+export const loadSlideshowConfigFromDatabase = async (): Promise<{ success: boolean, data: SlideConfig[] }> => {
+  if (!isSupabaseConfigured()) return { success: false, data: [] };
 
   try {
     const { data, error } = await supabase!
@@ -345,10 +345,10 @@ export const loadSlideshowConfigFromDatabase = async (): Promise<SlideConfig[] |
     }) || [];
 
     console.log(`✅ Loaded ${slides.length} slideshow slides from Supabase`);
-    return slides;
+    return { success: true, data: slides };
   } catch (error) {
     console.error('Error loading slideshow config from Supabase:', error);
-    return null;
+    return { success: false, data: [] };
   }
 };
 
@@ -403,7 +403,7 @@ export const saveGlobalSettingsToDatabase = async (settings: {
 };
 
 export const loadGlobalSettingsFromDatabase = async () => {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) return { success: false, data: null };
 
   try {
     const { data, error } = await supabase!
@@ -414,7 +414,7 @@ export const loadGlobalSettingsFromDatabase = async () => {
 
     if (error) throw error;
 
-    if (!data) return null;
+    if (!data) return { success: true, data: null };
 
     const settings = {
       theme: data.theme,
@@ -442,9 +442,9 @@ export const loadGlobalSettingsFromDatabase = async () => {
     };
 
     console.log('✅ Loaded global settings from Supabase');
-    return settings;
+    return { success: true, data: settings };
   } catch (error) {
     console.error('Error loading global settings from Supabase:', error);
-    return null;
+    return { success: false, data: null };
   }
 };
