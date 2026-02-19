@@ -150,7 +150,7 @@ const DEFAULT_SLIDES: SlideConfig[] = [
 
 const DEFAULT_AUTO_ALERTS: AutoAlertSettings = {
   enabled: true,
-  template: "⚠️ NOTICE: Iqamah changes tomorrow for {prayers}",
+  template: "⚠️ NOTICE: Iqamah update for {prayers}",
   color: "#ef4444", // Red-500
   animation: "pulse"
 };
@@ -447,7 +447,7 @@ const App: React.FC = () => {
     });
 
     // --- Change Detection Logic (System Alert) ---
-    // Helper to parse time string to minutes from midnight (0-1439) for robust comparison
+    // Helper: parse a time string to minutes-since-midnight for numeric comparison.
     const getTimeMinutes = (timeStr?: string): number => {
       if (!timeStr) return -1;
       const normalized = timeStr.trim().replace(/\s+/g, ' ').toUpperCase();
@@ -464,58 +464,62 @@ const App: React.FC = () => {
       return h * 60 + m;
     };
 
-    const tomorrowChanges: string[] = [];
-    const overrideChanges: string[] = [];
-
-    // 1. Check for Active Manual Overrides (Today)
+    // ── Step 1: Collect active overrides for TODAY, deduplicated by prayer key.
+    // Using a Map guarantees each prayer appears at most once even if the database
+    // has multiple overlapping override rows for the same prayer (e.g. the user
+    // created a new override before deleting an old one). The last entry wins,
+    // matching how the scheduler resolves conflicts.
+    const activeOverridesByPrayer = new Map<string, ManualOverride>();
     (manualOverrides || []).forEach(override => {
       if (todayDateStr >= override.startDate && todayDateStr <= override.endDate) {
-        const prayerName = override.prayerKey.charAt(0).toUpperCase() + override.prayerKey.slice(1);
-        overrideChanges.push(`${prayerName} is at ${override.iqamah} today`);
+        activeOverridesByPrayer.set(override.prayerKey, override);
       }
     });
 
-    // 2. Check for Tomorrow's Changes
-    const checkChange = (name: string, todayTime?: string, tomorrowTime?: string) => {
-        const t1 = getTimeMinutes(todayTime);
-        const t2 = getTimeMinutes(tomorrowTime);
+    // Build the override-change text list (one entry per prayer, no duplicates).
+    const overrideChanges: string[] = [];
+    activeOverridesByPrayer.forEach((override, prayerKey) => {
+      const name = prayerKey.charAt(0).toUpperCase() + prayerKey.slice(1);
+      overrideChanges.push(`${name} at ${override.iqamah} (today)`);
+    });
 
-        // Alert when tomorrow has a valid time AND it differs from today (or today is missing)
-        if (t2 !== -1 && t1 !== t2) {
-             tomorrowChanges.push(`${name} Salah is at ${tomorrowTime}`);
-        }
+    // ── Step 2: Check for tomorrow's schedule changes.
+    // IMPORTANT: skip any prayer that already has an active manual override for
+    // today — the override alert already covers it, so we must not mention the
+    // same prayer a second time in the tomorrow-changes block.
+    const tomorrowChanges: string[] = [];
+    const checkChange = (name: string, prayerKey: string, todayTime?: string, tomorrowTime?: string) => {
+      if (activeOverridesByPrayer.has(prayerKey)) return; // covered by override alert above
+      const t1 = getTimeMinutes(todayTime);
+      const t2 = getTimeMinutes(tomorrowTime);
+      if (t2 !== -1 && t1 !== t2) {
+        tomorrowChanges.push(`${name} at ${tomorrowTime} (tomorrow)`);
+      }
     };
 
-    checkChange('Fajr', todaySchedule.prayers.fajr.iqamah, tomorrowSchedule.prayers.fajr.iqamah);
-    checkChange('Dhuhr', todaySchedule.prayers.dhuhr.iqamah, tomorrowSchedule.prayers.dhuhr.iqamah);
-    checkChange('Asr', todaySchedule.prayers.asr.iqamah, tomorrowSchedule.prayers.asr.iqamah);
-    // SKIP MAGHRIB - it changes daily by design (sunset + offset), no alert needed
-    checkChange('Isha', todaySchedule.prayers.isha.iqamah, tomorrowSchedule.prayers.isha.iqamah);
+    checkChange('Fajr',  'fajr',  todaySchedule.prayers.fajr.iqamah,  tomorrowSchedule.prayers.fajr.iqamah);
+    checkChange('Dhuhr', 'dhuhr', todaySchedule.prayers.dhuhr.iqamah, tomorrowSchedule.prayers.dhuhr.iqamah);
+    checkChange('Asr',   'asr',   todaySchedule.prayers.asr.iqamah,   tomorrowSchedule.prayers.asr.iqamah);
+    // SKIP MAGHRIB — changes daily by design (sunset + offset), no alert needed.
+    checkChange('Isha',  'isha',  todaySchedule.prayers.isha.iqamah,  tomorrowSchedule.prayers.isha.iqamah);
 
-    // Check for Friday
-    const todayDate = new Date(todayDateStr + 'T12:00:00');
+    const todayDate   = new Date(todayDateStr + 'T12:00:00');
     const tomorrowDate = new Date(todayDate);
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-
-    if (tomorrowDate.getDay() === 5) { // 5 = Friday
-      checkChange("Jumu'ah", todaySchedule.jumuah.iqamah, tomorrowSchedule.jumuah.iqamah);
+    if (tomorrowDate.getDay() === 5) { // Friday
+      checkChange("Jumu'ah", 'jumuah', todaySchedule.jumuah.iqamah, tomorrowSchedule.jumuah.iqamah);
     }
 
-    // 3. Construct Final Alert
-    const finalAlertParts: string[] = [];
+    // ── Step 3: Build a single, unified alert using the configured template.
+    // All changes (today's overrides + tomorrow's schedule changes) are merged
+    // into one {prayers} list so the template is applied exactly once and the
+    // user sees one cohesive message that matches their "Message Template" setting.
+    const allChanges = [...overrideChanges, ...tomorrowChanges];
 
-    if (overrideChanges.length > 0) {
-      finalAlertParts.push(`⚠️ Updated Schedule: ${overrideChanges.join(', ')}`);
-    }
-
-    if (tomorrowChanges.length > 0) {
-      const alertText = (autoAlertSettings.template || "⚠️ NOTICE: Iqamah changes tomorrow for {prayers}")
-        .replace('{prayers}', tomorrowChanges.join(' • '));
-      finalAlertParts.push(alertText);
-    }
-
-    if (finalAlertParts.length > 0 && autoAlertSettings.enabled) {
-      setScheduleAlert(finalAlertParts.join(' • '));
+    if (allChanges.length > 0 && autoAlertSettings.enabled) {
+      const alertText = (autoAlertSettings.template || "⚠️ NOTICE: Iqamah update for {prayers}")
+        .replace('{prayers}', allChanges.join(' • '));
+      setScheduleAlert(alertText);
     } else {
       setScheduleAlert("");
     }
