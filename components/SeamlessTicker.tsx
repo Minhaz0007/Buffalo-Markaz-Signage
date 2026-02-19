@@ -29,46 +29,45 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
 
   const [contentWidth, setContentWidth] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [isReady, setIsReady] = useState(false);
+
+  // Use a ref for isReady to avoid re-triggering effects unnecessarily,
+  // though we still need state to force re-render when ready.
+  // Actually, contentWidth > 0 implies ready.
+  const isReady = contentWidth > 0 && containerWidth > 0;
 
   const posRef = useRef(0);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number>(undefined);
 
   // Measure content width and container width
+  // Stable callback with no dependencies
   const measure = useCallback(() => {
     if (contentRef.current && outerRef.current) {
       const cWidth = contentRef.current.offsetWidth;
       const oWidth = outerRef.current.offsetWidth;
 
-      let changed = false;
-      if (Math.abs(cWidth - contentWidth) > 1) {
-        setContentWidth(cWidth);
-        changed = true;
-      }
-      if (Math.abs(oWidth - containerWidth) > 1) {
-        setContainerWidth(oWidth);
-        changed = true;
-      }
-
-      if (changed) setIsReady(true);
+      setContentWidth(prev => Math.abs(prev - cWidth) > 1 ? cWidth : prev);
+      setContainerWidth(prev => Math.abs(prev - oWidth) > 1 ? oWidth : prev);
     }
-  }, [contentWidth, containerWidth]);
+  }, []);
 
   // Initial measure and resize observer
   useEffect(() => {
     measure();
+
     // Use ResizeObserver to detect content size changes
     const ro = new ResizeObserver(() => {
         measure();
     });
+
     if (contentRef.current) {
         ro.observe(contentRef.current);
     }
     if (outerRef.current) {
         ro.observe(outerRef.current);
     }
+
     return () => ro.disconnect();
-  }, [measure]);
+  }, [measure]); // measure is stable now
 
   // Calculate how many copies we need to fill the screen + buffer
   const repeatCount = useMemo(() => {

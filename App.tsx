@@ -22,6 +22,7 @@ import {
 } from './utils/database';
 import { isSupabaseConfigured, supabase } from './utils/supabase';
 import { prayerTimesEqual } from './utils/performance';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // --- Background Components ---
 
@@ -186,7 +187,7 @@ const DEFAULT_AUTO_ALERTS: AutoAlertSettings = {
 const App: React.FC = () => {
   // --- State (Persistent for Offline Mode) ---
   const [excelSchedule, setExcelSchedule] = usePersistentState<Record<string, ExcelDaySchedule>>('schedule_data', {});
-  const scheduleIndex = useMemo(() => buildScheduleIndex(excelSchedule), [excelSchedule]);
+  const scheduleIndex = useMemo(() => buildScheduleIndex(excelSchedule || {}), [excelSchedule]);
 
   const [manualOverrides, setManualOverrides] = usePersistentState<ManualOverride[]>('manual_overrides', []);
   const [announcement, setAnnouncement] = usePersistentState<Announcement>('announcement_config', DEFAULT_ANNOUNCEMENT);
@@ -414,8 +415,8 @@ const App: React.FC = () => {
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
     const tomorrowDateStr = tomorrowDate.toISOString().split('T')[0];
 
-    const tSchedule = getScheduleForDate(todayDateStr, excelSchedule, manualOverrides, maghribOffset, scheduleIndex);
-    const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule, manualOverrides, maghribOffset, scheduleIndex);
+    const tSchedule = getScheduleForDate(todayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex);
+    const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex);
 
     return { todaySchedule: tSchedule, tomorrowSchedule: tmSchedule };
   }, [todayDateStr, excelSchedule, manualOverrides, maghribOffset, scheduleIndex]);
@@ -461,7 +462,7 @@ const App: React.FC = () => {
     const overrideChanges: string[] = [];
 
     // 1. Check for Active Manual Overrides (Today)
-    manualOverrides.forEach(override => {
+    (manualOverrides || []).forEach(override => {
       if (todayDateStr >= override.startDate && todayDateStr <= override.endDate) {
         const prayerName = override.prayerKey.charAt(0).toUpperCase() + override.prayerKey.slice(1);
         overrideChanges.push(`${prayerName} is at ${override.iqamah} today`);
@@ -584,7 +585,8 @@ const App: React.FC = () => {
 
   // Combine system alerts with manually added announcement items
   const effectiveAnnouncement: Announcement = React.useMemo(() => {
-    let items = [...announcement.items];
+    const base = announcement || DEFAULT_ANNOUNCEMENT;
+    let items = Array.isArray(base.items) ? [...base.items] : [];
     const systemAlerts = [];
 
     if (scheduleAlert) {
@@ -617,8 +619,8 @@ const App: React.FC = () => {
       };
       items = [errorItem, ...items];
     }
-    return { ...announcement, items };
-  }, [announcement, systemAlert, autoAlertSettings, saveError]);
+    return { ...base, items };
+  }, [announcement, scheduleAlert, connectionAlert, autoAlertSettings, saveError]);
 
   // --- Fullscreen & Shortcuts ---
   const toggleFullscreen = useCallback(() => {
@@ -660,6 +662,12 @@ const App: React.FC = () => {
   // If preview is active, use a fake target time (now + 2 minutes)
   const effectiveTargetTime = isPreviewAlert ? new Date(Date.now() + 120000) : alertTargetTime;
 
+  // Defensive Props: Ensure critical data arrays/objects are valid to prevent crashes
+  const safeSlidesConfig = Array.isArray(slidesConfig) ? slidesConfig : DEFAULT_SLIDES;
+  // Use effectiveAnnouncement (which includes system alerts) but ensure it is robustly constructed above
+  // Ensure we have minimal valid prayer data to prevent crashes
+  const safeDisplayedPrayers = displayedPrayerTimes && displayedPrayerTimes.fajr ? displayedPrayerTimes : DEFAULT_PRAYER_TIMES;
+
   return (
     <div className="w-screen h-screen bg-black flex items-center justify-center overflow-hidden font-sans antialiased selection:bg-mosque-gold selection:text-mosque-navy">
       {/* 
@@ -679,49 +687,61 @@ const App: React.FC = () => {
         <BackgroundManager theme={currentTheme} />
 
         <div className="relative z-10 w-full h-full">
-          <AnimatePresence mode="wait">
-             {/* Fullscreen Alert Overlay */}
-             {showFullscreenAlert && effectiveTargetTime ? (
-                 <motion.div
-                    key="fullscreen-alert"
-                    initial={{ opacity: 0, scale: 1.1 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="absolute inset-0 z-50"
-                 >
-                    <MobileSilentAlert 
-                        settings={mobileAlertSettings} 
-                        targetTime={effectiveTargetTime} 
-                        previewMode={isPreviewAlert}
+          <ErrorBoundary fallback={
+            <div className="w-full h-full flex items-center justify-center text-white bg-mosque-navy p-8 text-center">
+               <div>
+                  <h1 className="text-4xl font-bold text-red-500 mb-4">Display Error</h1>
+                  <p className="text-xl mb-4">The signage encountered a critical error.</p>
+                  <button onClick={() => window.location.reload()} className="px-6 py-3 bg-mosque-gold text-mosque-navy font-bold rounded">
+                    Reload Application
+                  </button>
+               </div>
+            </div>
+          }>
+            <AnimatePresence mode="wait">
+              {/* Fullscreen Alert Overlay */}
+              {showFullscreenAlert && effectiveTargetTime ? (
+                  <motion.div
+                      key="fullscreen-alert"
+                      initial={{ opacity: 0, scale: 1.1 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="absolute inset-0 z-50"
+                  >
+                      <MobileSilentAlert
+                          settings={mobileAlertSettings}
+                          targetTime={effectiveTargetTime}
+                          previewMode={isPreviewAlert}
+                      />
+                  </motion.div>
+              ) : (
+                  <motion.div
+                    key="prayer-times"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    className="w-full h-full"
+                  >
+                    <ScreenPrayerTimes
+                      prayers={safeDisplayedPrayers}
+                      jumuah={displayedJumuahTimes}
+                      announcement={effectiveAnnouncement} // Use effectiveAnnouncement (includes alerts)
+                      slidesConfig={safeSlidesConfig} // Use safe slides config
+                      excelSchedule={excelSchedule}
+                      manualOverrides={manualOverrides}
+                      maghribOffset={maghribOffset}
+                      tickerBg={tickerBg}
+                      // Alert props for panel mode
+                      isAlertActive={isMobileAlertActive || isPreviewAlert}
+                      alertSettings={mobileAlertSettings}
+                      nextIqamahTime={effectiveTargetTime}
+                      scheduleIndex={scheduleIndex}
                     />
-                 </motion.div>
-             ) : (
-                <motion.div
-                  key="prayer-times"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
-                  className="w-full h-full"
-                >
-                  <ScreenPrayerTimes 
-                    prayers={displayedPrayerTimes} 
-                    jumuah={displayedJumuahTimes} 
-                    announcement={effectiveAnnouncement}
-                    slidesConfig={slidesConfig}
-                    excelSchedule={excelSchedule}
-                    manualOverrides={manualOverrides}
-                    maghribOffset={maghribOffset}
-                    tickerBg={tickerBg}
-                    // Alert props for panel mode
-                    isAlertActive={isMobileAlertActive || isPreviewAlert}
-                    alertSettings={mobileAlertSettings}
-                    nextIqamahTime={effectiveTargetTime}
-                    scheduleIndex={scheduleIndex}
-                  />
-                </motion.div>
-             )}
-          </AnimatePresence>
+                  </motion.div>
+              )}
+            </AnimatePresence>
+          </ErrorBoundary>
         </div>
 
         {/* Controls */}

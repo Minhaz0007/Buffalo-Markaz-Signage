@@ -1,5 +1,6 @@
 import { Coordinates, CalculationMethod, PrayerTimes, Prayer, Madhab } from 'adhan';
 import { DailyPrayers } from '../types';
+import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES } from '../constants';
 
 // Buffalo, NY coordinates (14212 zip code area)
 const BUFFALO_COORDINATES = new Coordinates(42.8864, -78.8784);
@@ -117,52 +118,57 @@ const findBuffaloMidnight = (date: Date): Date => {
  * @returns DailyPrayers object with calculated times
  */
 export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
-  const calculationDate = findBuffaloMidnight(date);
+  try {
+    const calculationDate = findBuffaloMidnight(date);
 
-  // Calculate prayer times using the adhan library
-  const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
+    // Calculate prayer times using the adhan library
+    const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
 
-  // Format times directly - they're already in the correct timezone because
-  // we passed midnight Buffalo time to the adhan library
-  const formatPrayerTime = (time: Date) => formatTime(time);
+    // Format times directly - they're already in the correct timezone because
+    // we passed midnight Buffalo time to the adhan library
+    const formatPrayerTime = (time: Date) => formatTime(time);
 
-  // Calculate Iqamah times (typically 10-15 minutes after adhan)
-  // These are reasonable defaults, can be adjusted based on masjid practice
-  const fajrIqamah = new Date(prayerTimes.fajr.getTime() + 15 * 60 * 1000); // +15 min
-  const dhuhrIqamah = new Date(prayerTimes.dhuhr.getTime() + 10 * 60 * 1000); // +10 min
-  const asrIqamah = new Date(prayerTimes.asr.getTime() + 10 * 60 * 1000); // +10 min
-  const maghribIqamah = new Date(prayerTimes.maghrib.getTime() + 5 * 60 * 1000); // +5 min
-  const ishaIqamah = new Date(prayerTimes.isha.getTime() + 15 * 60 * 1000); // +15 min
+    // Calculate Iqamah times (typically 10-15 minutes after adhan)
+    // These are reasonable defaults, can be adjusted based on masjid practice
+    const fajrIqamah = new Date(prayerTimes.fajr.getTime() + 15 * 60 * 1000); // +15 min
+    const dhuhrIqamah = new Date(prayerTimes.dhuhr.getTime() + 10 * 60 * 1000); // +10 min
+    const asrIqamah = new Date(prayerTimes.asr.getTime() + 10 * 60 * 1000); // +10 min
+    const maghribIqamah = new Date(prayerTimes.maghrib.getTime() + 5 * 60 * 1000); // +5 min
+    const ishaIqamah = new Date(prayerTimes.isha.getTime() + 15 * 60 * 1000); // +15 min
 
-  return {
-    fajr: {
-      name: 'Fajr',
-      start: formatPrayerTime(prayerTimes.fajr),
-      iqamah: formatPrayerTime(fajrIqamah)
-    },
-    sunrise: formatPrayerTime(prayerTimes.sunrise),
-    dhuhr: {
-      name: 'Dhuhr',
-      start: formatPrayerTime(prayerTimes.dhuhr),
-      iqamah: formatPrayerTime(dhuhrIqamah)
-    },
-    asr: {
-      name: 'Asr',
-      start: formatPrayerTime(prayerTimes.asr),
-      iqamah: formatPrayerTime(asrIqamah)
-    },
-    maghrib: {
-      name: 'Maghrib',
-      start: formatPrayerTime(prayerTimes.maghrib),
-      iqamah: formatPrayerTime(maghribIqamah)
-    },
-    isha: {
-      name: 'Isha',
-      start: formatPrayerTime(prayerTimes.isha),
-      iqamah: formatPrayerTime(ishaIqamah)
-    },
-    sunset: formatPrayerTime(prayerTimes.sunset)
-  };
+    return {
+      fajr: {
+        name: 'Fajr',
+        start: formatPrayerTime(prayerTimes.fajr),
+        iqamah: formatPrayerTime(fajrIqamah)
+      },
+      sunrise: formatPrayerTime(prayerTimes.sunrise),
+      dhuhr: {
+        name: 'Dhuhr',
+        start: formatPrayerTime(prayerTimes.dhuhr),
+        iqamah: formatPrayerTime(dhuhrIqamah)
+      },
+      asr: {
+        name: 'Asr',
+        start: formatPrayerTime(prayerTimes.asr),
+        iqamah: formatPrayerTime(asrIqamah)
+      },
+      maghrib: {
+        name: 'Maghrib',
+        start: formatPrayerTime(prayerTimes.maghrib),
+        iqamah: formatPrayerTime(maghribIqamah)
+      },
+      isha: {
+        name: 'Isha',
+        start: formatPrayerTime(prayerTimes.isha),
+        iqamah: formatPrayerTime(ishaIqamah)
+      },
+      sunset: formatPrayerTime(prayerTimes.sunset)
+    };
+  } catch (error) {
+    console.error("Critical Error: Failed to calculate prayer times", error);
+    return DEFAULT_PRAYER_TIMES;
+  }
 }
 
 /**
@@ -204,18 +210,23 @@ export function getNextPrayer(prayerTimes: DailyPrayers): string {
  * @returns Object with start (Khutbah) and iqamah times
  */
 export function calculateJumuahTimes(date: Date = new Date()): { start: string; iqamah: string } {
-  const calculationDate = findBuffaloMidnight(date);
+  try {
+    const calculationDate = findBuffaloMidnight(date);
 
-  // Calculate prayer times
-  const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
+    // Calculate prayer times
+    const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
 
-  // Khutbah typically starts 15-20 minutes before Dhuhr time
-  const khutbahStart = new Date(prayerTimes.dhuhr.getTime() - 15 * 60 * 1000);
-  // Salah starts at Dhuhr time or a few minutes after
-  const salahTime = new Date(prayerTimes.dhuhr.getTime() + 5 * 60 * 1000);
+    // Khutbah typically starts 15-20 minutes before Dhuhr time
+    const khutbahStart = new Date(prayerTimes.dhuhr.getTime() - 15 * 60 * 1000);
+    // Salah starts at Dhuhr time or a few minutes after
+    const salahTime = new Date(prayerTimes.dhuhr.getTime() + 5 * 60 * 1000);
 
-  return {
-    start: formatTime(khutbahStart),
-    iqamah: formatTime(salahTime)
-  };
+    return {
+      start: formatTime(khutbahStart),
+      iqamah: formatTime(salahTime)
+    };
+  } catch (error) {
+    console.error("Critical Error: Failed to calculate Jumuah times", error);
+    return DEFAULT_JUMUAH_TIMES;
+  }
 }
