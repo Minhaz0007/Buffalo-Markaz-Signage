@@ -43,14 +43,31 @@ export const AutoUpdate: React.FC = () => {
 
   // ── Smooth reload ──────────────────────────────────────────────────────────
   // Shows a navy overlay for 800 ms (long enough to hide any compositor
-  // flash) then reloads. The html/body navy background in index.html means
-  // the screen stays dark navy throughout — no green, no white.
+  // flash) then navigates to a cache-busted URL.
+  //
+  // WHY cache-busting instead of window.location.reload():
+  //   reload() is a "soft reload" — the browser (and Vercel CDN edge) may
+  //   return the OLD cached index.html even though a new deployment is live.
+  //   The old index.html still has the old build-version, so AutoUpdate
+  //   immediately detects a mismatch again and triggers another reload →
+  //   infinite green-flash loop with the new version never loading.
+  //
+  //   window.location.replace(url) with a unique ?_ timestamp creates a URL
+  //   the CDN has never seen before, so it is forced to fetch fresh content
+  //   from the Vercel origin — guaranteeing the new deployment loads.
   const performSmoothReload = () => {
     if (reloadScheduledRef.current) return; // prevent double-trigger
     reloadScheduledRef.current = true;
     console.log('[AutoUpdate] Performing smooth reload...');
     setIsUpdating(true);
-    setTimeout(() => window.location.reload(), 800);
+    setTimeout(() => {
+      // Build a cache-busting URL: update (or add) the _r param so every
+      // reload creates a URL the CDN has never cached.  url.searchParams.set
+      // replaces an existing _r key, keeping the URL clean after successive reloads.
+      const url = new URL(window.location.href);
+      url.searchParams.set('_r', Date.now().toString());
+      window.location.replace(url.toString());
+    }, 800);
   };
 
   // ── Broadcast reload signal to ALL tabs ───────────────────────────────────
