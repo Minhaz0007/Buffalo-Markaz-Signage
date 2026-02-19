@@ -1,25 +1,43 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
+// ── CSS Keyframes ─────────────────────────────────────────────────────────────
+// Injected once into <head>. The end-position uses a CSS custom property set
+// per-element so a single keyframe definition covers all speeds and widths.
+// Running on the GPU compositor thread means React re-renders, Supabase
+// realtime events, and the prayer clock cannot cause any jitter.
+const STYLE_ID = 'seamless-ticker-kf';
+const ensureKeyframes = () => {
+  if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return;
+  const el = document.createElement('style');
+  el.id = STYLE_ID;
+  // One keyframe rule; --_to is set inline per container element.
+  el.textContent = `
+    @keyframes _sticker {
+      from { transform: translateX(0); }
+      to   { transform: translateX(var(--_to)); }
+    }
+  `;
+  document.head.appendChild(el);
+};
+
 interface SeamlessTickerProps {
   children: React.ReactNode;
   className?: string;
   /**
-   * Scroll speed in pixels per second.
-   * Default: 60px/s — smooth and legible on any display (30Hz, 60Hz, 120Hz).
+   * Scroll speed in pixels per second. Default: 60
    */
   baseSpeed?: number;
   /**
-   * Direction of scrolling.
-   * Default: 'left' (right-to-left, standard news ticker style)
+   * Scroll direction. Default: 'left' (right-to-left, standard ticker)
    */
   direction?: 'left' | 'right';
 }
 
 export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
   children,
-  className = "",
+  className = '',
   baseSpeed = 60,
-  direction = 'left'
+  direction = 'left',
 }) => {
   const outerRef     = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -28,101 +46,74 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
   const [contentWidth,   setContentWidth]   = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  const isReady = contentWidth > 0 && containerWidth > 0;
-
-  // Animation state kept entirely in refs — no React state needed.
-  const requestRef  = useRef<number | undefined>(undefined);
-  const startTimeRef = useRef<number | null>(null); // set on first animation frame
+  // Inject keyframes on first mount (idempotent).
+  useEffect(() => { ensureKeyframes(); }, []);
 
   // ── Measurement ─────────────────────────────────────────────────────────────
+  // getBoundingClientRect returns sub-pixel widths (e.g. 1438.75px).
+  // offsetWidth rounds to integers and would cause a 1-pixel seam at the
+  // loop point every ~24 s — the faint "jump" that was visible before.
   const measure = useCallback(() => {
-    if (contentRef.current && outerRef.current) {
-      const cw = contentRef.current.offsetWidth;
-      const ow = outerRef.current.offsetWidth;
-      setContentWidth(prev  => Math.abs(prev  - cw) > 1 ? cw : prev);
-      setContainerWidth(prev => Math.abs(prev - ow) > 1 ? ow : prev);
-    }
+    if (!contentRef.current || !outerRef.current) return;
+    const cw = contentRef.current.getBoundingClientRect().width;
+    const ow = outerRef.current.getBoundingClientRect().width;
+    // Only update if the change is meaningful (> 0.5 px) to avoid
+    // ResizeObserver micro-fluctuations restarting the animation for nothing.
+    setContentWidth(prev  => Math.abs(prev  - cw) > 0.5 ? cw : prev);
+    setContainerWidth(prev => Math.abs(prev - ow) > 0.5 ? ow : prev);
   }, []);
 
   useEffect(() => {
     measure();
     const ro = new ResizeObserver(measure);
-    if (contentRef.current)  ro.observe(contentRef.current);
-    if (outerRef.current)    ro.observe(outerRef.current);
+    if (contentRef.current) ro.observe(contentRef.current);
+    if (outerRef.current)   ro.observe(outerRef.current);
     return () => ro.disconnect();
   }, [measure]);
 
-  // ── Clone count: enough copies to fill the viewport seamlessly ───────────────
+  // ── Clone count ──────────────────────────────────────────────────────────────
+  // Enough copies to fill the visible area so the loop is always invisible.
   const repeatCount = useMemo(() => {
     if (!contentWidth || !containerWidth) return 4;
     return Math.ceil(containerWidth / contentWidth) + 2;
   }, [contentWidth, containerWidth]);
 
-  // ── Smooth animation loop ────────────────────────────────────────────────────
-  // Uses wall-clock elapsed time to compute position on every frame, giving
-  // perfectly smooth motion at any refresh rate (30 / 60 / 120 Hz) with zero
-  // jitter. There is no FPS throttle, no integer pixel snapping, and no
-  // delta-accumulation drift — position is always exactly where it should be.
-  useEffect(() => {
-    if (!isReady || contentWidth === 0) return;
+  // ── CSS animation properties ────────────────────────────────────────────────
+  // duration (s) = contentWidth (px) / speed (px/s)
+  // The animation shifts the container exactly one content-width, at which
+  // point the first clone seamlessly replaces the original — infinite loop.
+  const isReady  = contentWidth > 0;
+  const duration = isReady ? contentWidth / baseSpeed : 0;
+  const offset   = direction === 'left' ? `-${contentWidth}px` : `${contentWidth}px`;
 
-    // Reset start time whenever content/speed changes so position always
-    // begins at 0 (prevents a visual jump on re-mount).
-    startTimeRef.current = null;
-
-    const animate = (timestamp: number) => {
-      requestRef.current = requestAnimationFrame(animate);
-
-      // Capture the animation origin on the very first frame.
-      if (startTimeRef.current === null) {
-        startTimeRef.current = timestamp;
-        return;
-      }
-
-      const elapsed = timestamp - startTimeRef.current;
-
-      // Continuous time-based position — the modulus handles seamless looping.
-      const rawPos  = (baseSpeed * elapsed / 1000) % contentWidth;
-      const x       = direction === 'left' ? -rawPos : rawPos;
-
-      if (containerRef.current) {
-        containerRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
-      }
-    };
-
-    requestRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (requestRef.current !== undefined) cancelAnimationFrame(requestRef.current);
-    };
-  }, [isReady, contentWidth, baseSpeed, direction]);
+  // The animation style is set directly on the element; changing duration or
+  // offset causes the browser to smoothly restart from position 0.
+  const animStyle: React.CSSProperties = isReady
+    ? ({
+        '--_to': offset,
+        animation: `_sticker ${duration}s linear infinite`,
+        // willChange tells the browser to keep this element on its own GPU
+        // compositing layer, so the animation never triggers a repaint.
+        willChange: 'transform',
+      } as React.CSSProperties)
+    : { visibility: 'hidden' }; // hide until measured to prevent flash
 
   return (
     <div
       ref={outerRef}
       className={`overflow-hidden whitespace-nowrap flex ${className}`}
-      style={{
-        // Soft fade at both edges for a polished entry/exit
-        maskImage: 'linear-gradient(to right, transparent, black 2%, black 98%, transparent)',
-      }}
     >
       <div
         ref={containerRef}
-        className="flex items-center will-change-transform"
-        style={{
-          transform: 'translate3d(0,0,0)',
-          // Force GPU compositing layer — eliminates sub-pixel rounding on
-          // the CPU side that would otherwise cause 1px jitter each frame.
-          backfaceVisibility: 'hidden',
-          WebkitBackfaceVisibility: 'hidden',
-        } as React.CSSProperties}
+        className="flex items-center"
+        style={animStyle}
       >
-        {/* Primary content — measured for width reference */}
+        {/* Original — measured for width */}
         <div ref={contentRef} className="flex shrink-0">
           {children}
         </div>
 
-        {/* Seamless clones — fills the viewport so the loop is invisible */}
+        {/* Clones — fill viewport so the loop is always off-screen */}
         {Array.from({ length: Math.max(0, repeatCount - 1) }).map((_, i) => (
           <div key={i} className="flex shrink-0">
             {children}
