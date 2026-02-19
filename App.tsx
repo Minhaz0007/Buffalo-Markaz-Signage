@@ -438,28 +438,40 @@ const App: React.FC = () => {
     });
 
     // --- Change Detection Logic (System Alert) ---
-    // NOTE: Maghrib is excluded because it changes daily (tied to sunset + offset)
-    const changes: string[] = [];
-    const norm = (t?: string) => t?.replace(/\s+/g, '').toUpperCase() || '';
-    const pushChange = (label: string, time?: string) => {
-      if (time) {
-        changes.push(`${label} Salah is at ${time}`);
-      }
+    // Helper to parse time string to minutes from midnight (0-1439) for robust comparison
+    const getTimeMinutes = (timeStr?: string): number => {
+      if (!timeStr) return -1;
+      const normalized = timeStr.trim().replace(/\s+/g, ' ').toUpperCase();
+      const match = normalized.match(/(\d{1,2}):(\d{2})\s?(AM|PM)?/);
+      if (!match) return -1;
+
+      let [_, hStr, mStr, ampm] = match;
+      let h = parseInt(hStr);
+      const m = parseInt(mStr);
+
+      if (ampm === 'PM' && h < 12) h += 12;
+      if (ampm === 'AM' && h === 12) h = 0;
+
+      return h * 60 + m;
     };
 
-    if (norm(todaySchedule.prayers.fajr.iqamah) !== norm(tomorrowSchedule.prayers.fajr.iqamah)) {
-      pushChange('Fajr', tomorrowSchedule.prayers.fajr.iqamah);
-    }
-    if (norm(todaySchedule.prayers.dhuhr.iqamah) !== norm(tomorrowSchedule.prayers.dhuhr.iqamah)) {
-      pushChange('Dhuhr', tomorrowSchedule.prayers.dhuhr.iqamah);
-    }
-    if (norm(todaySchedule.prayers.asr.iqamah) !== norm(tomorrowSchedule.prayers.asr.iqamah)) {
-      pushChange('Asr', tomorrowSchedule.prayers.asr.iqamah);
-    }
+    const changes: string[] = [];
+
+    const checkChange = (name: string, todayTime?: string, tomorrowTime?: string) => {
+        const t1 = getTimeMinutes(todayTime);
+        const t2 = getTimeMinutes(tomorrowTime);
+
+        // If valid times and different (diff > 0 means strict inequality)
+        if (t1 !== -1 && t2 !== -1 && t1 !== t2) {
+             changes.push(`${name} Salah is at ${tomorrowTime}`);
+        }
+    };
+
+    checkChange('Fajr', todaySchedule.prayers.fajr.iqamah, tomorrowSchedule.prayers.fajr.iqamah);
+    checkChange('Dhuhr', todaySchedule.prayers.dhuhr.iqamah, tomorrowSchedule.prayers.dhuhr.iqamah);
+    checkChange('Asr', todaySchedule.prayers.asr.iqamah, tomorrowSchedule.prayers.asr.iqamah);
     // SKIP MAGHRIB - it changes daily by design (sunset + offset), no alert needed
-    if (norm(todaySchedule.prayers.isha.iqamah) !== norm(tomorrowSchedule.prayers.isha.iqamah)) {
-      pushChange('Isha', tomorrowSchedule.prayers.isha.iqamah);
-    }
+    checkChange('Isha', todaySchedule.prayers.isha.iqamah, tomorrowSchedule.prayers.isha.iqamah);
 
     // Check for Friday
     const todayDate = new Date(todayDateStr + 'T12:00:00');
@@ -467,9 +479,7 @@ const App: React.FC = () => {
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
 
     if (tomorrowDate.getDay() === 5) { // 5 = Friday
-      if (norm(todaySchedule.jumuah.iqamah) !== norm(tomorrowSchedule.jumuah.iqamah)) {
-        pushChange(`Jumu'ah`, tomorrowSchedule.jumuah.iqamah);
-      }
+      checkChange("Jumu'ah", todaySchedule.jumuah.iqamah, tomorrowSchedule.jumuah.iqamah);
     }
 
     if (changes.length > 0 && autoAlertSettings.enabled) {

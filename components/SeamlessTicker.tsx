@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { useRefreshRate } from '../utils/useRefreshRate';
 
 interface SeamlessTickerProps {
   children: React.ReactNode;
@@ -7,8 +6,8 @@ interface SeamlessTickerProps {
   /**
    * Target speed in pixels per second.
    * The component will attempt to snap this to an integer number of pixels per frame
-   * to ensure maximum sharpness and smoothness at the detected refresh rate.
-   * Default: 120 (approx 2px per frame at 60Hz)
+   * to ensure maximum sharpness and smoothness at the fixed 30fps rate.
+   * Default: 60 (approx 2px per frame at 30Hz)
    */
   baseSpeed?: number;
   /**
@@ -21,7 +20,7 @@ interface SeamlessTickerProps {
 export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
   children,
   className = "",
-  baseSpeed = 120,
+  baseSpeed = 60,
   direction = 'left'
 }) => {
   const outerRef = useRef<HTMLDivElement>(null);
@@ -34,13 +33,6 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
 
   const posRef = useRef(0);
   const requestRef = useRef<number>();
-  const refreshRate = useRefreshRate(); // Starts at 60, updates after 1s
-
-  // Determine pixels per frame
-  // We snap to the nearest integer to avoid sub-pixel rendering artifacts (blur/jitter)
-  // At 60Hz, 120px/s => 2px/frame.
-  // At 120Hz, 120px/s => 1px/frame.
-  const pixelsPerFrame = Math.max(1, Math.round(baseSpeed / Math.max(30, refreshRate)));
 
   // Measure content width and container width
   const measure = useCallback(() => {
@@ -79,38 +71,45 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
   }, [measure]);
 
   // Calculate how many copies we need to fill the screen + buffer
-  // We need enough copies so that when we scroll by contentWidth, we still have content.
-  // Generally: (ContainerWidth / ContentWidth) + 2 (one for current, one for incoming, plus margin)
-  // We default to 4 if dimensions aren't ready to be safe.
   const repeatCount = useMemo(() => {
     if (!contentWidth || !containerWidth) return 4;
     return Math.ceil((containerWidth / contentWidth)) + 2;
   }, [contentWidth, containerWidth]);
 
-  // Animation Loop
+  // Animation Loop - Locked to 30fps
   useEffect(() => {
     if (!isReady || contentWidth === 0) return;
 
-    // Reset position if we resized significantly?
-    // Actually, just let it flow.
+    let lastTime = performance.now();
+    const targetFps = 30;
+    const interval = 1000 / targetFps;
 
-    const animate = () => {
-        posRef.current += pixelsPerFrame;
+    // Determine pixels per frame for 30fps target
+    // We snap to integer to avoid sub-pixel jitter
+    const step = Math.max(1, Math.round(baseSpeed / targetFps));
 
-        // Wrap around logic
-        // Once we have scrolled past the first element (contentWidth), we reset to 0.
-        // This gives the illusion of infinite scroll because the second element is exactly at 0.
-        if (posRef.current >= contentWidth) {
-            posRef.current -= contentWidth;
-        }
-
-        if (containerRef.current) {
-            // Use translate3d for GPU acceleration
-            const x = direction === 'left' ? -posRef.current : posRef.current;
-            containerRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
-        }
-
+    const animate = (time: number) => {
         requestRef.current = requestAnimationFrame(animate);
+
+        const delta = time - lastTime;
+
+        if (delta > interval) {
+            // Adjust lastTime to maintain cadence, but avoid spiraling if tab was backgrounded
+            lastTime = time - (delta % interval);
+
+            posRef.current += step;
+
+            // Wrap around logic
+            if (posRef.current >= contentWidth) {
+                posRef.current -= contentWidth;
+            }
+
+            if (containerRef.current) {
+                // Use translate3d for GPU acceleration
+                const x = direction === 'left' ? -posRef.current : posRef.current;
+                containerRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
+            }
+        }
     };
 
     requestRef.current = requestAnimationFrame(animate);
@@ -118,7 +117,7 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
     return () => {
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [isReady, contentWidth, pixelsPerFrame, direction]);
+  }, [isReady, contentWidth, baseSpeed, direction]);
 
   return (
     <div
