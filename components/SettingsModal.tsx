@@ -755,7 +755,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         onChange={(e) => setAutoAlertSettings({...autoAlertSettings, template: e.target.value})}
                                         className={inputBase} 
                                       />
-                                      <p className="text-white/30 text-lg mt-3">Use <code>{'{prayers}'}</code> placeholder.</p>
+                                      <p className="text-white/30 text-lg mt-3">Placeholders: <code>{'{prayers}'}</code> = prayer name &nbsp;|&nbsp; <code>{'{new time}'}</code> = tomorrow's iqamah time</p>
                                   </div>
                                   <div className="flex items-end gap-8">
                                        <div className="flex-1">
