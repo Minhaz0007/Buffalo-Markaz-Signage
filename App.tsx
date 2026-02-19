@@ -204,7 +204,8 @@ const App: React.FC = () => {
   // --- Ephemeral State ---
   const [displayedPrayerTimes, setDisplayedPrayerTimes] = useState<DailyPrayers>(DEFAULT_PRAYER_TIMES);
   const [displayedJumuahTimes, setDisplayedJumuahTimes] = useState(DEFAULT_JUMUAH_TIMES);
-  const [systemAlert, setSystemAlert] = useState<string>("");
+  const [scheduleAlert, setScheduleAlert] = useState<string>("");
+  const [connectionAlert, setConnectionAlert] = useState<string>("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [scale, setScale] = useState(1);
@@ -272,7 +273,7 @@ const App: React.FC = () => {
       if (!isSupabaseConfigured()) {
         console.warn('⚠️ Supabase is NOT configured! Data will only be stored in localStorage.');
         console.warn('⚠️ To enable cloud sync, set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
-        setSystemAlert('⚠️ Cloud sync disabled - data stored locally only. Check Supabase configuration.');
+        setConnectionAlert('⚠️ Cloud sync disabled - data stored locally only. Check Supabase configuration.');
       }
     };
 
@@ -456,15 +457,25 @@ const App: React.FC = () => {
       return h * 60 + m;
     };
 
-    const changes: string[] = [];
+    const tomorrowChanges: string[] = [];
+    const overrideChanges: string[] = [];
 
+    // 1. Check for Active Manual Overrides (Today)
+    manualOverrides.forEach(override => {
+      if (todayDateStr >= override.startDate && todayDateStr <= override.endDate) {
+        const prayerName = override.prayerKey.charAt(0).toUpperCase() + override.prayerKey.slice(1);
+        overrideChanges.push(`${prayerName} is at ${override.iqamah} today`);
+      }
+    });
+
+    // 2. Check for Tomorrow's Changes
     const checkChange = (name: string, todayTime?: string, tomorrowTime?: string) => {
         const t1 = getTimeMinutes(todayTime);
         const t2 = getTimeMinutes(tomorrowTime);
 
         // If valid times and different (diff > 0 means strict inequality)
         if (t1 !== -1 && t2 !== -1 && t1 !== t2) {
-             changes.push(`${name} Salah is at ${tomorrowTime}`);
+             tomorrowChanges.push(`${name} Salah is at ${tomorrowTime}`);
         }
     };
 
@@ -483,13 +494,23 @@ const App: React.FC = () => {
       checkChange("Jumu'ah", todaySchedule.jumuah.iqamah, tomorrowSchedule.jumuah.iqamah);
     }
 
-    if (changes.length > 0 && autoAlertSettings.enabled) {
-      const alertText = `⚠️ Attention: From tomorrow, ${changes.join(', ')}`;
-      setSystemAlert(alertText);
-    } else {
-      setSystemAlert("");
+    // 3. Construct Final Alert
+    const finalAlertParts: string[] = [];
+
+    if (overrideChanges.length > 0) {
+      finalAlertParts.push(`⚠️ Updated Schedule: ${overrideChanges.join(', ')}`);
     }
-  }, [todaySchedule, tomorrowSchedule, autoAlertSettings, todayDateStr]);
+
+    if (tomorrowChanges.length > 0) {
+      finalAlertParts.push(`⚠️ Notice: From tomorrow, ${tomorrowChanges.join(', ')}`);
+    }
+
+    if (finalAlertParts.length > 0 && autoAlertSettings.enabled) {
+      setScheduleAlert(finalAlertParts.join(' • '));
+    } else {
+      setScheduleAlert("");
+    }
+  }, [todaySchedule, tomorrowSchedule, autoAlertSettings, todayDateStr, manualOverrides]);
 
   // Helper to parse time string to Date object for today
   const parseTime = useCallback((timeStr: string | undefined): Date | null => {
@@ -564,14 +585,28 @@ const App: React.FC = () => {
   // Combine system alerts with manually added announcement items
   const effectiveAnnouncement: Announcement = React.useMemo(() => {
     let items = [...announcement.items];
-    if (systemAlert) {
-      const alertItem: AnnouncementItem = {
-        id: 'sys-alert',
-        text: systemAlert,
+    const systemAlerts = [];
+
+    if (scheduleAlert) {
+      systemAlerts.push({
+        id: 'schedule-alert',
+        text: scheduleAlert,
         color: autoAlertSettings.color,
         animation: autoAlertSettings.animation
-      };
-      items = [alertItem, ...items];
+      });
+    }
+
+    if (connectionAlert) {
+      systemAlerts.push({
+        id: 'connection-alert',
+        text: connectionAlert,
+        color: '#fbbf24', // Amber-400 for warnings
+        animation: 'none'
+      });
+    }
+
+    if (systemAlerts.length > 0) {
+      items = [...systemAlerts, ...items];
     }
     if (saveError) {
       const errorItem: AnnouncementItem = {
