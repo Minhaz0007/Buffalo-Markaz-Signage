@@ -217,6 +217,7 @@ const App: React.FC = () => {
 
   // Supabase sync state
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Load data from Supabase on mount
   useEffect(() => {
@@ -342,7 +343,13 @@ const App: React.FC = () => {
   // Save manual overrides to Supabase whenever they change (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
-    saveManualOverridesToDatabase(manualOverrides);
+    saveManualOverridesToDatabase(manualOverrides).then(result => {
+      if (!result.success) {
+        setSaveError("⚠️ Database Error: Manual overrides not saved. Run SQL script.");
+      } else {
+        setSaveError(null);
+      }
+    });
   }, [manualOverrides, isDataLoaded]);
 
   // Save announcement items to Supabase whenever they change (after initial load)
@@ -601,8 +608,17 @@ const App: React.FC = () => {
     if (systemAlerts.length > 0) {
       items = [...systemAlerts, ...items];
     }
+    if (saveError) {
+      const errorItem: AnnouncementItem = {
+        id: 'save-error',
+        text: saveError,
+        color: '#ef4444', // Red
+        animation: 'pulse'
+      };
+      items = [errorItem, ...items];
+    }
     return { ...announcement, items };
-  }, [announcement, scheduleAlert, connectionAlert, autoAlertSettings]);
+  }, [announcement, systemAlert, autoAlertSettings, saveError]);
 
   // --- Fullscreen & Shortcuts ---
   const toggleFullscreen = useCallback(() => {
