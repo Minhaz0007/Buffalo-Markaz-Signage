@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ScreenPrayerTimes } from './components/ScreenPrayerTimes';
 import { SettingsModal } from './components/SettingsModal';
 import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AutoAlertSettings, MobileSilentAlertSettings } from './types';
@@ -122,42 +122,6 @@ const BackgroundManager = React.memo(({ theme }: { theme: string }) => {
 
 // --- Custom Hooks ---
 
-// Hook for persistent state (Offline capability)
-function usePersistentState<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-  // Initialize state function to avoid reading from LS on every render
-  const [state, setState] = useState<T>(() => {
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      console.warn(`Error reading localStorage key "${key}":`, error);
-      return initialValue;
-    }
-  });
-
-  // Write to LS whenever state changes
-  useEffect(() => {
-    const saveData = () => {
-      try {
-        window.localStorage.setItem(key, JSON.stringify(state));
-      } catch (error) {
-        console.warn(`Error writing localStorage key "${key}":`, error);
-      }
-    };
-
-    // Use requestIdleCallback to avoid blocking the main thread during UI updates
-    if ('requestIdleCallback' in window) {
-      const handle = (window as any).requestIdleCallback(saveData);
-      return () => (window as any).cancelIdleCallback(handle);
-    } else {
-      const handle = setTimeout(saveData, 500);
-      return () => clearTimeout(handle);
-    }
-  }, [key, state]);
-
-  return [state, setState];
-}
-
 const DEFAULT_SLIDES: SlideConfig[] = [
   { id: 'clock-main', type: 'CLOCK', enabled: true, duration: 15 },
   { 
@@ -184,22 +148,29 @@ const DEFAULT_AUTO_ALERTS: AutoAlertSettings = {
 };
 
 const App: React.FC = () => {
-  // --- State (Persistent for Offline Mode) ---
-  const [excelSchedule, setExcelSchedule] = usePersistentState<Record<string, ExcelDaySchedule>>('schedule_data', {});
+  // --- State (Volatile to prevent caching issues) ---
+  const [excelSchedule, setExcelSchedule] = useState<Record<string, ExcelDaySchedule>>({});
   const scheduleIndex = useMemo(() => buildScheduleIndex(excelSchedule), [excelSchedule]);
 
-  const [manualOverrides, setManualOverrides] = usePersistentState<ManualOverride[]>('manual_overrides', []);
-  const [announcement, setAnnouncement] = usePersistentState<Announcement>('announcement_config', DEFAULT_ANNOUNCEMENT);
-  const [currentTheme, setCurrentTheme] = usePersistentState<string>('app_theme', 'starry');
-  const [maghribOffset, setMaghribOffset] = usePersistentState<number>('maghrib_offset', 10);
+  const [manualOverrides, setManualOverrides] = useState<ManualOverride[]>([]);
+  const [announcement, setAnnouncement] = useState<Announcement>(DEFAULT_ANNOUNCEMENT);
+  const [currentTheme, setCurrentTheme] = useState<string>('starry');
+  const [maghribOffset, setMaghribOffset] = useState<number>(10);
   
   // New Configs
-  const [autoAlertSettings, setAutoAlertSettings] = usePersistentState<AutoAlertSettings>('auto_alert_settings', DEFAULT_AUTO_ALERTS);
-  const [mobileAlertSettings, setMobileAlertSettings] = usePersistentState<MobileSilentAlertSettings>('mobile_alert_settings', DEFAULT_MOBILE_SILENT_ALERT);
-  const [tickerBg, setTickerBg] = usePersistentState<'white' | 'navy'>('ticker_bg', 'white');
+  const [autoAlertSettings, setAutoAlertSettings] = useState<AutoAlertSettings>(DEFAULT_AUTO_ALERTS);
+  const [mobileAlertSettings, setMobileAlertSettings] = useState<MobileSilentAlertSettings>(DEFAULT_MOBILE_SILENT_ALERT);
+  const [tickerBg, setTickerBg] = useState<'white' | 'navy'>('white');
   
   // Slideshow State
-  const [slidesConfig, setSlidesConfig] = usePersistentState<SlideConfig[]>('slides_config', DEFAULT_SLIDES);
+  const [slidesConfig, setSlidesConfig] = useState<SlideConfig[]>(DEFAULT_SLIDES);
+
+  // --- Sync Flags (Prevent Loops) ---
+  const skipSaveExcel = useRef(false);
+  const skipSaveManual = useRef(false);
+  const skipSaveAnnouncement = useRef(false);
+  const skipSaveSlides = useRef(false);
+  const skipSaveGlobal = useRef(false);
 
   // --- Ephemeral State ---
   const [displayedPrayerTimes, setDisplayedPrayerTimes] = useState<DailyPrayers>(DEFAULT_PRAYER_TIMES);
@@ -291,26 +262,36 @@ const App: React.FC = () => {
     const channel = supabase
       .channel('settings-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_overrides' }, async () => {
+        console.log('🔄 Received remote update for manual overrides');
+        skipSaveManual.current = true;
         const dbManualOverrides = await loadManualOverridesFromDatabase();
         setManualOverrides(dbManualOverrides);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'excel_schedule' }, async () => {
+        console.log('🔄 Received remote update for Excel schedule');
+        skipSaveExcel.current = true;
         const dbExcelSchedule = await loadExcelScheduleFromDatabase();
         if (Object.keys(dbExcelSchedule).length > 0) {
           setExcelSchedule(dbExcelSchedule);
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'announcement_items' }, async () => {
+        console.log('🔄 Received remote update for announcements');
+        skipSaveAnnouncement.current = true;
         const dbAnnouncementItems = await loadAnnouncementItemsFromDatabase();
         setAnnouncement(prev => ({ ...prev, items: dbAnnouncementItems }));
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'slideshow_config' }, async () => {
+        console.log('🔄 Received remote update for slideshow config');
+        skipSaveSlides.current = true;
         const dbSlidesConfig = await loadSlideshowConfigFromDatabase();
         if (dbSlidesConfig && dbSlidesConfig.length > 0) {
           setSlidesConfig(dbSlidesConfig);
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'global_settings' }, async () => {
+        console.log('🔄 Received remote update for global settings');
+        skipSaveGlobal.current = true;
         const dbGlobalSettings = await loadGlobalSettingsFromDatabase();
         if (dbGlobalSettings) {
           setCurrentTheme(dbGlobalSettings.theme);
@@ -340,6 +321,10 @@ const App: React.FC = () => {
   // Save Excel schedule to Supabase whenever it changes (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (skipSaveExcel.current) {
+      skipSaveExcel.current = false;
+      return;
+    }
     if (Object.keys(excelSchedule).length === 0) return; // Don't save empty schedule
     saveExcelScheduleToDatabase(excelSchedule);
   }, [excelSchedule, isDataLoaded]);
@@ -347,12 +332,20 @@ const App: React.FC = () => {
   // Save manual overrides to Supabase whenever they change (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (skipSaveManual.current) {
+      skipSaveManual.current = false;
+      return;
+    }
     saveManualOverridesToDatabase(manualOverrides);
   }, [manualOverrides, isDataLoaded]);
 
   // Save announcement items to Supabase whenever they change (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (skipSaveAnnouncement.current) {
+      skipSaveAnnouncement.current = false;
+      return;
+    }
     console.log(`💾 Saving ${announcement.items.length} announcement items to Supabase`);
     saveAnnouncementItemsToDatabase(announcement.items).then(result => {
       if (result.success) {
@@ -366,12 +359,20 @@ const App: React.FC = () => {
   // Save slideshow config to Supabase whenever it changes (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (skipSaveSlides.current) {
+      skipSaveSlides.current = false;
+      return;
+    }
     saveSlideshowConfigToDatabase(slidesConfig);
   }, [slidesConfig, isDataLoaded]);
 
   // Save global settings to Supabase whenever they change (after initial load)
   useEffect(() => {
     if (!isDataLoaded) return;
+    if (skipSaveGlobal.current) {
+      skipSaveGlobal.current = false;
+      return;
+    }
     saveGlobalSettingsToDatabase({
       theme: currentTheme,
       tickerBg,
