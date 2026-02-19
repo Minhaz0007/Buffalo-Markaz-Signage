@@ -35,19 +35,13 @@ export default defineConfig({
     target: process.env.ELECTRON === 'true' ? 'esnext' : 'modules',
     minify: 'esbuild',
     sourcemap: false,
-    // Performance optimizations
-    rollupOptions: {
-      output: {
-        // Manual chunk splitting for better caching
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'framer-motion': ['framer-motion'],
-          'lucide': ['lucide-react'],
-        },
-      },
-    },
-    // Optimize chunk size
-    chunkSizeWarningLimit: 1000,
+    // Single-bundle output: no manualChunks splitting.
+    // Splitting creates multiple /assets/*.js files with content-hash names.
+    // If a browser has a stale index.html (old hashes) and the CDN already
+    // serves the new deployment (new hashes), every chunk request returns 404
+    // and the app never loads (green screen). One bundle = one file to fetch,
+    // zero split-file 404 risk on deployment.
+    chunkSizeWarningLimit: 2000,
     // Enable CSS code splitting
     cssCodeSplit: true,
   },
