@@ -42,32 +42,50 @@ export const AutoUpdate: React.FC = () => {
   const channelRef         = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // ── Smooth reload ──────────────────────────────────────────────────────────
-  // Shows a navy overlay for 800 ms (long enough to hide any compositor
-  // flash) then navigates to a cache-busted URL.
   //
-  // WHY cache-busting instead of window.location.reload():
-  //   reload() is a "soft reload" — the browser (and Vercel CDN edge) may
-  //   return the OLD cached index.html even though a new deployment is live.
-  //   The old index.html still has the old build-version, so AutoUpdate
-  //   immediately detects a mismatch again and triggers another reload →
-  //   infinite green-flash loop with the new version never loading.
+  // THREE-LAYER strategy for zero-green-screen on HDMI extended displays:
   //
-  //   window.location.replace(url) with a unique ?_ timestamp creates a URL
-  //   the CDN has never seen before, so it is forced to fetch fresh content
-  //   from the Vercel origin — guaranteeing the new deployment loads.
+  // Layer 1 — #nav-splash (index.html, non-React DOM)
+  //   Shown synchronously via direct DOM manipulation BEFORE React re-renders.
+  //   This is the most reliable layer: it requires no React state update and
+  //   no CSS transition.  Critically, this same div is visible on the NEW
+  //   page immediately (before any JS runs), so the GPU compositor always
+  //   has a navy frame to composite — no green flash.
+  //
+  // Layer 2 — React "Updating Display…" overlay (this component)
+  //   Shown for user-facing feedback.  Appears on top of the splash.
+  //   Uses a fast 150 ms transition so it is fully opaque well before Layer 3.
+  //
+  // Layer 3 — Cache-busting navigation after 200 ms
+  //   window.location.replace() with a unique ?_r=<timestamp> query param.
+  //   This forces the Vercel CDN to fetch fresh HTML from the origin (not
+  //   a cached copy with old chunk filenames).  200 ms is enough for the
+  //   browser to paint Layer 1 at least once.
+  //
+  // WHY NOT window.location.reload():
+  //   reload() is a soft reload — the Vercel CDN edge can return the OLD
+  //   cached index.html even after a new deployment.  The old index.html
+  //   still references the old build-version, so AutoUpdate immediately
+  //   detects a mismatch again → infinite reload loop / repeated green flash.
   const performSmoothReload = () => {
     if (reloadScheduledRef.current) return; // prevent double-trigger
     reloadScheduledRef.current = true;
     console.log('[AutoUpdate] Performing smooth reload...');
+
+    // Layer 1: show the persistent #nav-splash immediately (synchronous DOM op).
+    // This runs before React re-renders so there is zero gap.
+    const splash = document.getElementById('nav-splash');
+    if (splash) splash.style.display = 'block';
+
+    // Layer 2: trigger React overlay for "Updating Display…" text (best-effort).
     setIsUpdating(true);
+
+    // Layer 3: navigate after a short delay to allow the browser one paint cycle.
     setTimeout(() => {
-      // Build a cache-busting URL: update (or add) the _r param so every
-      // reload creates a URL the CDN has never cached.  url.searchParams.set
-      // replaces an existing _r key, keeping the URL clean after successive reloads.
       const url = new URL(window.location.href);
       url.searchParams.set('_r', Date.now().toString());
       window.location.replace(url.toString());
-    }, 800);
+    }, 200);
   };
 
   // ── Broadcast reload signal to ALL tabs ───────────────────────────────────
@@ -153,7 +171,7 @@ export const AutoUpdate: React.FC = () => {
   // ── Navy overlay ───────────────────────────────────────────────────────────
   return (
     <div
-      className={`fixed inset-0 z-[9999] bg-[#0B1E3B] flex items-center justify-center transition-opacity duration-700 ease-in-out ${
+      className={`fixed inset-0 z-[9999] bg-[#0B1E3B] flex items-center justify-center transition-opacity duration-150 ease-out ${
         isUpdating ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
       }`}
     >

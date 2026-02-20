@@ -42,11 +42,29 @@
             )
           );
         }
+
+        // Cache-busting reload: adds a unique ?_r=<timestamp> so the Vercel CDN
+        // is forced to fetch fresh HTML from the origin.  window.location.reload()
+        // is intentionally NOT used here — it is a soft reload that can return
+        // stale CDN-cached HTML containing the old (now-404) chunk filenames,
+        // causing an infinite reload loop and repeated green flashes.
+        function reloadCacheBusted() {
+          // Show the persistent splash div (if React has hidden it) so the screen
+          // stays navy while the new page loads, preventing the GPU compositor
+          // green flash on HDMI extended displays.
+          var splash = document.getElementById('nav-splash');
+          if (splash) splash.style.display = 'block';
+
+          var url = new URL(window.location.href);
+          url.searchParams.set('_r', Date.now().toString());
+          window.location.replace(url.toString());
+        }
+
         // Synchronous script errors (rare for ES modules but covers edge cases)
         window.addEventListener('error', function (e) {
           if (isChunkError(e.message)) {
             console.warn('[SignageGuard] Chunk load failure detected — reloading.');
-            window.location.reload();
+            reloadCacheBusted();
           }
         });
         // Unhandled promise rejections — the primary path for dynamic import failures
@@ -55,7 +73,7 @@
           if (isChunkError(msg)) {
             console.warn('[SignageGuard] Chunk load failure (promise) — reloading.');
             e.preventDefault(); // suppress console error
-            window.location.reload();
+            reloadCacheBusted();
           }
         });
       })();
@@ -184,6 +202,40 @@
   </head>
   <body>
     <div id="root"></div>
+
+    <!--
+      PERSISTENT NAVIGATION SPLASH — must be OUTSIDE React's #root.
+
+      WHY this exists:
+        When the signage app auto-updates it calls window.location.replace().
+        At that moment the old page's DOM (including any React "Updating…"
+        overlay) is torn down before the new page begins rendering.  Chrome's
+        GPU compositor briefly has no content to composite, and on some GPU /
+        HDMI-extended-display configurations that blank frame appears GREEN.
+
+        This <div> is plain HTML — the browser paints it before any JavaScript
+        runs, both on the INITIAL page load and on every subsequent navigation.
+        React hides it immediately after mounting (see App.tsx first useEffect).
+        AutoUpdate shows it again (via DOM, not React) before triggering any
+        navigation, so the GPU compositor always has a navy frame to composite
+        rather than going blank/green.
+
+      z-index 9999 matches the React "Updating Display…" overlay so both are
+      at the same stacking level during an update.  The React overlay sits
+      inside #root which comes first in the DOM, so this sibling splash
+      renders on top when both share z-index:9999.
+    -->
+    <div
+      id="nav-splash"
+      style="
+        position: fixed;
+        inset: 0;
+        background-color: #0B1E3B;
+        z-index: 9999;
+        display: block;
+      "
+    ></div>
+
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

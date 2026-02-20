@@ -202,6 +202,15 @@ const App: React.FC = () => {
   // prayers have already passed so it can switch from "today override" → "tomorrow change" alerts.
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState<number>(() => toEasternMinutes(new Date()));
 
+  // Hide the persistent #nav-splash div (rendered in index.html) once React
+  // has mounted and painted its first frame.  The splash covers the screen on
+  // page load and after every navigation so the GPU compositor always has a
+  // navy frame to show — preventing the green flash on HDMI extended displays.
+  useEffect(() => {
+    const splash = document.getElementById('nav-splash');
+    if (splash) splash.style.display = 'none';
+  }, []);
+
   // Load data from Supabase on mount
   useEffect(() => {
     const loadFromDatabase = async () => {
