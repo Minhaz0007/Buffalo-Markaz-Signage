@@ -7,6 +7,7 @@ import { getScheduleForDate, ScheduleIndex } from '../utils/scheduler';
 import { MobileSilentAlert } from './MobileSilentAlert';
 import { getHijriDate } from '../utils/hijriDate';
 import { SeamlessTicker } from './SeamlessTicker';
+import { toEasternDateStr, toEasternMinutes, toEasternDayOfWeek, easternTimeStrToDate } from '../utils/easternTime';
 
 interface ScreenPrayerTimesProps {
   prayers: DailyPrayers;
@@ -235,22 +236,27 @@ const ScheduleSlide = React.memo(({ config, excelSchedule, manualOverrides, magh
 
     const scheduleData = useMemo(() => {
         const days = [];
-        const start = new Date();
-        // Start from Tomorrow (exclude today)
-        start.setDate(start.getDate() + 1);
+        // Anchor to Eastern today so the schedule never drifts due to device timezone
+        const todayEastern = toEasternDateStr(new Date());
+        const start = new Date(todayEastern + 'T12:00:00'); // noon on Eastern today (safe anchor)
+        start.setDate(start.getDate() + 1); // start from tomorrow
 
         // Use config value for days to display
-        const daysToDisplay = config.daysToShow || 7; 
-        
-        for(let i = 0; i < daysToDisplay; i++) {
+        const daysToDisplay = config.daysToShow || 7;
+
+        for (let i = 0; i < daysToDisplay; i++) {
            const d = new Date(start);
            d.setDate(start.getDate() + i);
-           const dateKey = d.toISOString().split('T')[0];
+           // Use Eastern date string so the key (and display) are correct
+           // regardless of device timezone
+           const dateKey = toEasternDateStr(d);
            const { prayers } = getScheduleForDate(dateKey, excelSchedule, manualOverrides, maghribOffset, scheduleIndex);
-           
+
+           // Display fields also pinned to Eastern timezone
+           const displayDate = new Date(dateKey + 'T12:00:00');
            days.push({
-              dateDisplay: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-              dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+              dateDisplay: displayDate.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' }),
+              dayName: displayDate.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' }),
               prayers
            });
         }
@@ -355,41 +361,17 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     latestScheduleRef.current = { prayers, jumuah };
   }, [prayers, jumuah]);
 
+  // Converts an Eastern prayer time string to a Date object anchored to the
+  // Eastern civil date that `now` falls on.  Uses easternTimeStrToDate so it
+  // is correct regardless of the device's system timezone, and auto-adjusts
+  // for DST transitions year-to-year via the Intl API.
   const parseTime = useCallback((timeStr: string, now: Date): Date | null => {
     if (!timeStr) return null;
-
-    // Normalize: trim and handle multiple spaces
-    const normalized = timeStr.trim().replace(/\s+/g, ' ');
-    const parts = normalized.split(' ');
-
-    if (parts.length !== 2) {
+    const result = easternTimeStrToDate(timeStr.trim().replace(/\s+/g, ' '), now);
+    if (!result) {
       console.error(`Invalid time format: "${timeStr}"`);
-      return null;
     }
-
-    const [time, modifier] = parts;
-    const timeParts = time.split(':');
-
-    if (timeParts.length !== 2) {
-      console.error(`Invalid time components: "${time}"`);
-      return null;
-    }
-
-    let [hours, minutes] = timeParts.map(Number);
-
-    if (isNaN(hours) || isNaN(minutes)) {
-      console.error(`Invalid numbers in time: "${time}"`);
-      return null;
-    }
-
-    // Convert to 24-hour format
-    const upperModifier = modifier.toUpperCase();
-    if (upperModifier === 'PM' && hours < 12) hours += 12;
-    if (upperModifier === 'AM' && hours === 12) hours = 0;
-
-    // Create date for today at specified time
-    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
-    return date;
+    return result;
   }, []);
 
   const calculateNextIqamah = useCallback((now: Date) => {
@@ -421,7 +403,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     }
 
     // Special Friday Logic: Replace Dhuhr with Jumu'ah on Fridays
-    const isFriday = now.getDay() === 5;
+    // Use Eastern day-of-week so the check is correct even if the device
+    // is not set to America/New_York (e.g. UTC server at 12 AM Sat = 8 PM Fri EDT).
+    const isFriday = toEasternDayOfWeek(now) === 5;
     if (isFriday && nextPrayer && nextPrayer.name === 'Dhuhr') {
       const jumuahTime = parseTime(currentJumuah.iqamah || '', now);
       if (jumuahTime) {
@@ -484,11 +468,15 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   }, [calculateNextIqamah]); // Keep countdown synced with updated prayer data
 
   const formatDate = useCallback((date: Date) => {
-    return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
+    // Pin to Eastern timezone so the displayed date is always Buffalo local date,
+    // not the device's system date (which may differ after 7–8 PM if device is UTC).
+    return date.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
   }, []);
 
   const formatTimeParts = useCallback((date: Date) => {
-    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+    // Pin to Eastern timezone so the live clock always shows Buffalo time,
+    // DST-aware year-to-year via the Intl API.
+    const timeStr = date.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
     const parts = timeStr.split(' ');
     const timeComponents = parts[0].split(':');
     return { hours: timeComponents[0], minutes: timeComponents[1], seconds: timeComponents[2], ampm: parts[1] };
@@ -505,8 +493,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
   const getActiveRowIndex = useCallback(() => {
     const now = new Date();
-    const isFriday = now.getDay() === 5; // 5 is Friday
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const isFriday = toEasternDayOfWeek(now) === 5; // 5 is Friday (Eastern)
+    const currentMinutes = toEasternMinutes(now);
     const parseToMinutes = (timeStr: string) => {
        if (!timeStr) return -1;
        const [time, modifier] = timeStr.split(' ');

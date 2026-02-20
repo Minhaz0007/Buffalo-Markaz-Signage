@@ -1,11 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
-// ── 60 Hz lock ────────────────────────────────────────────────────────────────
-// All position advances happen in fixed 16.667 ms steps so the ticker scrolls
-// at a constant, display-independent 60 fps regardless of whether the monitor
-// runs at 60 / 90 / 120 / 144 Hz.
-const TARGET_FPS      = 60;
-const FRAME_INTERVAL  = 1000 / TARGET_FPS; // ≈ 16.667 ms
 
 interface SeamlessTickerProps {
   children: React.ReactNode;
@@ -34,10 +28,9 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
   const [containerWidth, setContainerWidth] = useState(0);
 
   // Animation state kept in refs so rAF never triggers a React re-render.
-  const rafRef         = useRef<number>(0);
-  const positionRef    = useRef<number>(0);
-  const lastTimeRef    = useRef<number | null>(null);
-  const accumulatorRef = useRef<number>(0);
+  const rafRef      = useRef<number>(0);
+  const positionRef = useRef<number>(0);
+  const lastTimeRef = useRef<number | null>(null);
 
   // ── Measurement ─────────────────────────────────────────────────────────────
   // getBoundingClientRect returns sub-pixel widths (e.g. 1438.75 px).
@@ -67,10 +60,12 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
   }, [contentWidth, containerWidth]);
 
   // ── 60 Hz rAF animation loop ─────────────────────────────────────────────────
-  // Uses a fixed-timestep accumulator so the ticker always advances the same
-  // number of pixels per logical frame (16.667 ms) regardless of the actual
-  // display refresh rate.  The DOM transform is updated directly — no React
-  // state, no re-render, no jitter from Supabase realtime or clock ticks.
+    // Advances position on every display frame using elapsed real time so the
+  // ticker runs at the monitor's native refresh rate (60 Hz, 120 Hz, 144 Hz…).
+  // Speed is defined in pixels/second via pxPerMs, so the scroll rate is
+  // identical on every display — only motion smoothness improves at higher Hz.
+  // The DOM transform is updated directly — no React state, no re-render, no
+  // jitter from Supabase realtime or clock ticks.
   useEffect(() => {
     if (!contentWidth || !containerRef.current) return;
 
@@ -78,35 +73,29 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
     const pxPerMs = baseSpeed / 1000;
 
     // Reset to start position whenever content or speed changes.
-    positionRef.current    = 0;
-    lastTimeRef.current    = null;
-    accumulatorRef.current = 0;
+    positionRef.current = 0;
+    lastTimeRef.current = null;
 
     const tick = (timestamp: number) => {
       if (lastTimeRef.current === null) {
         lastTimeRef.current = timestamp;
       }
 
-      const elapsed = timestamp - lastTimeRef.current;
-      lastTimeRef.current = timestamp;
-
       // Cap elapsed to 200 ms so a tab becoming visible after being hidden
       // doesn't cause a massive single-frame jump.
-      accumulatorRef.current += Math.min(elapsed, 200);
+      const elapsed = Math.min(timestamp - lastTimeRef.current, 200);
+      lastTimeRef.current = timestamp;
 
-      // Advance position in fixed 60 Hz steps (16.667 ms each).
-      while (accumulatorRef.current >= FRAME_INTERVAL) {
-        positionRef.current    += sign * pxPerMs * FRAME_INTERVAL;
-        accumulatorRef.current -= FRAME_INTERVAL;
+      // Advance by the real elapsed time — runs at native display Hz.
+      positionRef.current += sign * pxPerMs * elapsed;
 
-        // Seamless loop: once we've scrolled exactly one content-width,
-        // snap back to 0 — the first clone is visually identical to the
-        // original so the jump is invisible.
-        if (direction === 'left' && positionRef.current <= -contentWidth) {
-          positionRef.current += contentWidth;
-        } else if (direction === 'right' && positionRef.current >= contentWidth) {
-          positionRef.current -= contentWidth;
-        }
+      // Seamless loop: once we've scrolled exactly one content-width,
+      // snap back to 0 — the first clone is visually identical to the
+      // original so the jump is invisible.
+      if (direction === 'left' && positionRef.current <= -contentWidth) {
+        positionRef.current += contentWidth;
+      } else if (direction === 'right' && positionRef.current >= contentWidth) {
+        positionRef.current -= contentWidth;
       }
 
       // Write directly to the DOM — bypasses React diffing entirely.
