@@ -23,6 +23,13 @@ CALCULATION_PARAMS.madhab = Madhab.Hanafi;
 // rounds to the nearest minute, turning 5:53:36 into 5:54 PM (wrong).
 CALCULATION_PARAMS.rounding = Rounding.None;
 
+// Sunrise correction: adhan uses the Meeus single-iteration algorithm which
+// runs ~2 minutes behind more precise multi-iteration calculators (e.g. NOAA,
+// IslamicFinder) for Buffalo, NY at 18° calculation parameters.  A -2 min
+// adjustment aligns the displayed sunrise with the authoritative reference
+// value (7:03 AM instead of 7:05 AM) while leaving all other times unchanged.
+CALCULATION_PARAMS.adjustments.sunrise = -2;
+
 // Memoization cache for Intl.DateTimeFormat instances
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
 
