@@ -1,4 +1,4 @@
-import { Coordinates, CalculationMethod, PrayerTimes, Prayer, Madhab } from 'adhan';
+import { Coordinates, CalculationMethod, PrayerTimes, Prayer, Madhab, Rounding } from 'adhan';
 import { DailyPrayers } from '../types';
 import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES } from '../constants';
 
@@ -16,6 +16,12 @@ CALCULATION_PARAMS.ishaAngle = 18;  // Change from 15 to 18 for Hanafi
 // Use Hanafi madhab for Asr calculation (common in many communities)
 // Can be changed to Madhab.Shafi if needed
 CALCULATION_PARAMS.madhab = Madhab.Hanafi;
+
+// Disable adhan's built-in minute rounding so the raw astronomical time is
+// returned (e.g. 5:53:36). Our formatTime() already truncates seconds, which
+// is the correct behaviour: 5:53:36 → "5:53 PM". Without this setting adhan
+// rounds to the nearest minute, turning 5:53:36 into 5:54 PM (wrong).
+CALCULATION_PARAMS.rounding = Rounding.None;
 
 // Memoization cache for Intl.DateTimeFormat instances
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
