@@ -121,6 +121,62 @@ const BackgroundManager = React.memo(({ theme }: { theme: string }) => {
   }
 });
 
+// --- Eastern Timezone Utilities ---
+
+const EASTERN_TZ = 'America/New_York';
+
+const easternDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: EASTERN_TZ,
+});
+
+const easternTimeFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: EASTERN_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+/** Returns 'YYYY-MM-DD' in America/New_York timezone (en-CA locale gives ISO format). */
+const toEasternDateStr = (date: Date): string => easternDateFormatter.format(date);
+
+/** Returns hours*60+minutes in America/New_York timezone. */
+const toEasternMinutes = (date: Date): number => {
+  const parts = Object.fromEntries(
+    easternTimeFormatter.formatToParts(date)
+      .filter(p => p.type !== 'literal')
+      .map(p => [p.type, p.value])
+  );
+  return Number(parts.hour) * 60 + Number(parts.minute);
+};
+
+/**
+ * Returns the UTC millisecond timestamp of midnight (00:00) in Eastern timezone
+ * for the given YYYY-MM-DD Eastern date string.
+ * Iterates UTC hours to find the one that maps to 00:00 Eastern — handles DST automatically.
+ */
+const findEasternMidnightMs = (easternDateStr: string): number => {
+  const [year, month, day] = easternDateStr.split('-').map(Number);
+  for (let h = 0; h < 24; h++) {
+    const t = new Date(Date.UTC(year, month - 1, day, h, 0, 0));
+    const parts = Object.fromEntries(
+      easternTimeFormatter.formatToParts(t)
+        .filter(p => p.type !== 'literal')
+        .map(p => [p.type, p.value])
+    );
+    if (
+      Number(parts.hour) === 0 && Number(parts.minute) === 0 &&
+      Number(parts.year) === year && Number(parts.month) === month && Number(parts.day) === day
+    ) {
+      return t.getTime();
+    }
+  }
+  // Fallback: assume EST (UTC-5) — should never be reached
+  return Date.UTC(year, month - 1, day, 5, 0, 0);
+};
+
 // --- Custom Hooks ---
 
 // Hook for persistent state (Offline capability)
@@ -196,13 +252,10 @@ const App: React.FC = () => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Current time in minutes-since-midnight, updated every minute by the clock
-  // interval below. Used by the schedule-alert effect to decide which prayers
-  // have already passed so it can switch from "today override" → "tomorrow change" alerts.
-  const [currentTimeMinutes, setCurrentTimeMinutes] = useState<number>(() => {
-    const n = new Date();
-    return n.getHours() * 60 + n.getMinutes();
-  });
+  // Current time in minutes-since-midnight (Eastern timezone), updated every minute
+  // by the clock interval below. Used by the schedule-alert effect to decide which
+  // prayers have already passed so it can switch from "today override" → "tomorrow change" alerts.
+  const [currentTimeMinutes, setCurrentTimeMinutes] = useState<number>(() => toEasternMinutes(new Date()));
 
   // Load data from Supabase on mount
   useEffect(() => {
@@ -419,15 +472,20 @@ const App: React.FC = () => {
 
   // --- Logic: Priority Scheduler & Alerts ---
   
-  // Track current date string to trigger daily updates
-  const [todayDateStr, setTodayDateStr] = useState(() => new Date().toISOString().split('T')[0]);
+  // Track current date string to trigger daily updates (Eastern timezone, not UTC)
+  const [todayDateStr, setTodayDateStr] = useState(() => toEasternDateStr(new Date()));
+
+  // UTC millisecond timestamp of midnight (00:00) in Eastern timezone for today.
+  // Recomputed once per day when todayDateStr changes. Used by parseTime to convert
+  // Eastern prayer time strings into absolute Date objects regardless of device timezone.
+  const todayEasternMidnightMs = useMemo(() => findEasternMidnightMs(todayDateStr), [todayDateStr]);
 
   // Memoized Schedule Calculation - Separation of Concerns
   const { todaySchedule, tomorrowSchedule } = useMemo(() => {
     const todayDate = new Date(todayDateStr + 'T12:00:00');
     const tomorrowDate = new Date(todayDate);
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-    const tomorrowDateStr = tomorrowDate.toISOString().split('T')[0];
+    const tomorrowDateStr = toEasternDateStr(tomorrowDate);
 
     const tSchedule = getScheduleForDate(todayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex);
     const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex);
@@ -576,30 +634,33 @@ const App: React.FC = () => {
     setScheduleAlert(alerts.join(' • ') || "");
   }, [todaySchedule, tomorrowSchedule, autoAlertSettings, todayDateStr, manualOverrides, currentTimeMinutes]);
 
-  // Helper to parse time string to Date object for today
+  // Helper to parse time string to Date object for today in Eastern timezone.
+  // Offsets from today's Eastern midnight so the result is correct regardless
+  // of the device's system timezone.
   const parseTime = useCallback((timeStr: string | undefined): Date | null => {
     if (!timeStr) return null;
-    const [time, modifier] = timeStr.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-    if (modifier === 'PM' && hours < 12) hours += 12;
-    if (modifier === 'AM' && hours === 12) hours = 0;
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    return date;
-  }, []);
+    const match = timeStr.match(/(\d+):(\d+)\s?(AM|PM)/i);
+    if (!match) return null;
+    let hours = parseInt(match[1]);
+    const minutes = parseInt(match[2]);
+    const ampm = match[3].toUpperCase();
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+    return new Date(todayEasternMidnightMs + (hours * 60 + minutes) * 60 * 1000);
+  }, [todayEasternMidnightMs]);
 
   // Frequent Update Loop (Timer)
   useEffect(() => {
     const tick = () => {
       const now = new Date();
-      const currentIsoDate = now.toISOString().split('T')[0];
+      const currentIsoDate = toEasternDateStr(now);
 
       // 0. Keep currentTimeMinutes in sync (triggers schedule-alert re-evaluation
       //    exactly once per minute, which is when "has this prayer passed?" changes).
-      const newMins = now.getHours() * 60 + now.getMinutes();
+      const newMins = toEasternMinutes(now);
       setCurrentTimeMinutes(prev => prev !== newMins ? newMins : prev);
 
-      // 1. Check for Midnight Transition
+      // 1. Check for Midnight Transition (Eastern timezone)
       if (currentIsoDate !== todayDateStr) {
         setTodayDateStr(currentIsoDate);
         return; // State update will trigger re-render and schedule update
