@@ -23,6 +23,7 @@ import {
 import { isSupabaseConfigured, supabase } from './utils/supabase';
 import { prayerTimesEqual } from './utils/performance';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { toEasternDateStr, toEasternMinutes, findEasternMidnightMs } from './utils/easternTime';
 
 // --- Background Components ---
 
@@ -120,62 +121,6 @@ const BackgroundManager = React.memo(({ theme }: { theme: string }) => {
       );
   }
 });
-
-// --- Eastern Timezone Utilities ---
-
-const EASTERN_TZ = 'America/New_York';
-
-const easternDateFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: EASTERN_TZ,
-});
-
-const easternTimeFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: EASTERN_TZ,
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-});
-
-/** Returns 'YYYY-MM-DD' in America/New_York timezone (en-CA locale gives ISO format). */
-const toEasternDateStr = (date: Date): string => easternDateFormatter.format(date);
-
-/** Returns hours*60+minutes in America/New_York timezone. */
-const toEasternMinutes = (date: Date): number => {
-  const parts = Object.fromEntries(
-    easternTimeFormatter.formatToParts(date)
-      .filter(p => p.type !== 'literal')
-      .map(p => [p.type, p.value])
-  );
-  return Number(parts.hour) * 60 + Number(parts.minute);
-};
-
-/**
- * Returns the UTC millisecond timestamp of midnight (00:00) in Eastern timezone
- * for the given YYYY-MM-DD Eastern date string.
- * Iterates UTC hours to find the one that maps to 00:00 Eastern — handles DST automatically.
- */
-const findEasternMidnightMs = (easternDateStr: string): number => {
-  const [year, month, day] = easternDateStr.split('-').map(Number);
-  for (let h = 0; h < 24; h++) {
-    const t = new Date(Date.UTC(year, month - 1, day, h, 0, 0));
-    const parts = Object.fromEntries(
-      easternTimeFormatter.formatToParts(t)
-        .filter(p => p.type !== 'literal')
-        .map(p => [p.type, p.value])
-    );
-    if (
-      Number(parts.hour) === 0 && Number(parts.minute) === 0 &&
-      Number(parts.year) === year && Number(parts.month) === month && Number(parts.day) === day
-    ) {
-      return t.getTime();
-    }
-  }
-  // Fallback: assume EST (UTC-5) — should never be reached
-  return Date.UTC(year, month - 1, day, 5, 0, 0);
-};
 
 // --- Custom Hooks ---
 
