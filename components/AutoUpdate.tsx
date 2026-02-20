@@ -80,12 +80,21 @@ export const AutoUpdate: React.FC = () => {
     // Layer 2: trigger React overlay for "Updating Display…" text (best-effort).
     setIsUpdating(true);
 
-    // Layer 3: navigate after a short delay to allow the browser one paint cycle.
+    // Layer 3: navigate after 1 s.
+    //
+    // WHY 1 second (matching the original working implementation):
+    //   On HDMI extended displays Chrome's GPU compositor must output the navy
+    //   splash frame to the TV BEFORE navigation tears down the old page.  TVs
+    //   connected via HDMI sometimes need 300–800 ms to "lock on" to a new
+    //   compositor frame depending on firmware and cable quality.  200 ms was
+    //   too short for some configurations; 1 s matches the delay that worked
+    //   reliably before Jules' timing change broke it.  The 1 s is imperceptible
+    //   on a signage display that refreshes every few minutes.
     setTimeout(() => {
       const url = new URL(window.location.href);
       url.searchParams.set('_r', Date.now().toString());
       window.location.replace(url.toString());
-    }, 200);
+    }, 1_000);
   };
 
   // ── Broadcast reload signal to ALL tabs ───────────────────────────────────
