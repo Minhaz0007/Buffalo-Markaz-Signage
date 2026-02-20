@@ -622,9 +622,15 @@ const App: React.FC = () => {
 
       // 2. Mobile Silent Alert Logic
       if (mobileAlertSettings.enabled && !isPreviewAlert) {
+        const isFriday = now.getDay() === 5;
+        // On Fridays, Jumu'ah iqamah is always forced equal to Dhuhr iqamah (see scheduler.ts).
+        // So if disableForJumuah is on, we must also exclude Dhuhr — otherwise the alert fires
+        // through the Dhuhr entry at the same time.
+        const skipDhuhr = isFriday && mobileAlertSettings.disableForJumuah;
+
         const prayersList = [
           todaySchedule.prayers.fajr,
-          todaySchedule.prayers.dhuhr,
+          ...(!skipDhuhr ? [todaySchedule.prayers.dhuhr] : []),
           todaySchedule.prayers.asr,
           todaySchedule.prayers.maghrib,
           todaySchedule.prayers.isha
@@ -637,7 +643,7 @@ const App: React.FC = () => {
 
         // Special case for Jumuah on Friday
         // Skip if disableForJumuah is enabled
-        if (now.getDay() === 5 && todaySchedule.jumuah.iqamah && !mobileAlertSettings.disableForJumuah) {
+        if (isFriday && todaySchedule.jumuah.iqamah && !mobileAlertSettings.disableForJumuah) {
           const jTime = parseTime(todaySchedule.jumuah.iqamah);
           if (jTime) iqamahTimes.push(jTime);
         }
