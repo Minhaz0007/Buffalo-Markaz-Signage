@@ -435,16 +435,22 @@ const App: React.FC = () => {
   const todayEasternMidnightMs = useMemo(() => findEasternMidnightMs(todayDateStr), [todayDateStr]);
 
   // Memoized Schedule Calculation - Separation of Concerns
-  const { todaySchedule, tomorrowSchedule } = useMemo(() => {
+  const { yesterdaySchedule, todaySchedule, tomorrowSchedule } = useMemo(() => {
     const todayDate = new Date(todayDateStr + 'T12:00:00');
+
+    const yesterdayDate = new Date(todayDate);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayDateStr = toEasternDateStr(yesterdayDate);
+
     const tomorrowDate = new Date(todayDate);
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
     const tomorrowDateStr = toEasternDateStr(tomorrowDate);
 
+    const ydaySchedule = getScheduleForDate(yesterdayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex);
     const tSchedule = getScheduleForDate(todayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex);
     const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex);
 
-    return { todaySchedule: tSchedule, tomorrowSchedule: tmSchedule };
+    return { yesterdaySchedule: ydaySchedule, todaySchedule: tSchedule, tomorrowSchedule: tmSchedule };
   }, [todayDateStr, excelSchedule, manualOverrides, maghribOffset, scheduleIndex]);
 
   // Update Display State & System Alerts (Only when schedule changes)
@@ -466,24 +472,23 @@ const App: React.FC = () => {
       return next;
     });
 
-    // ── Change Detection Logic (per-prayer, time-aware) ──────────────────────
+    // ── Change Detection Logic (post-iqamah only, 24-hour window) ────────────
     //
-    // PRIORITY: manual override > Excel schedule > auto-calculated time
-    //           (enforced upstream by getScheduleForDate / scheduler.ts)
+    // TRIGGER: An alert fires only AFTER a prayer's iqamah time has passed today
+    //          AND tomorrow's iqamah differs from today's.
     //
-    // BEHAVIOR per prayer:
-    //   • Before iqamah time has passed today:
-    //       - If a manual override is active for this prayer → show "today" alert
-    //         so the congregation knows the time has changed for this salah.
-    //       - No override → no alert (regular scheduled time, nothing to announce).
-    //   • After iqamah time has passed today (congregation has already prayed):
-    //       - Drop any "today" override alert — it's no longer relevant.
-    //       - Compare today's iqamah with tomorrow's iqamah.
-    //       - If they differ → show the template-based "tomorrow" alert so
-    //         people know what to expect for the next occurrence.
+    // 24-HOUR WINDOW: To keep the alert visible for a full 24-hour cycle
+    //   (e.g. after Isha at 9 PM through the following night), the logic also
+    //   checks the carry-over case: if today's iqamah has NOT yet passed but
+    //   yesterday's iqamah was different from today's, it means we are in the
+    //   carry-over window of a change detected yesterday — show it until today's
+    //   iqamah passes (completing the ~24-hour cycle).
     //
-    // This means the ticker stays clean during the day and only shows useful,
-    // forward-looking information once each prayer is done.
+    // ONE DETECTION: There is only one detection path per prayer — comparing
+    //   consecutive days' iqamah times. No separate "manual override today" alert.
+    //
+    // Maghrib is always skipped — it changes every day (sunset + offset) and
+    // alerting on it would be noise.
 
     if (!autoAlertSettings.enabled) {
       setScheduleAlert("");
@@ -507,86 +512,79 @@ const App: React.FC = () => {
     const template = autoAlertSettings.template ||
       "⚠️ NOTICE: Iqamah changes tomorrow for {prayers} to {new time}";
 
-    // Collect active manual overrides for TODAY, deduplicated by prayer key
-    // (Map ensures even if two rows cover the same prayer, only one alert fires).
-    const activeOverrides = new Map<string, ManualOverride>();
-    (manualOverrides || []).forEach(o => {
-      if (todayDateStr >= o.startDate && todayDateStr <= o.endDate) {
-        activeOverrides.set(o.prayerKey, o);
-      }
-    });
-
     const alerts: string[] = [];
 
-    // Per-prayer evaluation: decides what (if anything) to add to the ticker.
+    // Per-prayer evaluation: single detection path, 24-hour window.
     const evalPrayer = (
-      displayName: string,
-      prayerKey:   string,
-      todayIqamah: string | undefined,
-      tmrwIqamah:  string | undefined,
+      displayName:     string,
+      yesterdayIqamah: string | undefined,
+      todayIqamah:     string | undefined,
+      tmrwIqamah:      string | undefined,
     ) => {
-      const todayMins = toMins(todayIqamah);
-      const tmrwMins  = toMins(tmrwIqamah);
-      const hasPassed = todayMins !== -1 && currentTimeMinutes >= todayMins;
+      const yesterdayMins = toMins(yesterdayIqamah);
+      const todayMins     = toMins(todayIqamah);
+      const tmrwMins      = toMins(tmrwIqamah);
+      const hasPassed     = todayMins !== -1 && currentTimeMinutes >= todayMins;
 
-      if (!hasPassed) {
-        // ── Prayer is still ahead today ───────────────────────────────────────
-        // Only alert if an admin has manually overridden this salah's time,
-        // so the congregation sees the updated iqamah before they come to pray.
-        const override = activeOverrides.get(prayerKey);
-        if (override) {
-          alerts.push(`${displayName} iqamah is at ${override.iqamah} today`);
-        }
-        // No override → regular schedule → no alert needed.
-      } else {
-        // ── Prayer has already happened today ─────────────────────────────────
-        // Override alert is no longer useful (people already prayed at that time).
-        // Instead, look ahead: if tomorrow's time differs from today's, warn now.
+      if (hasPassed) {
+        // ── After iqamah: alert if tomorrow's iqamah differs from today's ──────
         if (tmrwMins !== -1 && tmrwMins !== todayMins) {
-          const alert = template
-            .replace('{prayers}', displayName)
-            .replace('{new time}', tmrwIqamah!);
-          alerts.push(alert);
+          alerts.push(
+            template
+              .replace('{prayers}', displayName)
+              .replace('{new time}', tmrwIqamah!)
+          );
+        }
+      } else {
+        // ── Before iqamah: 24-hour carry-over from yesterday's detection ───────
+        // If yesterday's iqamah was different from today's, we are still inside
+        // the ~24-hour window started when yesterday's iqamah passed.
+        if (yesterdayMins !== -1 && yesterdayMins !== todayMins) {
+          const todayTemplate = template.replace('tomorrow', 'today');
+          alerts.push(
+            todayTemplate
+              .replace('{prayers}', displayName)
+              .replace('{new time}', todayIqamah!)
+          );
         }
       }
     };
 
-    // Evaluate the four daily prayers (Maghrib is always skipped — it changes
-    // every day by design as sunset + offset, so alerting would be noise).
-    evalPrayer('Fajr',  'fajr',  todaySchedule.prayers.fajr.iqamah,  tomorrowSchedule.prayers.fajr.iqamah);
-    evalPrayer('Dhuhr', 'dhuhr', todaySchedule.prayers.dhuhr.iqamah, tomorrowSchedule.prayers.dhuhr.iqamah);
-    evalPrayer('Asr',   'asr',   todaySchedule.prayers.asr.iqamah,   tomorrowSchedule.prayers.asr.iqamah);
-    evalPrayer('Isha',  'isha',  todaySchedule.prayers.isha.iqamah,  tomorrowSchedule.prayers.isha.iqamah);
+    evalPrayer('Fajr',  yesterdaySchedule.prayers.fajr.iqamah,  todaySchedule.prayers.fajr.iqamah,  tomorrowSchedule.prayers.fajr.iqamah);
+    evalPrayer('Dhuhr', yesterdaySchedule.prayers.dhuhr.iqamah, todaySchedule.prayers.dhuhr.iqamah, tomorrowSchedule.prayers.dhuhr.iqamah);
+    evalPrayer('Asr',   yesterdaySchedule.prayers.asr.iqamah,   todaySchedule.prayers.asr.iqamah,   tomorrowSchedule.prayers.asr.iqamah);
+    evalPrayer('Isha',  yesterdaySchedule.prayers.isha.iqamah,  todaySchedule.prayers.isha.iqamah,  tomorrowSchedule.prayers.isha.iqamah);
 
     // Jumu'ah handling:
     //   • If TODAY is Friday: evaluate Jumu'ah as a regular prayer.
-    //   • If TOMORROW is Friday: after Isha passes, remind about tomorrow's
-    //     Jumu'ah time (it might differ if Dhuhr iqamah changed).
+    //   • If TOMORROW is Friday: after Isha passes, show tomorrow's Jumu'ah
+    //     time if it changed (post-iqamah detection only).
     const todayDate    = new Date(todayDateStr + 'T12:00:00');
     const tomorrowDate = new Date(todayDate);
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
 
     if (todayDate.getDay() === 5) {
-      // Today is Friday — treat Jumu'ah like any other prayer.
-      evalPrayer("Jumu'ah", 'jumuah', todaySchedule.jumuah.iqamah, tomorrowSchedule.jumuah.iqamah);
+      // Today is Friday — evaluate Jumu'ah like any other prayer.
+      evalPrayer("Jumu'ah", yesterdaySchedule.jumuah.iqamah, todaySchedule.jumuah.iqamah, tomorrowSchedule.jumuah.iqamah);
     } else if (tomorrowDate.getDay() === 5) {
-      // Tomorrow is Friday — after Isha show tomorrow's Jumu'ah time if changed.
-      const ishaMinutes = toMins(todaySchedule.prayers.isha.iqamah);
+      // Tomorrow is Friday — after Isha passes, show tomorrow's Jumu'ah if changed.
+      const ishaMinutes  = toMins(todaySchedule.prayers.isha.iqamah);
       const ishaHasPassed = ishaMinutes !== -1 && currentTimeMinutes >= ishaMinutes;
       if (ishaHasPassed) {
         const todayJumuahMins = toMins(todaySchedule.jumuah.iqamah);
         const tmrwJumuahMins  = toMins(tomorrowSchedule.jumuah.iqamah);
         if (tmrwJumuahMins !== -1 && tmrwJumuahMins !== todayJumuahMins) {
-          const alert = template
-            .replace('{prayers}', "Jumu'ah")
-            .replace('{new time}', tomorrowSchedule.jumuah.iqamah!);
-          alerts.push(alert);
+          alerts.push(
+            template
+              .replace('{prayers}', "Jumu'ah")
+              .replace('{new time}', tomorrowSchedule.jumuah.iqamah!)
+          );
         }
       }
     }
 
     setScheduleAlert(alerts.join(' • ') || "");
-  }, [todaySchedule, tomorrowSchedule, autoAlertSettings, todayDateStr, manualOverrides, currentTimeMinutes]);
+  }, [yesterdaySchedule, todaySchedule, tomorrowSchedule, autoAlertSettings, todayDateStr, currentTimeMinutes]);
 
   // Helper to parse time string to Date object for today in Eastern timezone.
   // Offsets from today's Eastern midnight so the result is correct regardless
