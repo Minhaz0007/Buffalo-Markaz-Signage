@@ -514,6 +514,20 @@ const App: React.FC = () => {
 
     const alerts: string[] = [];
 
+    // Build alert text — always appends the time even if the stored template
+    // predates the {new time} placeholder (ensures time is never missing).
+    const buildAlertText = (tpl: string, prayerName: string, timeStr: string | undefined): string => {
+      let text = tpl
+        .replace('{prayers}', prayerName)
+        .replace('{new time}', timeStr || '');
+      // Fallback: if the template had no {new time} placeholder and we have a
+      // time to show, append it so the new time is always visible.
+      if (!tpl.includes('{new time}') && timeStr) {
+        text += ` to ${timeStr}`;
+      }
+      return text;
+    };
+
     // Per-prayer evaluation: single detection path, 24-hour window.
     const evalPrayer = (
       displayName:     string,
@@ -529,11 +543,7 @@ const App: React.FC = () => {
       if (hasPassed) {
         // ── After iqamah: alert if tomorrow's iqamah differs from today's ──────
         if (tmrwMins !== -1 && tmrwMins !== todayMins) {
-          alerts.push(
-            template
-              .replace('{prayers}', displayName)
-              .replace('{new time}', tmrwIqamah!)
-          );
+          alerts.push(buildAlertText(template, displayName, tmrwIqamah));
         }
       } else {
         // ── Before iqamah: 24-hour carry-over from yesterday's detection ───────
@@ -541,11 +551,7 @@ const App: React.FC = () => {
         // the ~24-hour window started when yesterday's iqamah passed.
         if (yesterdayMins !== -1 && yesterdayMins !== todayMins) {
           const todayTemplate = template.replace('tomorrow', 'today');
-          alerts.push(
-            todayTemplate
-              .replace('{prayers}', displayName)
-              .replace('{new time}', todayIqamah!)
-          );
+          alerts.push(buildAlertText(todayTemplate, displayName, todayIqamah));
         }
       }
     };
@@ -574,11 +580,7 @@ const App: React.FC = () => {
         const todayJumuahMins = toMins(todaySchedule.jumuah.iqamah);
         const tmrwJumuahMins  = toMins(tomorrowSchedule.jumuah.iqamah);
         if (tmrwJumuahMins !== -1 && tmrwJumuahMins !== todayJumuahMins) {
-          alerts.push(
-            template
-              .replace('{prayers}', "Jumu'ah")
-              .replace('{new time}', tomorrowSchedule.jumuah.iqamah!)
-          );
+          alerts.push(buildAlertText(template, "Jumu'ah", tomorrowSchedule.jumuah.iqamah));
         }
       }
     }
@@ -807,6 +809,7 @@ const App: React.FC = () => {
                     <ScreenPrayerTimes
                       prayers={safeDisplayedPrayers}
                       jumuah={displayedJumuahTimes}
+                      tomorrowPrayers={tomorrowSchedule.prayers}
                       announcement={effectiveAnnouncement} // Use effectiveAnnouncement (includes alerts)
                       slidesConfig={safeSlidesConfig} // Use safe slides config
                       excelSchedule={excelSchedule}

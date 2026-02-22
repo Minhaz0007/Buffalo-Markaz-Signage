@@ -12,13 +12,14 @@ import { toEasternDateStr, toEasternMinutes, toEasternDayOfWeek, easternTimeStrT
 interface ScreenPrayerTimesProps {
   prayers: DailyPrayers;
   jumuah: { start: string; iqamah: string };
+  tomorrowPrayers?: DailyPrayers;
   announcement: Announcement;
   slidesConfig: SlideConfig[];
   excelSchedule: Record<string, ExcelDaySchedule>;
   manualOverrides: ManualOverride[];
   maghribOffset: number;
   tickerBg: 'white' | 'navy';
-  
+
   // Alert Props
   isAlertActive: boolean;
   alertSettings: MobileSilentAlertSettings;
@@ -312,9 +313,9 @@ const ScheduleSlide = React.memo(({ config, excelSchedule, manualOverrides, magh
 
 /* --- MAIN COMPONENT --- */
 
-export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({ 
-    prayers, jumuah, announcement, 
-    slidesConfig, 
+export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
+    prayers, jumuah, tomorrowPrayers, announcement,
+    slidesConfig,
     excelSchedule, manualOverrides, maghribOffset,
     tickerBg,
     isAlertActive, alertSettings, nextIqamahTime,
@@ -483,13 +484,13 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   }, []);
 
   const rows = useMemo(() => [
-    { name: 'Fajr', start: prayers.fajr.start, iqamah: prayers.fajr.iqamah },
-    { name: 'Dhuhr', start: prayers.dhuhr.start, iqamah: prayers.dhuhr.iqamah },
-    { name: 'Asr', start: prayers.asr.start, iqamah: prayers.asr.iqamah },
-    { name: 'Maghrib', start: prayers.maghrib.start, iqamah: prayers.maghrib.iqamah },
-    { name: 'Isha', start: prayers.isha.start, iqamah: prayers.isha.iqamah },
-    { name: 'Jumu\'ah', start: jumuah.start, iqamah: jumuah.iqamah, isJumuah: true },
-  ], [prayers, jumuah]);
+    { name: 'Fajr',    start: prayers.fajr.start,    iqamah: prayers.fajr.iqamah,    tomorrowIqamah: tomorrowPrayers?.fajr?.iqamah },
+    { name: 'Dhuhr',   start: prayers.dhuhr.start,   iqamah: prayers.dhuhr.iqamah,   tomorrowIqamah: tomorrowPrayers?.dhuhr?.iqamah },
+    { name: 'Asr',     start: prayers.asr.start,     iqamah: prayers.asr.iqamah,     tomorrowIqamah: tomorrowPrayers?.asr?.iqamah },
+    { name: 'Maghrib', start: prayers.maghrib.start, iqamah: prayers.maghrib.iqamah, tomorrowIqamah: tomorrowPrayers?.maghrib?.iqamah },
+    { name: 'Isha',    start: prayers.isha.start,    iqamah: prayers.isha.iqamah,    tomorrowIqamah: tomorrowPrayers?.isha?.iqamah },
+    { name: "Jumu'ah", start: jumuah.start,           iqamah: jumuah.iqamah,          tomorrowIqamah: undefined, isJumuah: true },
+  ], [prayers, jumuah, tomorrowPrayers]);
 
   const getActiveRowIndex = useCallback(() => {
     const now = new Date();
@@ -591,15 +592,19 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
           {/* === LEFT COLUMN: PRAYER TABLE (60%) === */}
           <div className="w-[60%] flex flex-col border-r-4 border-black/30 relative z-10 shadow-xl h-full">
             {/* Header Row */}
-            <div className="h-16 flex items-end pb-1 bg-mosque-navy/40 border-b border-white/10 shrink-0">
-              <div className="w-[34%] text-center border-white/5">
-                  <span className="text-4xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Salah</span>
+            <div className="h-14 flex items-end pb-1 bg-mosque-navy/40 border-b border-white/10 shrink-0">
+              <div className="w-[27%] text-center">
+                <span className="text-[1.75rem] font-sans font-bold tracking-[0.2em] uppercase text-white/60">Salah</span>
               </div>
-              <div className="w-[33%] text-center border-l border-white/5">
-                  <span className="text-4xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Starts</span>
+              <div className="w-[22%] text-center border-l border-white/10">
+                <span className="text-[1.75rem] font-sans font-bold tracking-[0.2em] uppercase text-white/60">Starts</span>
               </div>
-              <div className="w-[33%] text-center border-l border-white/5">
-                  <span className="text-4xl font-sans font-bold tracking-[0.2em] uppercase text-white/60">Iqamah</span>
+              <div className="w-[25%] text-center border-l border-white/10">
+                <span className="text-[1.75rem] font-sans font-bold tracking-[0.2em] uppercase text-white/60">Iqamah</span>
+              </div>
+              <div className="w-[26%] text-center border-l border-white/10 flex flex-col items-center justify-end pb-0.5">
+                <span className="text-[1.75rem] font-sans font-bold tracking-[0.15em] uppercase text-mosque-gold/80">TM/I</span>
+                <span className="text-[0.75rem] font-sans font-semibold uppercase tracking-widest text-mosque-gold/50 leading-none mb-0.5">Tomorrow</span>
               </div>
             </div>
 
@@ -630,33 +635,51 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                 }
 
                 const iqamahBgClass = isActive ? '' : 'bg-black/5';
-                const nameSize = 'text-[4.5rem]';
-                const timeSize = 'text-[6.5rem] font-bold';
+                const nameSize = 'text-[3.8rem]';
+                const timeSize = 'text-[5.5rem] font-bold';
 
                 // Use consistent line-height for all rows including Jumuah
                 const nameLineHeight = 'leading-[0.9]';
                 const timeLineHeight = 'leading-[0.85]';
 
+                // Tomorrow iqamah column: same size, slightly muted color to read as secondary
+                const tomorrowTimeColor = isActive ? 'text-mosque-navy/70' : 'text-white/60';
+
                 return (
                   <div key={idx} className={`flex-1 flex items-center ${bgClass} border-b ${borderClass} transition-all duration-700 ease-out relative py-1`}>
-                    <div className="w-[34%] flex items-center justify-center py-1">
+                    {/* Salah Name */}
+                    <div className="w-[27%] flex items-center justify-center py-1">
                         <span className={`block font-bold uppercase tracking-wider ${nameLineHeight} transition-all duration-500 ${nameSize} ${nameColor}`}>
                           {row.name}
                         </span>
                     </div>
-                    <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
+                    {/* Starts */}
+                    <div className={`w-[22%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
                         <TimeDisplay
                           time={row.start}
                           className={`transition-all duration-500 ${timeLineHeight} ${timeSize}`}
                           colorClassName={timeColor}
                         />
                     </div>
-                    <div className={`w-[33%] h-full flex items-center justify-center border-l ${borderClass} ${iqamahBgClass} py-1`}>
+                    {/* Iqamah */}
+                    <div className={`w-[25%] h-full flex items-center justify-center border-l ${borderClass} ${iqamahBgClass} py-1`}>
                         <TimeDisplay
                           time={row.iqamah || ''}
                           className={`transition-all duration-500 ${timeLineHeight} ${timeSize}`}
                           colorClassName={timeColor}
                         />
+                    </div>
+                    {/* TM/I — Tomorrow's Iqamah (empty for Jumu'ah) */}
+                    <div className={`w-[26%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
+                      {!row.isJumuah && row.tomorrowIqamah ? (
+                        <TimeDisplay
+                          time={row.tomorrowIqamah}
+                          className={`transition-all duration-500 ${timeLineHeight} ${timeSize}`}
+                          colorClassName={tomorrowTimeColor}
+                        />
+                      ) : (
+                        <span className={`font-serif text-[2.5rem] ${isActive ? 'text-mosque-navy/25' : 'text-white/20'}`}>—</span>
+                      )}
                     </div>
                   </div>
                 );
