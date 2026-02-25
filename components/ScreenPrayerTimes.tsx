@@ -593,16 +593,16 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
           <div className="w-[60%] flex flex-col border-r-4 border-black/30 relative z-10 shadow-xl h-full">
             {/* Header Row */}
             <div className="h-14 flex items-end pb-1 bg-mosque-navy/40 border-b border-white/10 shrink-0">
-              <div className="w-[27%] text-center">
+              <div className="w-[25%] text-center">
                 <span className="text-[1.75rem] font-sans font-bold tracking-[0.2em] uppercase text-white/60">Salah</span>
               </div>
-              <div className="w-[22%] text-center border-l border-white/10">
+              <div className="w-[26%] text-center border-l border-white/10">
                 <span className="text-[1.75rem] font-sans font-bold tracking-[0.2em] uppercase text-white/60">Starts</span>
               </div>
               <div className="w-[25%] text-center border-l border-white/10">
                 <span className="text-[1.75rem] font-sans font-bold tracking-[0.2em] uppercase text-white/60">Iqamah</span>
               </div>
-              <div className="w-[26%] text-center border-l border-white/10 flex flex-col items-center justify-end pb-0.5">
+              <div className="w-[24%] text-center border-l border-white/10 flex flex-col items-center justify-end pb-0.5">
                 <span className="text-[1.2rem] font-sans font-bold tracking-[0.15em] uppercase text-white/60 leading-tight">Tomorrow</span>
                 <span className="text-[1.2rem] font-sans font-bold tracking-[0.15em] uppercase text-white/60 leading-tight">Iqamah</span>
               </div>
@@ -648,13 +648,13 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                 return (
                   <div key={idx} className={`flex-1 flex items-center ${bgClass} border-b ${borderClass} transition-all duration-700 ease-out relative py-1`}>
                     {/* Salah Name */}
-                    <div className="w-[27%] flex items-center justify-center py-1">
+                    <div className="w-[25%] flex items-center justify-center py-1">
                         <span className={`block font-bold uppercase tracking-wider ${nameLineHeight} transition-all duration-500 ${nameSize} ${nameColor}`}>
                           {row.name}
                         </span>
                     </div>
                     {/* Starts */}
-                    <div className={`w-[22%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
+                    <div className={`w-[26%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
                         <TimeDisplay
                           time={row.start}
                           className={`transition-all duration-500 ${timeLineHeight} ${timeSize}`}
@@ -670,7 +670,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                         />
                     </div>
                     {/* TM/I — Tomorrow's Iqamah (empty for Jumu'ah) */}
-                    <div className={`w-[26%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
+                    <div className={`w-[24%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
                       {!row.isJumuah && row.tomorrowIqamah ? (
                         <TimeDisplay
                           time={row.tomorrowIqamah}
