@@ -14,7 +14,7 @@ export const DEFAULT_PRAYER_TIMES: DailyPrayers = {
   sunrise: '6:58 AM',
   dhuhr: { name: 'Dhuhr', start: '1:15 PM', iqamah: '1:45 PM' },
   asr: { name: 'Asr', start: '4:30 PM', iqamah: '5:00 PM' },
-  maghrib: { name: 'Maghrib', start: '6:15 PM', iqamah: '6:25 PM' },
+  maghrib: { name: 'Maghrib', start: '6:15 PM', iqamah: '6:35 PM' },
   isha: { name: 'Isha', start: '8:00 PM', iqamah: '8:30 PM' },
   sunset: '6:15 PM'
 };

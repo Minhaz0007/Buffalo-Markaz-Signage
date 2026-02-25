@@ -164,7 +164,7 @@ const App: React.FC = () => {
   const [manualOverrides, setManualOverrides] = useState<ManualOverride[]>([]);
   const [announcement, setAnnouncement] = useState<Announcement>(DEFAULT_ANNOUNCEMENT);
   const [currentTheme, setCurrentTheme] = useState<string>('starry');
-  const [maghribOffset, setMaghribOffset] = useState<number>(10);
+  const [maghribOffset, setMaghribOffset] = useState<number>(20);
 
   // New Configs
   const [autoAlertSettings, setAutoAlertSettings] = useState<AutoAlertSettings>(DEFAULT_AUTO_ALERTS);

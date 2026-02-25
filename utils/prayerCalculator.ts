@@ -133,7 +133,7 @@ export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
     const fajrIqamah = new Date(prayerTimes.fajr.getTime() + 15 * 60 * 1000); // +15 min
     const dhuhrIqamah = new Date(prayerTimes.dhuhr.getTime() + 10 * 60 * 1000); // +10 min
     const asrIqamah = new Date(prayerTimes.asr.getTime() + 10 * 60 * 1000); // +10 min
-    const maghribIqamah = new Date(prayerTimes.maghrib.getTime() + 5 * 60 * 1000); // +5 min
+    const maghribIqamah = new Date(prayerTimes.maghrib.getTime() + 20 * 60 * 1000); // +20 min (matches masjid default; overridden by user offset in scheduler)
     const ishaIqamah = new Date(prayerTimes.isha.getTime() + 15 * 60 * 1000); // +15 min
 
     return {
