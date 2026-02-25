@@ -603,8 +603,8 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                 <span className="text-[1.75rem] font-sans font-bold tracking-[0.2em] uppercase text-white/60">Iqamah</span>
               </div>
               <div className="w-[26%] text-center border-l border-white/10 flex flex-col items-center justify-end pb-0.5">
-                <span className="text-[1.75rem] font-sans font-bold tracking-[0.15em] uppercase text-mosque-gold/80">TM/I</span>
-                <span className="text-[0.75rem] font-sans font-semibold uppercase tracking-widest text-mosque-gold/50 leading-none mb-0.5">Tomorrow</span>
+                <span className="text-[1.2rem] font-sans font-bold tracking-[0.15em] uppercase text-white/60 leading-tight">Tomorrow</span>
+                <span className="text-[1.2rem] font-sans font-bold tracking-[0.15em] uppercase text-white/60 leading-tight">Iqamah</span>
               </div>
             </div>
 
