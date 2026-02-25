@@ -114,14 +114,18 @@ CREATE TABLE IF NOT EXISTS slideshow_config (
 -- Stores all other configuration values (single row)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS global_settings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    -- Single-row table: id is always 1. Use INTEGER so the app can upsert
+    -- with id=1 reliably (UUID primary key + id:1 integer mismatch caused
+    -- saves to silently fail, resetting maghrib_offset to its default on
+    -- every page reload).
+    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
 
     -- Theme settings
     theme VARCHAR(20) NOT NULL DEFAULT 'starry' CHECK (theme IN ('starry', 'arabesque', 'lattice')),
     ticker_bg VARCHAR(20) NOT NULL DEFAULT 'white' CHECK (ticker_bg IN ('white', 'navy')),
 
     -- Prayer time settings
-    maghrib_offset INTEGER NOT NULL DEFAULT 10, -- Minutes
+    maghrib_offset INTEGER NOT NULL DEFAULT 20, -- Minutes (masjid standard: 20 min after sunset)
 
     -- Auto alert settings
     auto_alert_enabled BOOLEAN NOT NULL DEFAULT true,
@@ -145,13 +149,13 @@ CREATE TABLE IF NOT EXISTS global_settings (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
-    -- Ensure only one row exists
-    CONSTRAINT single_row CHECK (id = uuid_generate_v4())
+    -- Single-row enforced by PRIMARY KEY + CHECK above
+    CONSTRAINT global_settings_single_row CHECK (id = 1)
 );
 
--- Insert default settings row
-INSERT INTO global_settings (theme, ticker_bg, maghrib_offset)
-VALUES ('starry', 'white', 10)
+-- Insert default settings row (id=1 is the single canonical row)
+INSERT INTO global_settings (id, theme, ticker_bg, maghrib_offset)
+VALUES (1, 'starry', 'white', 20)
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
