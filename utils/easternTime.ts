@@ -97,6 +97,14 @@ export const findEasternMidnightMs = (easternDateStr: string): number => {
  * Unlike `new Date(); date.setHours(h, m)` this is correct regardless of the
  * device's system timezone, and handles DST automatically.
  *
+ * DST fix: do NOT anchor to midnight and add hours arithmetically — that
+ * assumes the whole day shares midnight's UTC offset.  On the spring-forward
+ * day (e.g. March 8 2026) midnight is EST (UTC-5) but times after 2 AM are
+ * EDT (UTC-4), so arithmetic from midnight is 1 hour late for afternoon/
+ * evening prayers.  Instead, try both standard offsets (UTC-5 and UTC-4),
+ * verify each candidate against the Intl API, and return the one that truly
+ * maps to the requested Eastern wall-clock time on the correct calendar date.
+ *
  * Returns null if the time string is invalid.
  */
 export const easternTimeStrToDate = (timeStr: string, now: Date): Date | null => {
@@ -107,6 +115,33 @@ export const easternTimeStrToDate = (timeStr: string, now: Date): Date | null =>
   const ampm = match[3].toUpperCase();
   if (ampm === 'PM' && hours < 12) hours += 12;
   if (ampm === 'AM' && hours === 12) hours = 0;
-  const midnightMs = findEasternMidnightMs(toEasternDateStr(now));
+
+  const easternDateStr = toEasternDateStr(now);
+  const [year, month, day] = easternDateStr.split('-').map(Number);
+
+  // Try both Eastern offsets: EST = UTC-5, EDT = UTC-4.
+  // For each, build the candidate UTC timestamp and verify it round-trips back
+  // to the expected Eastern wall-clock time via the Intl formatter.
+  for (const utcOffsetHours of [5, 4]) {
+    const candidate = new Date(Date.UTC(year, month - 1, day, hours + utcOffsetHours, minutes, 0));
+    const parts = Object.fromEntries(
+      easternPartsFmt.formatToParts(candidate)
+        .filter(p => p.type !== 'literal')
+        .map(p => [p.type, p.value])
+    );
+    if (
+      Number(parts.hour) === hours &&
+      Number(parts.minute) === minutes &&
+      Number(parts.year) === year &&
+      Number(parts.month) === month &&
+      Number(parts.day) === day
+    ) {
+      return candidate;
+    }
+  }
+
+  // Fallback: midnight-anchor arithmetic (pre-fix behaviour, should never be
+  // reached in the Eastern timezone but kept as a safety net).
+  const midnightMs = findEasternMidnightMs(easternDateStr);
   return new Date(midnightMs + (hours * 60 + minutes) * 60 * 1000);
 };
