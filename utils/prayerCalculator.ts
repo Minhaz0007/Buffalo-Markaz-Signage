@@ -6,12 +6,11 @@ import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES } from '../constants';
 const BUFFALO_COORDINATES = new Coordinates(42.8864, -78.8784);
 const BUFFALO_TIMEZONE = 'America/New_York';
 
-// Use custom calculation parameters for Hanafi madhab
-// 18 degrees for both Fajr and Isha angles (Hanafi standard for Buffalo, NY)
-// ISNA uses 15 degrees, but Hanafi madhab requires 18 degrees
+// Use ISNA NorthAmerica calculation method (fajrAngle=15, ishaAngle=15)
+// 15 degrees depression angle for Fajr gives the correct start time (~5:58-5:59 AM in March for Buffalo, NY)
+// NOTE: A LARGER depression angle means the sun is FURTHER below the horizon → EARLIER (darker) Fajr.
+// 18° depression gives ~5:42 AM (too early), 15° depression gives ~5:59 AM (correct per community standard).
 const CALCULATION_PARAMS = CalculationMethod.NorthAmerica();
-CALCULATION_PARAMS.fajrAngle = 18;  // Change from 15 to 18 for Hanafi
-CALCULATION_PARAMS.ishaAngle = 18;  // Change from 15 to 18 for Hanafi
 
 // Use Hanafi madhab for Asr calculation (common in many communities)
 // Can be changed to Madhab.Shafi if needed
