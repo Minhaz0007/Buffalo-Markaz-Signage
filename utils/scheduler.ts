@@ -97,6 +97,52 @@ export const buildScheduleIndex = (excelSchedule: Record<string, ExcelDaySchedul
   return index;
 };
 
+export interface IqamahRange {
+  startDate: string;
+  endDate: string;
+  iqamah: string;
+}
+
+const isConsecutiveDates = (dateA: string, dateB: string): boolean => {
+  const a = new Date(dateA + 'T12:00:00');
+  const b = new Date(dateB + 'T12:00:00');
+  return (b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24) === 1;
+};
+
+/**
+ * Compresses the Excel schedule into date ranges grouped by iqamah time per prayer.
+ * Consecutive dates with the same iqamah are merged into a single range.
+ */
+export const computeIqamahRanges = (
+  excelSchedule: Record<string, ExcelDaySchedule>
+): Record<string, IqamahRange[]> => {
+  const prayers = ['fajr', 'dhuhr', 'asr', 'isha', 'jumuah'] as const;
+  const result: Record<string, IqamahRange[]> = {};
+  const sortedDates = Object.keys(excelSchedule).sort();
+
+  for (const prayer of prayers) {
+    const ranges: IqamahRange[] = [];
+    let current: IqamahRange | null = null;
+
+    for (const date of sortedDates) {
+      const day = excelSchedule[date];
+      const iqamah = prayer === 'jumuah' ? day.jumuahIqamah : day[prayer]?.iqamah;
+      if (!iqamah) continue;
+
+      if (current && current.iqamah === iqamah && isConsecutiveDates(current.endDate, date)) {
+        current.endDate = date;
+      } else {
+        if (current) ranges.push(current);
+        current = { startDate: date, endDate: date, iqamah };
+      }
+    }
+    if (current) ranges.push(current);
+    result[prayer] = ranges;
+  }
+
+  return result;
+};
+
 export const getScheduleForDate = (
   dateStr: string, // YYYY-MM-DD
   excelSchedule: Record<string, ExcelDaySchedule>,
