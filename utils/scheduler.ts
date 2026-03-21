@@ -145,6 +145,12 @@ export const getScheduleForDate = (
     newJumuah = { ...DEFAULT_JUMUAH_TIMES };
   }
 
+  // Lock in the adhan-calculated start times for Fajr and Isha.
+  // These values are captured BEFORE any Excel or manual-override logic runs,
+  // so they can be re-enforced at the very end and never overridden by any source.
+  const calculatedFajrStart = newPrayers.fajr.start;
+  const calculatedIshaStart = newPrayers.isha.start;
+
   // 2. Apply Excel (if exists for date) - WITH YEAR-ROUND EXTRAPOLATION
   let excelDataForDate: ExcelDaySchedule | null = null;
 
@@ -248,6 +254,12 @@ export const getScheduleForDate = (
   // This happens AFTER all overrides to ensure it's never changed
   // Manual overrides can still change Jumu'ah start time, but never iqamah
   newJumuah.iqamah = ensureAmPm(newPrayers.dhuhr.iqamah, true);
+
+  // FINAL ENFORCEMENT: Fajr and Isha start times ALWAYS come from the adhan 18° calculation.
+  // No source — Excel upload, manual override, or any future code — can change these.
+  // Iqamah times (from Excel / manual overrides) are intentionally left as-is.
+  newPrayers.fajr.start = calculatedFajrStart;
+  newPrayers.isha.start = calculatedIshaStart;
 
   return { prayers: newPrayers, jumuah: newJumuah };
 };
