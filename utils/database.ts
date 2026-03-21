@@ -136,7 +136,6 @@ export const saveManualOverridesToDatabase = async (overrides: ManualOverride[])
         prayer_key: o.prayerKey,
         start_date: o.startDate,
         end_date: o.endDate,
-        start_time: o.start,
         iqamah_time: o.iqamah,
       }));
 
@@ -171,7 +170,6 @@ export const loadManualOverridesFromDatabase = async (): Promise<{ success: bool
       prayerKey: row.prayer_key,
       startDate: row.start_date,
       endDate: row.end_date,
-      start: row.start_time,
       iqamah: row.iqamah_time,
     })) || [];
 

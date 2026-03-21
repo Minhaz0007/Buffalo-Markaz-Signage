@@ -217,26 +217,20 @@ export const getScheduleForDate = (
      newPrayers.maghrib.iqamah = addMinutesToTime(newPrayers.maghrib.start, maghribOffset);
   }
 
-  // 4. Apply Manual Overrides (Highest Priority)
+  // 4. Apply Manual Overrides (Highest Priority - Iqamah only)
   // NOTE: Maghrib is excluded - always uses sunset + offset calculation
+  // NOTE: Start times are always auto-calculated (timezone + 18° for Fajr/Isha)
   // NOTE: Jumu'ah iqamah is excluded - always uses Dhuhr iqamah (per user requirement)
   manualOverrides.forEach(override => {
      if (dateStr >= override.startDate && dateStr <= override.endDate) {
-        if (override.prayerKey === 'jumuah') {
-            // Allow manual override of Jumu'ah START time (khutbah time)
-            // But DO NOT override iqamah - it must always match Dhuhr iqamah
-            newJumuah.start = ensureAmPm(override.start, true);
-            // iqamah is NOT overridden - keeps Dhuhr iqamah value set above
-        } else if (override.prayerKey !== 'maghrib') {
+        if (override.prayerKey !== 'jumuah' && override.prayerKey !== 'maghrib') {
             // It's a daily prayer (but NOT maghrib - maghrib is always auto-calculated)
             const key = override.prayerKey as keyof Omit<DailyPrayers, 'sunrise'|'sunset'>;
             if (newPrayers[key]) {
-                // Determine if this is an afternoon prayer to correctly handle AM/PM
                 const isAfternoonPrayer = ['dhuhr', 'asr'].includes(override.prayerKey);
                 newPrayers[key] = {
                     ...newPrayers[key],
-                    // Allow manual override to set start time (manual is explicit)
-                    start: ensureAmPm(override.start, isAfternoonPrayer || override.prayerKey !== 'fajr'),
+                    // Only override iqamah - start time is always auto-calculated
                     iqamah: ensureAmPm(override.iqamah, isAfternoonPrayer || override.prayerKey !== 'fajr')
                 };
             }

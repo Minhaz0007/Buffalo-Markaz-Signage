@@ -4,7 +4,7 @@ import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, Slide
 import { ALERT_MESSAGES } from '../constants';
 import * as XLSX from 'xlsx';
 import { saveExcelScheduleToDatabase, clearExcelScheduleFromDatabase } from '../utils/database';
-import { getScheduleForDate, ScheduleIndex } from '../utils/scheduler';
+import { ScheduleIndex } from '../utils/scheduler';
 import { isSupabaseConfigured } from '../utils/supabase';
 
 // --- Types ---
@@ -260,7 +260,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [newOverride, setNewOverride] = useState<Partial<ManualOverride>>({
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
-    start: '',
     iqamah: ''
   });
   
@@ -405,16 +404,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleAddOverride = (prayerKey: string) => {
-    console.log('handleAddOverride called for:', prayerKey);
-    console.log('newOverride state:', newOverride);
-
     if (!newOverride.iqamah || !newOverride.startDate || !newOverride.endDate) {
-      console.error('Validation failed - missing required fields:', {
-        start: newOverride.start,
-        iqamah: newOverride.iqamah,
-        startDate: newOverride.startDate,
-        endDate: newOverride.endDate
-      });
       setOverrideStatus('Please fill in Iqamah time and Date range.');
       setTimeout(() => setOverrideStatus(''), 3000);
       return;
@@ -429,7 +419,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
        // Check overlap: StartA <= EndB && EndA >= StartB
        if (o.startDate <= newEnd && o.endDate >= newStart) {
           const conflictDate = o.startDate > newStart ? o.startDate : newStart;
-          // Capitalize first letter for display
           const prayerName = prayerKey.charAt(0).toUpperCase() + prayerKey.slice(1);
           setOverrideStatus(`${prayerName} time already set for date ${conflictDate}`);
           setTimeout(() => setOverrideStatus(''), 3000);
@@ -437,39 +426,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
        }
     }
 
-    const scheduleForStartDate = getScheduleForDate(
-      newOverride.startDate,
-      excelSchedule,
-      manualOverrides,
-      maghribOffset,
-      scheduleIndex
-    );
-    let inferredStart: string | undefined;
-    if (prayerKey === 'jumuah') {
-      inferredStart = scheduleForStartDate.jumuah.start;
-    } else if (prayerKey in scheduleForStartDate.prayers) {
-      inferredStart = scheduleForStartDate.prayers[prayerKey as keyof typeof scheduleForStartDate.prayers]?.start;
-    }
-    const startTime = newOverride.start || inferredStart;
-
-    if (!startTime) {
-      setOverrideStatus('Unable to infer start time. Please select a start time.');
-      setTimeout(() => setOverrideStatus(''), 3000);
-      return;
-    }
-
     const override: ManualOverride = {
         id: Date.now().toString(),
         prayerKey: prayerKey as any,
         startDate: newOverride.startDate!,
         endDate: newOverride.endDate!,
-        start: startTime,
         iqamah: newOverride.iqamah!
     };
 
-    console.log('Adding override:', override);
     setManualOverrides((prev) => [...prev, override]);
-    setNewOverride((prev) => ({ startDate: prev.startDate, endDate: prev.endDate, start: '', iqamah: '' }));
+    setNewOverride((prev) => ({ startDate: prev.startDate, endDate: prev.endDate, iqamah: '' }));
     setOverrideStatus(`Override added successfully for ${prayerKey}!`);
     setTimeout(() => setOverrideStatus(''), 3000);
   };
@@ -683,15 +649,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         {isExpanded && (
                                             <div className="p-10 border-t border-white/10 grid grid-cols-12 gap-10 animate-in slide-in-from-top-2">
                                                 <div className="col-span-8 space-y-8">
-                                                    <div className="grid grid-cols-2 gap-8">
-                                                        <div>
-                                                            <label className={labelBase}>Start Time</label>
-                                                            <TimeDropdown value={newOverride.start || ''} onChange={v => setNewOverride((prev) => ({ ...prev, start: v }))} placeholder="Select start time" />
-                                                        </div>
-                                                        <div>
-                                                            <label className={labelBase}>Iqamah</label>
-                                                            <TimeDropdown value={newOverride.iqamah || ''} onChange={v => setNewOverride((prev) => ({ ...prev, iqamah: v }))} placeholder="Select iqamah time" />
-                                                        </div>
+                                                    <div>
+                                                        <label className={labelBase}>Iqamah</label>
+                                                        <TimeDropdown value={newOverride.iqamah || ''} onChange={v => setNewOverride((prev) => ({ ...prev, iqamah: v }))} placeholder="Select iqamah time" />
                                                     </div>
                                                     <div>
                                                         <label className={labelBase}>Date Range</label>
@@ -712,7 +672,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                             <div key={o.id} className="bg-black/20 p-6 rounded-xl border border-white/5 flex items-start justify-between group">
                                                                 <div>
                                                                     <div className="text-mosque-gold font-bold text-lg mb-2">{o.startDate === o.endDate ? o.startDate : `${o.startDate}...`}</div>
-                                                                    <div className="text-white/70 text-lg font-mono">{o.start} - {o.iqamah}</div>
+                                                                    <div className="text-white/70 text-lg font-mono">Iqamah: {o.iqamah}</div>
                                                                 </div>
                                                                 <button onClick={() => deleteOverride(o.id)} className="text-white/20 hover:text-red-400"><Trash2 className="w-6 h-6" /></button>
                                                             </div>

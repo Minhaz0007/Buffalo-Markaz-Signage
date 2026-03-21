@@ -55,10 +55,9 @@ export interface ExcelDaySchedule {
 // Represents a manual override range
 export interface ManualOverride {
   id: string;
-  prayerKey: 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha' | 'jumuah'; 
+  prayerKey: 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha' | 'jumuah';
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
-  start: string;
   iqamah: string;
 }
 
