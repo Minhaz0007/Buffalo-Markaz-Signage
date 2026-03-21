@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers, Lock, PhoneOff, Eye, Volume2, Save, Music, Monitor, LayoutTemplate } from 'lucide-react';
+import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers, Lock, PhoneOff, Eye, Volume2, Save, Music, Monitor, LayoutTemplate, List } from 'lucide-react';
 import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig, AutoAlertSettings, MobileSilentAlertSettings } from '../types';
 import { ALERT_MESSAGES } from '../constants';
 import * as XLSX from 'xlsx';
 import { saveExcelScheduleToDatabase, clearExcelScheduleFromDatabase } from '../utils/database';
-import { ScheduleIndex } from '../utils/scheduler';
+import { ScheduleIndex, computeIqamahRanges } from '../utils/scheduler';
 import { isSupabaseConfigured } from '../utils/supabase';
 
 // --- Types ---
@@ -268,6 +268,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [newItem, setNewItem] = useState<Omit<AnnouncementItem, 'id'>>(defaultItemState);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  // Excel Iqamah Ranges viewer
+  const [showExcelRanges, setShowExcelRanges] = useState(false);
 
   // Slideshow Editor State
   const [expandedSlideId, setExpandedSlideId] = useState<string | null>(null);
@@ -618,10 +621,65 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                          </Card>
                      </div>
 
+                     {/* Excel Iqamah Schedule Viewer */}
+                     {Object.keys(excelSchedule).length > 0 && (() => {
+                       const ranges = computeIqamahRanges(excelSchedule);
+                       const prayers = ['fajr', 'dhuhr', 'asr', 'isha', 'jumuah'] as const;
+                       const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                       return (
+                         <div>
+                           <button
+                             onClick={() => setShowExcelRanges(v => !v)}
+                             className="w-full flex items-center justify-between px-10 py-8 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all"
+                           >
+                             <h4 className="text-3xl font-bold text-white flex items-center gap-4">
+                               <List className="w-8 h-8 text-mosque-gold" />
+                               Excel Iqamah Schedule
+                             </h4>
+                             <ChevronRight className={`w-8 h-8 text-white/50 transition-transform ${showExcelRanges ? 'rotate-90' : ''}`} />
+                           </button>
+
+                           {showExcelRanges && (
+                             <div className="mt-4 bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                               <table className="w-full">
+                                 <thead>
+                                   <tr className="border-b border-white/10 bg-black/20">
+                                     <th className="text-left px-10 py-6 text-white/50 font-bold uppercase tracking-widest text-xl">Prayer</th>
+                                     <th className="text-left px-10 py-6 text-white/50 font-bold uppercase tracking-widest text-xl">From</th>
+                                     <th className="text-left px-10 py-6 text-white/50 font-bold uppercase tracking-widest text-xl">To</th>
+                                     <th className="text-left px-10 py-6 text-white/50 font-bold uppercase tracking-widest text-xl">Iqamah</th>
+                                   </tr>
+                                 </thead>
+                                 <tbody>
+                                   {prayers.flatMap(prayer =>
+                                     (ranges[prayer] || []).map((r, i) => (
+                                       <tr key={`${prayer}-${i}`} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                         {i === 0 && (
+                                           <td
+                                             rowSpan={ranges[prayer].length}
+                                             className="px-10 py-5 font-bold uppercase text-mosque-gold text-2xl align-middle border-r border-white/5"
+                                           >
+                                             {prayer}
+                                           </td>
+                                         )}
+                                         <td className="px-10 py-5 text-white/70 text-xl font-mono">{fmt(r.startDate)}</td>
+                                         <td className="px-10 py-5 text-white/70 text-xl font-mono">{fmt(r.endDate)}</td>
+                                         <td className="px-10 py-5 text-white font-bold text-xl font-mono">{r.iqamah}</td>
+                                       </tr>
+                                     ))
+                                   )}
+                                 </tbody>
+                               </table>
+                             </div>
+                           )}
+                         </div>
+                       );
+                     })()}
+
                      {/* Manual Overrides */}
                      <div>
                         <h4 className="text-3xl font-bold text-white mb-8 flex items-center gap-4">
-                            <Edit2 className="w-8 h-8 text-mosque-gold" /> 
+                            <Edit2 className="w-8 h-8 text-mosque-gold" />
                             Manual Overrides
                         </h4>
                         <div className="space-y-6">
