@@ -335,11 +335,42 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   // Determine if we should be cycling slides
   const isSlideshowActive = activeSlides.length > 1;
 
+  // Cross-tab slide sync via BroadcastChannel
+  const slideSyncChannelRef = React.useRef<BroadcastChannel | null>(null);
+  const fromBroadcastRef = React.useRef(false);
+  const prevSlideIndexRef = React.useRef(currentSlideIndex);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel('buffalo-markaz-slide-sync');
+    slideSyncChannelRef.current = channel;
+    channel.onmessage = (event) => {
+      if (typeof event.data?.slideIndex === 'number') {
+        fromBroadcastRef.current = true;
+        setCurrentSlideIndex(event.data.slideIndex);
+      }
+    };
+    return () => { channel.close(); slideSyncChannelRef.current = null; };
+  }, []);
+
+  // Broadcast slide advances to other tabs (skip re-broadcasting received changes)
+  useEffect(() => {
+    if (fromBroadcastRef.current) {
+      fromBroadcastRef.current = false;
+      prevSlideIndexRef.current = currentSlideIndex;
+      return;
+    }
+    if (currentSlideIndex !== prevSlideIndexRef.current) {
+      prevSlideIndexRef.current = currentSlideIndex;
+      slideSyncChannelRef.current?.postMessage({ slideIndex: currentSlideIndex });
+    }
+  }, [currentSlideIndex]);
+
   useEffect(() => {
     // If freeze mode is active or only one slide (or zero), do not cycle
     // Also stop cycling if Alert is active in panel mode
     if (!isSlideshowActive || isIqamahFreeze || (isAlertActive && alertSettings.mode === 'panel')) {
-        return; 
+        return;
     }
 
     // Safety check: if index out of bounds (e.g. slide removed), reset to 0
@@ -350,7 +381,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
     const activeSlide = activeSlides[currentSlideIndex];
     const duration = (activeSlide?.duration || 10) * 1000;
-    
+
     const timer = setTimeout(() => {
         setCurrentSlideIndex((prev) => (prev + 1) % activeSlides.length);
     }, duration);
