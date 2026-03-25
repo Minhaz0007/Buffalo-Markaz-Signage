@@ -1,28 +1,21 @@
 /**
- * Hijri Date Calculator - Shariah Board NY Convention
+ * Hijri Date Calculator - Central Hilal Committee of North America (CHC) Convention
  *
- * IMPORTANT: This follows the Shariah Board NY ruling where:
- * - The Islamic date changes at 1:00 AM EST/EDT (America/New_York timezone)
- * - NOT at sunset/Maghrib as in traditional Islamic calendar
+ * Two modes:
  *
- * This convention is used by many North American Islamic communities
- * for consistency and practical purposes.
+ * 1. ANCHOR MODE (preferred): Admin sets the Islamic month name, Gregorian start
+ *    date, and month length (29/30) once per month after the CHC moon-sighting
+ *    announcement. The app counts forward from that anchor date.
+ *
+ * 2. FALLBACK MODE: Uses JavaScript's built-in Islamic calendar, which currently
+ *    aligns with CHC dates. Active when no anchor is configured, or when today
+ *    falls outside the configured month's range.
  */
 
-const BUFFALO_TIMEZONE = 'America/New_York';
-const HIJRI_TRANSITION_HOUR = 1; // 1:00 AM
+import { HijriSettings } from '../types';
+import { toEasternDateStr } from './easternTime';
 
-// CACHED FORMATTERS
-const buffaloTimeFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: BUFFALO_TIMEZONE,
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: false
-});
+const BUFFALO_TIMEZONE = 'America/New_York';
 
 const hijriDateFormatter = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
   timeZone: BUFFALO_TIMEZONE,
@@ -31,123 +24,95 @@ const hijriDateFormatter = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
   year: 'numeric'
 });
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Parse a YYYY-MM-DD string into a local-midnight timestamp (DST-safe). */
+function parseLocalDate(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).getTime();
+}
+
+// ── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Gets the date/time components in Buffalo timezone
+ * Returns the Hijri date string using the CHC anchor settings if configured,
+ * otherwise falls back to the JS Islamic calendar.
+ *
+ * @param settings - HijriSettings from the database (may be unconfigured)
+ * @param date     - Defaults to now
+ * @returns e.g. "6 SHAWWAL 1447"
  */
-function getBuffaloTime(date: Date = new Date()) {
-  const parts = buffaloTimeFormatter.formatToParts(date);
-  const values = Object.fromEntries(
-    parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value])
-  );
+export function getHijriDateFromSettings(
+  settings: HijriSettings,
+  date: Date = new Date()
+): string {
+  if (settings.monthStartGregorian && settings.monthName && settings.year) {
+    try {
+      const todayStr = toEasternDateStr(date);
+      const daysDiff = Math.round(
+        (parseLocalDate(todayStr) - parseLocalDate(settings.monthStartGregorian)) /
+        (24 * 60 * 60 * 1000)
+      );
+      const dayNumber = daysDiff + 1; // 1-indexed
 
+      if (dayNumber >= 1 && dayNumber <= settings.monthLength) {
+        return `${dayNumber} ${settings.monthName.toUpperCase()} ${settings.year}`;
+      }
+    } catch {
+      // fall through to JS calculation
+    }
+  }
+  return getHijriDate(date);
+}
+
+/**
+ * Returns metadata about the current anchor status (used for the settings preview).
+ */
+export function getHijriAnchorStatus(
+  settings: HijriSettings,
+  date: Date = new Date()
+): { dayNumber: number; isActive: boolean; isExpired: boolean; isNotStarted: boolean } {
+  if (!settings.monthStartGregorian || !settings.monthName || !settings.year) {
+    return { dayNumber: 0, isActive: false, isExpired: false, isNotStarted: false };
+  }
+  const todayStr = toEasternDateStr(date);
+  const daysDiff = Math.round(
+    (parseLocalDate(todayStr) - parseLocalDate(settings.monthStartGregorian)) /
+    (24 * 60 * 60 * 1000)
+  );
+  const dayNumber = daysDiff + 1;
   return {
-    year: Number(values.year),
-    month: Number(values.month),
-    day: Number(values.day),
-    hour: Number(values.hour),
-    minute: Number(values.minute),
-    second: Number(values.second)
+    dayNumber,
+    isActive: dayNumber >= 1 && dayNumber <= settings.monthLength,
+    isExpired: dayNumber > settings.monthLength,
+    isNotStarted: dayNumber < 1,
   };
 }
 
 /**
- * Gets the Hijri date following Shariah Board NY convention
+ * JS fallback: formats a date using the built-in Islamic calendar.
+ * Currently aligns with CHC dates. Used when no anchor is configured.
  *
- * Logic:
- * - If current time is BEFORE 1:00 AM: Use previous civil day's Hijri date
- * - If current time is 1:00 AM or AFTER: Use current civil day's Hijri date
- *
- * Example:
- * - Friday 11:30 PM → Shows Friday's Hijri date
- * - Saturday 12:30 AM (after midnight but before 1 AM) → Still shows Friday's Hijri date
- * - Saturday 1:00 AM → Shows Saturday's Hijri date
- *
- * @param date - The date to get Hijri date for (defaults to now)
- * @returns Formatted Hijri date string (e.g., "27 RAJAB 1447")
+ * @param date - Defaults to now
+ * @returns e.g. "6 SHAWWAL 1447"
  */
 export function getHijriDate(date: Date = new Date()): string {
   try {
-    const buffaloTime = getBuffaloTime(date);
-
-    // CRITICAL ADJUSTMENT:
-    // JavaScript's Islamic calendar uses traditional sunset-based date changes
-    // Shariah Board NY uses 1 AM date changes
-    // This causes JS to be ~1 day ahead of Shariah Board NY
-    // Solution: subtract 1 day from civil date before querying
-
-    let dateForHijri: Date;
-
-    if (buffaloTime.hour < HIJRI_TRANSITION_HOUR) {
-      // Before 1:00 AM on day D
-      // We want day D-1's Hijri date (Shariah Board NY)
-      // JS calendar is ahead, so ask for day D-2
-      dateForHijri = new Date(date);
-      dateForHijri.setDate(dateForHijri.getDate() - 2);
-    } else {
-      // 1:00 AM or later on day D
-      // We want day D's Hijri date (Shariah Board NY)
-      // JS calendar is ahead, so ask for day D-1
-      dateForHijri = new Date(date);
-      dateForHijri.setDate(dateForHijri.getDate() - 1);
-    }
-
-    // Format the Hijri date using JavaScript Intl API
-    const hijriFormatted = hijriDateFormatter.format(dateForHijri);
-
-    // Convert to uppercase and remove "AH" suffix
-    // Example: "27 Rajab 1447 AH" → "27 RAJAB 1447"
+    const hijriFormatted = hijriDateFormatter.format(date);
     return hijriFormatted.replace(' AH', '').toUpperCase();
-
   } catch (error) {
     console.error('Error calculating Hijri date:', error);
     return 'HIJRI DATE UNAVAILABLE';
   }
 }
 
-/**
- * Gets the Hijri date with additional metadata
- * Useful for debugging or displaying additional information
- *
- * @param date - The date to get Hijri date for (defaults to now)
- * @returns Object with formatted date and metadata
- */
-export function getHijriDateWithMetadata(date: Date = new Date()) {
-  const buffaloTime = getBuffaloTime(date);
-  const isBeforeTransition = buffaloTime.hour < HIJRI_TRANSITION_HOUR;
-  const formattedDate = getHijriDate(date);
-
-  return {
-    formattedDate,
-    buffaloTime: `${buffaloTime.hour.toString().padStart(2, '0')}:${buffaloTime.minute.toString().padStart(2, '0')}`,
-    isBeforeTransition,
-    transitionTime: `${HIJRI_TRANSITION_HOUR}:00 AM`,
-    note: isBeforeTransition
-      ? 'Before 1 AM - showing previous day\'s Islamic date'
-      : 'After 1 AM - showing current day\'s Islamic date'
-  };
-}
-
-/**
- * Formats just the Hijri day and month (without year)
- *
- * @param date - The date to format
- * @returns Formatted string (e.g., "27 RAJAB")
- */
+/** Returns only the day and month portion, e.g. "6 SHAWWAL". */
 export function getHijriDayMonth(date: Date = new Date()): string {
-  const fullDate = getHijriDate(date);
-  // Remove the year (last 4-5 digits)
-  return fullDate.replace(/\s+\d{4,5}\s*$/, '').trim();
+  return getHijriDate(date).replace(/\s+\d{4,5}\s*$/, '').trim();
 }
 
-/**
- * Gets just the Hijri year
- *
- * @param date - The date to get year for
- * @returns Year number (e.g., 1447)
- */
+/** Returns only the Hijri year number, e.g. 1447. */
 export function getHijriYear(date: Date = new Date()): number {
-  const fullDate = getHijriDate(date);
-  const yearMatch = fullDate.match(/\d{4,5}/);
+  const yearMatch = getHijriDate(date).match(/\d{4,5}/);
   return yearMatch ? Number(yearMatch[0]) : 0;
 }

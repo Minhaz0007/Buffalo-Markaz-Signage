@@ -94,6 +94,29 @@ export interface ScheduleSlideConfig extends BaseSlideConfig {
 
 export type SlideConfig = ClockSlideConfig | AnnouncementSlideConfig | ScheduleSlideConfig;
 
+// --- Hijri Date Types ---
+
+export const HIJRI_MONTHS = [
+  'Muharram', 'Safar', "Rabi' al-Awwal", "Rabi' al-Thani",
+  "Jumada al-Awwal", "Jumada al-Thani", 'Rajab', "Sha'ban",
+  'Ramadan', 'Shawwal', "Dhul Qa'dah", 'Dhul Hijjah'
+] as const;
+
+export type HijriMonthName = typeof HIJRI_MONTHS[number];
+
+export interface HijriSettings {
+  /** Islamic month name, e.g. 'Shawwal'. Empty string = use JS fallback. */
+  monthName: string;
+  /** 1–12 corresponding to the month name. 0 = not set. */
+  monthNumber: number;
+  /** Hijri year, e.g. 1447. 0 = not set. */
+  year: number;
+  /** Gregorian date the month started on, YYYY-MM-DD. '' = not set. */
+  monthStartGregorian: string;
+  /** Number of days CHC declared for this month: 29 or 30. */
+  monthLength: 29 | 30;
+}
+
 // --- Config Types ---
 export interface AutoAlertSettings {
   enabled: boolean;

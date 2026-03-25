@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers, Lock, PhoneOff, Eye, Volume2, Save, Music, Monitor, LayoutTemplate, List } from 'lucide-react';
-import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig, AutoAlertSettings, MobileSilentAlertSettings } from '../types';
+import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers, Lock, PhoneOff, Eye, Volume2, Save, Music, Monitor, LayoutTemplate, List, Info } from 'lucide-react';
+import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig, AutoAlertSettings, MobileSilentAlertSettings, HijriSettings, HIJRI_MONTHS } from '../types';
+import { getHijriDateFromSettings, getHijriAnchorStatus } from '../utils/hijriDate';
+import { toEasternDateStr } from '../utils/easternTime';
 import { ALERT_MESSAGES } from '../constants';
 import * as XLSX from 'xlsx';
 import { saveExcelScheduleToDatabase, clearExcelScheduleFromDatabase } from '../utils/database';
@@ -35,6 +37,8 @@ interface SettingsModalProps {
   setMobileAlertSettings: (settings: MobileSilentAlertSettings) => void;
   setIsPreviewAlert: (isPreview: boolean) => void;
   scheduleIndex?: ScheduleIndex;
+  hijriSettings: HijriSettings;
+  setHijriSettings: (settings: HijriSettings) => void;
 }
 
 // --- Reusable UI Components (SCALED UP FOR 1920x1080) ---
@@ -240,8 +244,8 @@ const RangeCalendar: React.FC<RangeCalendarProps> = ({ startDate, endDate, onCha
 };
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
-  isOpen, onClose, 
-  excelSchedule, setExcelSchedule, 
+  isOpen, onClose,
+  excelSchedule, setExcelSchedule,
   manualOverrides, setManualOverrides,
   announcement, setAnnouncement,
   currentTheme, setCurrentTheme,
@@ -251,9 +255,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   slidesConfig, setSlidesConfig,
   mobileAlertSettings, setMobileAlertSettings,
   setIsPreviewAlert,
-  scheduleIndex
+  scheduleIndex,
+  hijriSettings, setHijriSettings,
 }) => {
-  const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization' | 'slideshow' | 'silentAlert'>('schedule');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization' | 'slideshow' | 'silentAlert' | 'hijri'>('schedule');
+  const [draftHijri, setDraftHijri] = useState<HijriSettings>(hijriSettings);
   const [uploadStatus, setUploadStatus] = useState<string>("");
   const [overrideStatus, setOverrideStatus] = useState<string>("");
   const [expandedPrayer, setExpandedPrayer] = useState<string | null>(null);
@@ -533,6 +539,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                {renderSidebarItem('silentAlert', 'Silent Alert', PhoneOff)}
                {renderSidebarItem('slideshow', 'Slideshow', Layers)}
                {renderSidebarItem('customization', 'Theme', Palette)}
+               {renderSidebarItem('hijri', 'Hijri Date', Moon)}
             </nav>
 
             <div className="p-10 border-t border-white/5">
@@ -551,7 +558,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     {activeTab === 'schedule' ? 'Prayer Schedule' :
                      activeTab === 'announcements' ? 'Announcements & Alerts' :
                      activeTab === 'silentAlert' ? 'Mobile Silent Alert' :
-                     activeTab === 'slideshow' ? 'Right Panel Content' : 'Appearance'}
+                     activeTab === 'slideshow' ? 'Right Panel Content' :
+                     activeTab === 'hijri' ? 'Hijri Date Settings' : 'Appearance'}
                  </h3>
                  <button
                     onClick={onClose}
@@ -1160,6 +1168,141 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                          </Card>
                     </div>
                 )}
+
+                {/* --- HIJRI DATE TAB --- */}
+                {activeTab === 'hijri' && (() => {
+                  const todayStr = toEasternDateStr(new Date());
+                  const status = getHijriAnchorStatus(draftHijri, new Date());
+                  const previewDate = draftHijri.monthStartGregorian && draftHijri.monthName && draftHijri.year
+                    ? getHijriDateFromSettings(draftHijri, new Date())
+                    : null;
+                  const isDirty = JSON.stringify(draftHijri) !== JSON.stringify(hijriSettings);
+
+                  return (
+                    <div className="space-y-16">
+                      <SectionHeader icon={Moon} title="Hijri Date" description="Set the Islamic month following the CHC moon-sighting announcement." />
+
+                      {/* Main settings card */}
+                      <Card>
+                        <h4 className="text-3xl font-bold text-white mb-10">Current Islamic Month</h4>
+
+                        <div className="grid grid-cols-2 gap-10 mb-10">
+                          {/* Month selector */}
+                          <div>
+                            <label className="block text-xl font-bold uppercase tracking-widest text-mosque-gold/90 mb-4">Month</label>
+                            <select
+                              value={draftHijri.monthName}
+                              onChange={e => {
+                                const idx = HIJRI_MONTHS.indexOf(e.target.value as any);
+                                setDraftHijri(prev => ({ ...prev, monthName: e.target.value, monthNumber: idx + 1 }));
+                              }}
+                              className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all"
+                            >
+                              <option value="">— Select month —</option>
+                              {HIJRI_MONTHS.map((m, i) => (
+                                <option key={m} value={m}>{i + 1}. {m}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Year */}
+                          <div>
+                            <label className="block text-xl font-bold uppercase tracking-widest text-mosque-gold/90 mb-4">Hijri Year</label>
+                            <input
+                              type="number"
+                              value={draftHijri.year || ''}
+                              onChange={e => setDraftHijri(prev => ({ ...prev, year: Number(e.target.value) }))}
+                              placeholder="e.g. 1447"
+                              className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white placeholder-white/30 focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all"
+                            />
+                          </div>
+
+                          {/* Gregorian start date */}
+                          <div>
+                            <label className="block text-xl font-bold uppercase tracking-widest text-mosque-gold/90 mb-4">Month Started (Gregorian)</label>
+                            <input
+                              type="date"
+                              value={draftHijri.monthStartGregorian}
+                              max={todayStr}
+                              onChange={e => setDraftHijri(prev => ({ ...prev, monthStartGregorian: e.target.value }))}
+                              className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all [color-scheme:dark]"
+                            />
+                            <p className="text-white/40 text-lg mt-2">The Gregorian date the new crescent was sighted (Day 1)</p>
+                          </div>
+
+                          {/* Month length toggle */}
+                          <div>
+                            <label className="block text-xl font-bold uppercase tracking-widest text-mosque-gold/90 mb-4">Month Length (days)</label>
+                            <div className="flex gap-6 h-20">
+                              {([29, 30] as const).map(n => (
+                                <button
+                                  key={n}
+                                  onClick={() => setDraftHijri(prev => ({ ...prev, monthLength: n }))}
+                                  className={`flex-1 rounded-2xl border-2 text-3xl font-bold transition-all ${draftHijri.monthLength === n ? 'border-mosque-gold bg-mosque-gold/10 text-mosque-gold shadow-[0_0_20px_rgba(212,175,55,0.15)]' : 'border-white/10 text-white/50 hover:border-white/30 hover:text-white'}`}
+                                >
+                                  {n}
+                                </button>
+                              ))}
+                            </div>
+                            <p className="text-white/40 text-lg mt-2">As announced by CHC after moon sighting</p>
+                          </div>
+                        </div>
+
+                        {/* Preview / status */}
+                        <div className={`rounded-2xl p-8 mb-10 border ${status.isActive && !isDirty ? 'bg-green-900/20 border-green-500/30' : status.isExpired && !isDirty ? 'bg-red-900/20 border-red-500/30' : 'bg-white/5 border-white/10'}`}>
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className={`w-3 h-3 rounded-full ${status.isActive && !isDirty ? 'bg-green-400' : status.isExpired && !isDirty ? 'bg-red-400' : 'bg-white/30'}`}></div>
+                            <span className="text-xl font-bold uppercase tracking-widest text-white/60">
+                              {!draftHijri.monthStartGregorian || !draftHijri.monthName || !draftHijri.year
+                                ? 'Not configured — using automatic calculation'
+                                : status.isActive && !isDirty ? `Active · Day ${status.dayNumber} of ${hijriSettings.monthLength}`
+                                : status.isExpired && !isDirty ? 'Expired · Update for the new month'
+                                : status.isNotStarted && !isDirty ? 'Not started yet'
+                                : 'Preview (unsaved)'}
+                            </span>
+                          </div>
+                          <div className="text-5xl font-bold font-serif text-white tracking-wide">
+                            {previewDate ?? <span className="text-white/30 text-4xl">No date configured</span>}
+                          </div>
+                        </div>
+
+                        {/* Apply button */}
+                        <div className="flex items-center justify-between">
+                          {isDirty && (
+                            <p className="text-mosque-gold text-xl animate-pulse">Unsaved changes</p>
+                          )}
+                          <button
+                            disabled={!draftHijri.monthName || !draftHijri.year || !draftHijri.monthStartGregorian}
+                            onClick={() => setHijriSettings(draftHijri)}
+                            className="ml-auto flex items-center gap-4 px-12 py-6 rounded-2xl bg-mosque-gold text-mosque-navy font-bold text-2xl transition-all hover:bg-yellow-400 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg"
+                          >
+                            <Save className="w-8 h-8" />
+                            Apply to Both Screens
+                          </button>
+                        </div>
+                      </Card>
+
+                      {/* How-to card */}
+                      <Card>
+                        <div className="flex items-start gap-8">
+                          <div className="p-5 rounded-2xl bg-mosque-gold/10 border border-mosque-gold/20 text-mosque-gold shrink-0">
+                            <Info className="w-10 h-10" />
+                          </div>
+                          <div>
+                            <h4 className="text-3xl font-bold text-white mb-6">How to update each month</h4>
+                            <ol className="space-y-4 text-white/70 text-2xl list-decimal list-inside leading-relaxed">
+                              <li>Wait for the <span className="text-mosque-gold font-semibold">CHC moon-sighting announcement</span> (hilalcommittee.org)</li>
+                              <li>Select the new Islamic month name and Hijri year above</li>
+                              <li>Enter the <span className="text-white font-semibold">Gregorian date the month started</span> (Day 1 of the new month)</li>
+                              <li>Choose <span className="text-white font-semibold">29 or 30 days</span> as announced by CHC</li>
+                              <li>Click <span className="text-mosque-gold font-semibold">Apply to Both Screens</span> — the date updates instantly on all displays</li>
+                            </ol>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  );
+                })()}
 
                 </div>
              </div>

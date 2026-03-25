@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { DailyPrayers, Announcement, SlideConfig, AnnouncementSlideConfig, ScheduleSlideConfig, ExcelDaySchedule, ManualOverride, MobileSilentAlertSettings } from '../types';
+import { DailyPrayers, Announcement, SlideConfig, AnnouncementSlideConfig, ScheduleSlideConfig, ExcelDaySchedule, ManualOverride, MobileSilentAlertSettings, HijriSettings } from '../types';
 import { Sunrise, Sunset } from 'lucide-react';
 import { MOSQUE_NAME } from '../constants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getScheduleForDate, ScheduleIndex } from '../utils/scheduler';
 import { MobileSilentAlert } from './MobileSilentAlert';
-import { getHijriDate } from '../utils/hijriDate';
+import { getHijriDateFromSettings } from '../utils/hijriDate';
 import { SeamlessTicker } from './SeamlessTicker';
 import { toEasternDateStr, toEasternMinutes, toEasternDayOfWeek, easternTimeStrToDate } from '../utils/easternTime';
 
@@ -19,6 +19,7 @@ interface ScreenPrayerTimesProps {
   manualOverrides: ManualOverride[];
   maghribOffset: number;
   tickerBg: 'white' | 'navy';
+  hijriSettings: HijriSettings;
 
   // Alert Props
   isAlertActive: boolean;
@@ -317,7 +318,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     prayers, jumuah, tomorrowPrayers, announcement,
     slidesConfig,
     excelSchedule, manualOverrides, maghribOffset,
-    tickerBg,
+    tickerBg, hijriSettings,
     isAlertActive, alertSettings, nextIqamahTime,
     scheduleIndex
 }) => {
@@ -335,11 +336,42 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   // Determine if we should be cycling slides
   const isSlideshowActive = activeSlides.length > 1;
 
+  // Cross-tab slide sync via BroadcastChannel
+  const slideSyncChannelRef = React.useRef<BroadcastChannel | null>(null);
+  const fromBroadcastRef = React.useRef(false);
+  const prevSlideIndexRef = React.useRef(currentSlideIndex);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel('buffalo-markaz-slide-sync');
+    slideSyncChannelRef.current = channel;
+    channel.onmessage = (event) => {
+      if (typeof event.data?.slideIndex === 'number') {
+        fromBroadcastRef.current = true;
+        setCurrentSlideIndex(event.data.slideIndex);
+      }
+    };
+    return () => { channel.close(); slideSyncChannelRef.current = null; };
+  }, []);
+
+  // Broadcast slide advances to other tabs (skip re-broadcasting received changes)
+  useEffect(() => {
+    if (fromBroadcastRef.current) {
+      fromBroadcastRef.current = false;
+      prevSlideIndexRef.current = currentSlideIndex;
+      return;
+    }
+    if (currentSlideIndex !== prevSlideIndexRef.current) {
+      prevSlideIndexRef.current = currentSlideIndex;
+      slideSyncChannelRef.current?.postMessage({ slideIndex: currentSlideIndex });
+    }
+  }, [currentSlideIndex]);
+
   useEffect(() => {
     // If freeze mode is active or only one slide (or zero), do not cycle
     // Also stop cycling if Alert is active in panel mode
     if (!isSlideshowActive || isIqamahFreeze || (isAlertActive && alertSettings.mode === 'panel')) {
-        return; 
+        return;
     }
 
     // Safety check: if index out of bounds (e.g. slide removed), reset to 0
@@ -350,7 +382,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
     const activeSlide = activeSlides[currentSlideIndex];
     const duration = (activeSlide?.duration || 10) * 1000;
-    
+
     const timer = setTimeout(() => {
         setCurrentSlideIndex((prev) => (prev + 1) % activeSlides.length);
     }, duration);
@@ -450,7 +482,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
     // Calculate Hijri date using Shariah Board NY convention
     // (date changes at 1:00 AM EST/EDT, not at sunset)
-    setHijriDate(getHijriDate(now));
+    setHijriDate(getHijriDateFromSettings(hijriSettings, now));
   }, [calculateNextIqamah, prayers, jumuah]);
 
   // Continuous clock update (independent of prayers changes)
@@ -462,7 +494,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
       // Calculate Hijri date using Shariah Board NY convention
       // (date changes at 1:00 AM EST/EDT, not at sunset)
-      setHijriDate(getHijriDate(now));
+      setHijriDate(getHijriDateFromSettings(hijriSettings, now));
 
     }, 1000);
     return () => clearInterval(timer);
