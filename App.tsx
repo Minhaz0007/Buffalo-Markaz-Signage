@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ScreenPrayerTimes } from './components/ScreenPrayerTimes';
 import { SettingsModal } from './components/SettingsModal';
-import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AutoAlertSettings, MobileSilentAlertSettings } from './types';
+import { DailyPrayers, Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AutoAlertSettings, MobileSilentAlertSettings, HijriSettings } from './types';
 import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES, DEFAULT_ANNOUNCEMENT, DEFAULT_MOBILE_SILENT_ALERT } from './constants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Maximize, Minimize } from 'lucide-react';
@@ -174,6 +174,11 @@ const App: React.FC = () => {
   // Slideshow State
   const [slidesConfig, setSlidesConfig] = useState<SlideConfig[]>(DEFAULT_SLIDES);
 
+  // Hijri Date Settings
+  const [hijriSettings, setHijriSettings] = useState<HijriSettings>({
+    monthName: '', monthNumber: 0, year: 0, monthStartGregorian: '', monthLength: 30,
+  });
+
   // Ref: tracks which tables were just updated from a Realtime event so the
   // auto-save effects skip writing back to Supabase (prevents save-back loops
   // where Device B re-saves what it just received, triggering Device A again).
@@ -255,6 +260,7 @@ const App: React.FC = () => {
         setMaghribOffset(dbGlobalSettings.maghribOffset);
         setAutoAlertSettings(dbGlobalSettings.autoAlertSettings);
         setMobileAlertSettings(dbGlobalSettings.mobileAlertSettings);
+        if (dbGlobalSettings.hijriSettings) setHijriSettings(dbGlobalSettings.hijriSettings);
         console.log('✅ Loaded global settings from database');
       }
 
@@ -322,6 +328,7 @@ const App: React.FC = () => {
           setMaghribOffset(data.maghribOffset);
           setAutoAlertSettings(data.autoAlertSettings);
           setMobileAlertSettings(data.mobileAlertSettings);
+          if (data.hijriSettings) setHijriSettings(data.hijriSettings);
         }
       })
       .subscribe();
@@ -402,8 +409,9 @@ const App: React.FC = () => {
       maghribOffset,
       autoAlertSettings,
       mobileAlertSettings,
+      hijriSettings,
     });
-  }, [currentTheme, tickerBg, maghribOffset, autoAlertSettings, mobileAlertSettings, isDataLoaded]);
+  }, [currentTheme, tickerBg, maghribOffset, autoAlertSettings, mobileAlertSettings, hijriSettings, isDataLoaded]);
 
   // Scaling Logic for Virtual Viewport (1920x1080)
   useEffect(() => {
@@ -820,6 +828,7 @@ const App: React.FC = () => {
                       manualOverrides={manualOverrides}
                       maghribOffset={maghribOffset}
                       tickerBg={tickerBg}
+                      hijriSettings={hijriSettings}
                       // Alert props for panel mode
                       isAlertActive={isMobileAlertActive || isPreviewAlert}
                       alertSettings={mobileAlertSettings}
@@ -872,6 +881,8 @@ const App: React.FC = () => {
           setMobileAlertSettings={setMobileAlertSettings}
           setIsPreviewAlert={setIsPreviewAlert}
           scheduleIndex={scheduleIndex}
+          hijriSettings={hijriSettings}
+          setHijriSettings={setHijriSettings}
         />
 
         {/* Auto-update component for Vercel deployments */}

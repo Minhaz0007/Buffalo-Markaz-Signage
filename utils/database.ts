@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import { ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AutoAlertSettings, MobileSilentAlertSettings } from '../types';
+import { ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AutoAlertSettings, MobileSilentAlertSettings, HijriSettings } from '../types';
 
 // ============================================================
 // EXCEL SCHEDULE OPERATIONS
@@ -360,6 +360,7 @@ export const saveGlobalSettingsToDatabase = async (settings: {
   maghribOffset: number;
   autoAlertSettings: AutoAlertSettings;
   mobileAlertSettings: MobileSilentAlertSettings;
+  hijriSettings: HijriSettings;
 }) => {
   if (!isSupabaseConfigured()) return { success: false };
 
@@ -384,6 +385,11 @@ export const saveGlobalSettingsToDatabase = async (settings: {
       mobile_alert_beep_type: settings.mobileAlertSettings.beepType,
       mobile_alert_beep_volume: settings.mobileAlertSettings.beepVolume,
       mobile_alert_disable_for_jumuah: settings.mobileAlertSettings.disableForJumuah,
+      hijri_month_name: settings.hijriSettings.monthName || null,
+      hijri_month_number: settings.hijriSettings.monthNumber || null,
+      hijri_year: settings.hijriSettings.year || null,
+      hijri_month_start_gregorian: settings.hijriSettings.monthStartGregorian || null,
+      hijri_month_length: settings.hijriSettings.monthLength,
     };
 
     const { error } = await supabase!
@@ -439,8 +445,16 @@ export const loadGlobalSettingsFromDatabase = async () => {
       },
     };
 
+    const hijriSettings: HijriSettings = {
+      monthName: data.hijri_month_name ?? '',
+      monthNumber: data.hijri_month_number ?? 0,
+      year: data.hijri_year ?? 0,
+      monthStartGregorian: data.hijri_month_start_gregorian ?? '',
+      monthLength: (data.hijri_month_length === 29 ? 29 : 30),
+    };
+
     console.log('✅ Loaded global settings from Supabase');
-    return { success: true, data: settings };
+    return { success: true, data: { ...settings, hijriSettings } };
   } catch (error) {
     console.error('Error loading global settings from Supabase:', error);
     return { success: false, data: null };

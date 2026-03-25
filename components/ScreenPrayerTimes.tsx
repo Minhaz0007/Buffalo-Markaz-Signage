@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { DailyPrayers, Announcement, SlideConfig, AnnouncementSlideConfig, ScheduleSlideConfig, ExcelDaySchedule, ManualOverride, MobileSilentAlertSettings } from '../types';
+import { DailyPrayers, Announcement, SlideConfig, AnnouncementSlideConfig, ScheduleSlideConfig, ExcelDaySchedule, ManualOverride, MobileSilentAlertSettings, HijriSettings } from '../types';
 import { Sunrise, Sunset } from 'lucide-react';
 import { MOSQUE_NAME } from '../constants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getScheduleForDate, ScheduleIndex } from '../utils/scheduler';
 import { MobileSilentAlert } from './MobileSilentAlert';
-import { getHijriDate } from '../utils/hijriDate';
+import { getHijriDateFromSettings } from '../utils/hijriDate';
 import { SeamlessTicker } from './SeamlessTicker';
 import { toEasternDateStr, toEasternMinutes, toEasternDayOfWeek, easternTimeStrToDate } from '../utils/easternTime';
 
@@ -19,6 +19,7 @@ interface ScreenPrayerTimesProps {
   manualOverrides: ManualOverride[];
   maghribOffset: number;
   tickerBg: 'white' | 'navy';
+  hijriSettings: HijriSettings;
 
   // Alert Props
   isAlertActive: boolean;
@@ -317,7 +318,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     prayers, jumuah, tomorrowPrayers, announcement,
     slidesConfig,
     excelSchedule, manualOverrides, maghribOffset,
-    tickerBg,
+    tickerBg, hijriSettings,
     isAlertActive, alertSettings, nextIqamahTime,
     scheduleIndex
 }) => {
@@ -481,7 +482,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
     // Calculate Hijri date using Shariah Board NY convention
     // (date changes at 1:00 AM EST/EDT, not at sunset)
-    setHijriDate(getHijriDate(now));
+    setHijriDate(getHijriDateFromSettings(hijriSettings, now));
   }, [calculateNextIqamah, prayers, jumuah]);
 
   // Continuous clock update (independent of prayers changes)
@@ -493,7 +494,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
       // Calculate Hijri date using Shariah Board NY convention
       // (date changes at 1:00 AM EST/EDT, not at sunset)
-      setHijriDate(getHijriDate(now));
+      setHijriDate(getHijriDateFromSettings(hijriSettings, now));
 
     }, 1000);
     return () => clearInterval(timer);
