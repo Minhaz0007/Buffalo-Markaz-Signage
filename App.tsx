@@ -24,6 +24,7 @@ import { isSupabaseConfigured, supabase } from './utils/supabase';
 import { prayerTimesEqual } from './utils/performance';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { toEasternDateStr, toEasternMinutes, findEasternMidnightMs } from './utils/easternTime';
+import { syncServerTime, serverNow } from './utils/serverTime';
 
 // --- Background Components ---
 
@@ -206,7 +207,7 @@ const App: React.FC = () => {
   // Current time in minutes-since-midnight (Eastern timezone), updated every minute
   // by the clock interval below. Used by the schedule-alert effect to decide which
   // prayers have already passed so it can switch from "today override" → "tomorrow change" alerts.
-  const [currentTimeMinutes, setCurrentTimeMinutes] = useState<number>(() => toEasternMinutes(new Date()));
+  const [currentTimeMinutes, setCurrentTimeMinutes] = useState<number>(() => toEasternMinutes(serverNow()));
 
   // Hide the persistent #nav-splash div (rendered in index.html) once React
   // has mounted and painted its first frame.  The splash covers the screen on
@@ -287,6 +288,14 @@ const App: React.FC = () => {
     loadFromDatabase();
   }, []); // Run once on mount
 
+  // Sync to server time so all devices show the same clock regardless of local
+  // system clock accuracy.  Re-syncs every 5 minutes to correct gradual drift.
+  useEffect(() => {
+    syncServerTime();
+    const interval = setInterval(syncServerTime, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Subscribe to Supabase realtime updates to sync settings across devices
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) return;
@@ -321,17 +330,44 @@ const App: React.FC = () => {
           setSlidesConfig(data);
         }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'global_settings' }, async () => {
-        const { success, data } = await loadGlobalSettingsFromDatabase();
-        if (success && data) {
-          isRemoteUpdate.current.add('global_settings');
-          setCurrentTheme(data.theme);
-          setTickerBg(data.tickerBg);
-          setMaghribOffset(data.maghribOffset);
-          setMaghribStartOffset(data.maghribStartOffset);
-          setAutoAlertSettings(data.autoAlertSettings);
-          setMobileAlertSettings(data.mobileAlertSettings);
-          if (data.hijriSettings) setHijriSettings(data.hijriSettings);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'global_settings' }, (payload) => {
+        // Use event payload directly — re-fetching from DB here creates a race
+        // condition where an in-flight save hasn't landed yet, causing the handler
+        // to load the OLD value and revert the user's just-changed setting.
+        const row = (payload as any).new;
+        if (!row || !row.id) return; // DELETE or empty payload
+        isRemoteUpdate.current.add('global_settings');
+        setCurrentTheme(row.theme ?? 'starry');
+        setTickerBg(row.ticker_bg ?? 'white');
+        setMaghribOffset(row.maghrib_offset ?? 20);
+        setMaghribStartOffset(row.maghrib_start_offset ?? 0);
+        setAutoAlertSettings({
+          enabled: row.auto_alert_enabled ?? true,
+          template: row.auto_alert_template ?? "⚠️ NOTICE: Iqamah changes tomorrow for {prayers} to {new time}",
+          color: row.auto_alert_color ?? '#ef4444',
+          animation: row.auto_alert_animation ?? 'pulse',
+        });
+        setMobileAlertSettings({
+          enabled: row.mobile_alert_enabled ?? false,
+          mode: row.mobile_alert_mode ?? 'panel',
+          triggerMinutes: row.mobile_alert_trigger_minutes ?? 2.0,
+          backgroundColor: row.mobile_alert_background_color ?? '#0B1E3B',
+          text: row.mobile_alert_text ?? 'PRAYER STARTING SOON',
+          icon: row.mobile_alert_icon ?? 'phone-off',
+          animation: row.mobile_alert_animation ?? 'pulse',
+          beepEnabled: row.mobile_alert_beep_enabled ?? true,
+          beepType: row.mobile_alert_beep_type ?? 'single',
+          beepVolume: row.mobile_alert_beep_volume ?? 50,
+          disableForJumuah: row.mobile_alert_disable_for_jumuah ?? true,
+        });
+        if (row.hijri_year !== undefined || row.hijri_month_name !== undefined) {
+          setHijriSettings({
+            monthName: row.hijri_month_name ?? '',
+            monthNumber: row.hijri_month_number ?? 0,
+            year: row.hijri_year ?? 0,
+            monthStartGregorian: row.hijri_month_start_gregorian ?? '',
+            monthLength: row.hijri_month_length === 29 ? 29 : 30,
+          });
         }
       })
       .subscribe();
@@ -619,7 +655,7 @@ const App: React.FC = () => {
   // Frequent Update Loop (Timer)
   useEffect(() => {
     const tick = () => {
-      const now = new Date();
+      const now = serverNow();
       const currentIsoDate = toEasternDateStr(now);
 
       // 0. Keep currentTimeMinutes in sync (triggers schedule-alert re-evaluation

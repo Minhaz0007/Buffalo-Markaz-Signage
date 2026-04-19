@@ -147,6 +147,13 @@ CREATE TABLE IF NOT EXISTS global_settings (
     mobile_alert_beep_volume INTEGER NOT NULL DEFAULT 50,
     mobile_alert_disable_for_jumuah BOOLEAN NOT NULL DEFAULT true,
 
+    -- Hijri date calibration settings
+    hijri_month_name VARCHAR(50),
+    hijri_month_number INTEGER,
+    hijri_year INTEGER,
+    hijri_month_start_gregorian VARCHAR(10),
+    hijri_month_length INTEGER NOT NULL DEFAULT 30,
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
@@ -158,6 +165,17 @@ CREATE TABLE IF NOT EXISTS global_settings (
 INSERT INTO global_settings (id, theme, ticker_bg, maghrib_start_offset, maghrib_offset)
 VALUES (1, 'starry', 'white', 0, 20)
 ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- MIGRATION: Run this if you set up Supabase before April 2026.
+-- Adds Hijri date columns that were added to the code later.
+-- Safe to run multiple times (IF NOT EXISTS prevents errors).
+-- ============================================================
+ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS hijri_month_name VARCHAR(50);
+ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS hijri_month_number INTEGER;
+ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS hijri_year INTEGER;
+ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS hijri_month_start_gregorian VARCHAR(10);
+ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS hijri_month_length INTEGER NOT NULL DEFAULT 30;
 
 -- ============================================================
 -- 6. TRIGGERS FOR UPDATED_AT TIMESTAMPS

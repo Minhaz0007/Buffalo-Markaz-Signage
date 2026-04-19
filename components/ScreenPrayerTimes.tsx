@@ -8,6 +8,7 @@ import { MobileSilentAlert } from './MobileSilentAlert';
 import { getHijriDateFromSettings } from '../utils/hijriDate';
 import { SeamlessTicker } from './SeamlessTicker';
 import { toEasternDateStr, toEasternMinutes, toEasternDayOfWeek, easternTimeStrToDate } from '../utils/easternTime';
+import { serverNow } from '../utils/serverTime';
 
 interface ScreenPrayerTimesProps {
   prayers: DailyPrayers;
@@ -322,7 +323,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     isAlertActive, alertSettings, nextIqamahTime,
     scheduleIndex
 }) => {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(serverNow());
   const [timeUntilIqamah, setTimeUntilIqamah] = useState<string>("");
   const [nextPrayerName, setNextPrayerName] = useState<string>("NEXT PRAYER");
   const [hijriDate, setHijriDate] = useState<string>("");
@@ -476,7 +477,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
   // Initialize immediately on mount and whenever prayers change
   useEffect(() => {
-    const now = new Date();
+    const now = serverNow();
     setCurrentTime(now);
     calculateNextIqamah(now);
 
@@ -488,7 +489,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   // Continuous clock update (independent of prayers changes)
   useEffect(() => {
     const timer = setInterval(() => {
-      const now = new Date();
+      const now = serverNow();
       setCurrentTime(now);
       calculateNextIqamah(now);
 
