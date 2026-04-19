@@ -148,18 +148,21 @@ export const getScheduleForDate = (
   excelSchedule: Record<string, ExcelDaySchedule>,
   manualOverrides: ManualOverride[],
   maghribOffset: number,
-  scheduleIndex?: ScheduleIndex // Optional optimized index for O(1) fallback lookup
+  scheduleIndex?: ScheduleIndex, // Optional optimized index for O(1) fallback lookup
+  maghribStartOffset: number = 0
 ): { prayers: DailyPrayers, jumuah: { start: string, iqamah: string } } => {
 
   /**
    * PRIORITY HIERARCHY FOR IQAMAH TIMES:
    * 1. Adhan Library (Auto-calculation) - Base layer, always calculated
    * 2. Year-Round Calendar (Excel) - Overrides auto-calculation for Fajr, Dhuhr, Asr, Isha
-   * 3. Maghrib Auto-Calculation - ALWAYS sunset + offset (never overridden by Excel/Manual)
+   * 3. Maghrib Auto-Calculation - ALWAYS sunset + offsets (never overridden by Excel/Manual)
+   *    - maghrib.start  = sunset + maghribStartOffset (default 0, sunset field is never modified)
+   *    - maghrib.iqamah = maghrib.start + maghribOffset
    * 4. Manual Scheduling - Highest priority, overrides everything except Maghrib
    *
-   * SPECIAL CASE: Maghrib is ALWAYS calculated as sunset + offset, regardless of Excel or manual overrides.
-   * This is because Maghrib iqamah is tied to the daily sunset time, which changes every day.
+   * SPECIAL CASE: Maghrib is ALWAYS calculated from sunset + offsets, regardless of Excel or manual overrides.
+   * The `sunset` field always reflects the raw astronomical sunset and is never changed.
    *
    * SPECIAL CASE: Jumu'ah start ALWAYS uses Dhuhr start time.
    * Only Jumu'ah iqamah can be overridden by Excel or manual schedules.
@@ -257,10 +260,14 @@ export const getScheduleForDate = (
   newJumuah.start = ensureAmPm(newPrayers.dhuhr.start, true);
   newJumuah.iqamah = ensureAmPm(newPrayers.dhuhr.iqamah, true);
 
-  // 3. Apply Maghrib Offset (ALWAYS - tied to daily sunset)
-  // Maghrib is never overridden by Excel or manual schedules - always calculated from sunset
+  // 3. Apply Maghrib Offsets (ALWAYS - tied to daily sunset)
+  // Maghrib is never overridden by Excel or manual schedules - always calculated from sunset.
+  // sunset field is left untouched; only maghrib.start and maghrib.iqamah are adjusted.
   if (newPrayers.maghrib.start) {
-     newPrayers.maghrib.iqamah = addMinutesToTime(newPrayers.maghrib.start, maghribOffset);
+    if (maghribStartOffset > 0) {
+      newPrayers.maghrib.start = addMinutesToTime(newPrayers.sunset, maghribStartOffset);
+    }
+    newPrayers.maghrib.iqamah = addMinutesToTime(newPrayers.maghrib.start, maghribOffset);
   }
 
   // 4. Apply Manual Overrides (Highest Priority - Iqamah only)
