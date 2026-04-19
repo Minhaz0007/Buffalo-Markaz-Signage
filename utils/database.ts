@@ -358,7 +358,8 @@ export const saveGlobalSettingsToDatabase = async (settings: {
   theme: string;
   tickerBg: 'white' | 'navy';
   maghribOffset: number;
-  maghribStartOffset: number;
+  sunriseOffset: number;
+  sunsetOffset: number;
   autoAlertSettings: AutoAlertSettings;
   mobileAlertSettings: MobileSilentAlertSettings;
   hijriSettings: HijriSettings;
@@ -371,7 +372,8 @@ export const saveGlobalSettingsToDatabase = async (settings: {
       theme: settings.theme,
       ticker_bg: settings.tickerBg,
       maghrib_offset: settings.maghribOffset,
-      maghrib_start_offset: settings.maghribStartOffset,
+      sunrise_offset: settings.sunriseOffset,
+      sunset_offset: settings.sunsetOffset,
       auto_alert_enabled: settings.autoAlertSettings.enabled,
       auto_alert_template: settings.autoAlertSettings.template,
       auto_alert_color: settings.autoAlertSettings.color,
@@ -426,7 +428,8 @@ export const loadGlobalSettingsFromDatabase = async () => {
       theme: data.theme,
       tickerBg: data.ticker_bg,
       maghribOffset: data.maghrib_offset,
-      maghribStartOffset: data.maghrib_start_offset ?? 0,
+      sunriseOffset: data.sunrise_offset ?? 0,
+      sunsetOffset: data.sunset_offset ?? 0,
       autoAlertSettings: {
         enabled: data.auto_alert_enabled ?? true,
         template: data.auto_alert_template ?? "⚠️ NOTICE: Iqamah changes tomorrow for {prayers} to {new time}",

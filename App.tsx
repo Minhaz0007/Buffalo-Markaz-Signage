@@ -165,7 +165,8 @@ const App: React.FC = () => {
   const [announcement, setAnnouncement] = useState<Announcement>(DEFAULT_ANNOUNCEMENT);
   const [currentTheme, setCurrentTheme] = useState<string>('starry');
   const [maghribOffset, setMaghribOffset] = useState<number>(20);
-  const [maghribStartOffset, setMaghribStartOffset] = useState<number>(0);
+  const [sunriseOffset, setSunriseOffset] = useState<number>(0);
+  const [sunsetOffset, setSunsetOffset] = useState<number>(0);
 
   // New Configs
   const [autoAlertSettings, setAutoAlertSettings] = useState<AutoAlertSettings>(DEFAULT_AUTO_ALERTS);
@@ -259,7 +260,8 @@ const App: React.FC = () => {
         setCurrentTheme(dbGlobalSettings.theme);
         setTickerBg(dbGlobalSettings.tickerBg);
         setMaghribOffset(dbGlobalSettings.maghribOffset);
-        setMaghribStartOffset(dbGlobalSettings.maghribStartOffset);
+        setSunriseOffset(dbGlobalSettings.sunriseOffset ?? 0);
+        setSunsetOffset(dbGlobalSettings.sunsetOffset ?? 0);
         setAutoAlertSettings(dbGlobalSettings.autoAlertSettings);
         setMobileAlertSettings(dbGlobalSettings.mobileAlertSettings);
         if (dbGlobalSettings.hijriSettings) setHijriSettings(dbGlobalSettings.hijriSettings);
@@ -328,7 +330,8 @@ const App: React.FC = () => {
           setCurrentTheme(data.theme);
           setTickerBg(data.tickerBg);
           setMaghribOffset(data.maghribOffset);
-          setMaghribStartOffset(data.maghribStartOffset);
+          setSunriseOffset(data.sunriseOffset ?? 0);
+          setSunsetOffset(data.sunsetOffset ?? 0);
           setAutoAlertSettings(data.autoAlertSettings);
           setMobileAlertSettings(data.mobileAlertSettings);
           if (data.hijriSettings) setHijriSettings(data.hijriSettings);
@@ -345,7 +348,8 @@ const App: React.FC = () => {
     setCurrentTheme,
     setExcelSchedule,
     setMaghribOffset,
-    setMaghribStartOffset,
+    setSunriseOffset,
+    setSunsetOffset,
     setManualOverrides,
     setMobileAlertSettings,
     setSlidesConfig,
@@ -411,12 +415,13 @@ const App: React.FC = () => {
       theme: currentTheme,
       tickerBg,
       maghribOffset,
-      maghribStartOffset,
+      sunriseOffset,
+      sunsetOffset,
       autoAlertSettings,
       mobileAlertSettings,
       hijriSettings,
     });
-  }, [currentTheme, tickerBg, maghribOffset, maghribStartOffset, autoAlertSettings, mobileAlertSettings, hijriSettings, isDataLoaded]);
+  }, [currentTheme, tickerBg, maghribOffset, sunriseOffset, sunsetOffset, autoAlertSettings, mobileAlertSettings, hijriSettings, isDataLoaded]);
 
   // Scaling Logic for Virtual Viewport (1920x1080)
   useEffect(() => {
@@ -459,12 +464,12 @@ const App: React.FC = () => {
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
     const tomorrowDateStr = toEasternDateStr(tomorrowDate);
 
-    const ydaySchedule = getScheduleForDate(yesterdayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, maghribStartOffset);
-    const tSchedule = getScheduleForDate(todayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, maghribStartOffset);
-    const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, maghribStartOffset);
+    const ydaySchedule = getScheduleForDate(yesterdayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset);
+    const tSchedule = getScheduleForDate(todayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset);
+    const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset);
 
     return { yesterdaySchedule: ydaySchedule, todaySchedule: tSchedule, tomorrowSchedule: tmSchedule };
-  }, [todayDateStr, excelSchedule, manualOverrides, maghribOffset, maghribStartOffset, scheduleIndex]);
+  }, [todayDateStr, excelSchedule, manualOverrides, maghribOffset, sunriseOffset, sunsetOffset, scheduleIndex]);
 
   // Update Display State & System Alerts (Only when schedule changes)
   useEffect(() => {
@@ -798,14 +803,14 @@ const App: React.FC = () => {
                </div>
             </div>
           }>
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="sync">
               {/* Fullscreen Alert Overlay */}
               {showFullscreenAlert && effectiveTargetTime ? (
                   <motion.div
                       key="fullscreen-alert"
-                      initial={{ opacity: 0, scale: 1.1 }}
+                      initial={{ opacity: 0, scale: 1.05 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
                       className="absolute inset-0 z-50"
                   >
                       <MobileSilentAlert
@@ -832,6 +837,8 @@ const App: React.FC = () => {
                       excelSchedule={excelSchedule}
                       manualOverrides={manualOverrides}
                       maghribOffset={maghribOffset}
+                      sunriseOffset={sunriseOffset}
+                      sunsetOffset={sunsetOffset}
                       tickerBg={tickerBg}
                       hijriSettings={hijriSettings}
                       // Alert props for panel mode
@@ -876,8 +883,10 @@ const App: React.FC = () => {
           setCurrentTheme={setCurrentTheme}
           maghribOffset={maghribOffset}
           setMaghribOffset={setMaghribOffset}
-          maghribStartOffset={maghribStartOffset}
-          setMaghribStartOffset={setMaghribStartOffset}
+          sunriseOffset={sunriseOffset}
+          setSunriseOffset={setSunriseOffset}
+          sunsetOffset={sunsetOffset}
+          setSunsetOffset={setSunsetOffset}
           autoAlertSettings={autoAlertSettings}
           setAutoAlertSettings={setAutoAlertSettings}
           tickerBg={tickerBg}
