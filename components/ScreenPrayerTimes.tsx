@@ -485,7 +485,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     // Calculate Hijri date using Shariah Board NY convention
     // (date changes at 1:00 AM EST/EDT, not at sunset)
     setHijriDate(getHijriDateFromSettings(hijriSettings, now));
-  }, [calculateNextIqamah, prayers, jumuah]);
+  }, [calculateNextIqamah, prayers, jumuah, hijriSettings]);
 
   // Continuous clock update (independent of prayers changes)
   useEffect(() => {
@@ -500,7 +500,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
 
     }, 1000);
     return () => clearInterval(timer);
-  }, [calculateNextIqamah]); // Keep countdown synced with updated prayer data
+  }, [calculateNextIqamah, hijriSettings]);
 
   const formatDate = useCallback((date: Date) => {
     // Pin to Eastern timezone so the displayed date is always Buffalo local date,
