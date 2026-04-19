@@ -1229,14 +1229,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     return Math.round((todayMs - startMs) / 86400000) + 1;
                   };
 
-                  // When user sets "today is day N", compute monthStartGregorian = today - (N-1)
-                  const handleDayChange = (newDay: number) => {
+                  // Compute monthStartGregorian = today − (day − 1)
+                  const anchorFromDay = (day: number): string => {
                     const todayStr = toEasternDateStr(new Date());
                     const [ty, tm, td] = todayStr.split('-').map(Number);
                     const anchor = new Date(ty, tm - 1, td);
-                    anchor.setDate(anchor.getDate() - (newDay - 1));
-                    const newStart = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, '0')}-${String(anchor.getDate()).padStart(2, '0')}`;
-                    setHijriSettings({ ...hijriSettings, monthStartGregorian: newStart });
+                    anchor.setDate(anchor.getDate() - (day - 1));
+                    return `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, '0')}-${String(anchor.getDate()).padStart(2, '0')}`;
+                  };
+
+                  // When user sets "today is day N", recompute anchor
+                  const handleDayChange = (newDay: number) => {
+                    setHijriSettings({ ...hijriSettings, monthStartGregorian: anchorFromDay(newDay) });
                   };
 
                   const currentDay = computeCurrentDay();
@@ -1258,7 +1262,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               value={hijriSettings.monthName}
                               onChange={e => {
                                 const idx = HIJRI_MONTHS.indexOf(e.target.value as any);
-                                setHijriSettings({ ...hijriSettings, monthName: e.target.value, monthNumber: idx + 1 });
+                                const newStart = hijriSettings.monthStartGregorian || anchorFromDay(currentDay);
+                                setHijriSettings({ ...hijriSettings, monthName: e.target.value, monthNumber: idx + 1, monthStartGregorian: newStart });
                               }}
                               className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
                             >
@@ -1274,7 +1279,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <label className="block text-xl font-bold uppercase tracking-widest text-mosque-gold/90 mb-4">Hijri Year</label>
                             <select
                               value={hijriSettings.year || ''}
-                              onChange={e => setHijriSettings({ ...hijriSettings, year: Number(e.target.value) })}
+                              onChange={e => {
+                                const newStart = hijriSettings.monthStartGregorian || anchorFromDay(currentDay);
+                                setHijriSettings({ ...hijriSettings, year: Number(e.target.value), monthStartGregorian: newStart });
+                              }}
                               className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
                             >
                               <option value="">— Select year —</option>
