@@ -18,6 +18,8 @@ interface ScreenPrayerTimesProps {
   excelSchedule: Record<string, ExcelDaySchedule>;
   manualOverrides: ManualOverride[];
   maghribOffset: number;
+  sunriseOffset: number;
+  sunsetOffset: number;
   tickerBg: 'white' | 'navy';
   hijriSettings: HijriSettings;
 
@@ -234,7 +236,7 @@ const AnnouncementSlide = React.memo(({ config }: { config: AnnouncementSlideCon
     );
 });
 
-const ScheduleSlide = React.memo(({ config, excelSchedule, manualOverrides, maghribOffset, scheduleIndex }: { config: ScheduleSlideConfig, excelSchedule: any, manualOverrides: any, maghribOffset: number, scheduleIndex?: ScheduleIndex }) => {
+const ScheduleSlide = React.memo(({ config, excelSchedule, manualOverrides, maghribOffset, sunriseOffset, sunsetOffset, scheduleIndex }: { config: ScheduleSlideConfig, excelSchedule: any, manualOverrides: any, maghribOffset: number, sunriseOffset: number, sunsetOffset: number, scheduleIndex?: ScheduleIndex }) => {
 
     const scheduleData = useMemo(() => {
         const days = [];
@@ -252,7 +254,7 @@ const ScheduleSlide = React.memo(({ config, excelSchedule, manualOverrides, magh
            // Use Eastern date string so the key (and display) are correct
            // regardless of device timezone
            const dateKey = toEasternDateStr(d);
-           const { prayers } = getScheduleForDate(dateKey, excelSchedule, manualOverrides, maghribOffset, scheduleIndex);
+           const { prayers } = getScheduleForDate(dateKey, excelSchedule, manualOverrides, maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset);
 
            // Display fields also pinned to Eastern timezone
            const displayDate = new Date(dateKey + 'T12:00:00');
@@ -263,7 +265,7 @@ const ScheduleSlide = React.memo(({ config, excelSchedule, manualOverrides, magh
            });
         }
         return days;
-    }, [config.daysToShow, excelSchedule, manualOverrides, maghribOffset, scheduleIndex]);
+    }, [config.daysToShow, excelSchedule, manualOverrides, maghribOffset, sunriseOffset, sunsetOffset, scheduleIndex]);
 
     // Simple Time formatter just for this table
     const fmt = (t: string) => t.replace(/(AM|PM)/, '').trim();
@@ -317,7 +319,7 @@ const ScheduleSlide = React.memo(({ config, excelSchedule, manualOverrides, magh
 export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     prayers, jumuah, tomorrowPrayers, announcement,
     slidesConfig,
-    excelSchedule, manualOverrides, maghribOffset,
+    excelSchedule, manualOverrides, maghribOffset, sunriseOffset, sunsetOffset,
     tickerBg, hijriSettings,
     isAlertActive, alertSettings, nextIqamahTime,
     scheduleIndex
@@ -576,7 +578,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
         if (activeSlide.type === 'ANNOUNCEMENT') {
             RightPanelContent = <AnnouncementSlide config={activeSlide as AnnouncementSlideConfig} />;
         } else if (activeSlide.type === 'SCHEDULE') {
-            RightPanelContent = <ScheduleSlide config={activeSlide as ScheduleSlideConfig} excelSchedule={excelSchedule} manualOverrides={manualOverrides} maghribOffset={maghribOffset} scheduleIndex={scheduleIndex} />;
+            RightPanelContent = <ScheduleSlide config={activeSlide as ScheduleSlideConfig} excelSchedule={excelSchedule} manualOverrides={manualOverrides} maghribOffset={maghribOffset} sunriseOffset={sunriseOffset} sunsetOffset={sunsetOffset} scheduleIndex={scheduleIndex} />;
         }
       }
   }

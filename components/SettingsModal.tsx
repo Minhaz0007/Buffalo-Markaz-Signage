@@ -23,8 +23,10 @@ interface SettingsModalProps {
   setCurrentTheme: (theme: string) => void;
   maghribOffset: number;
   setMaghribOffset: (offset: number) => void;
-  maghribStartOffset: number;
-  setMaghribStartOffset: (offset: number) => void;
+  sunriseOffset: number;
+  setSunriseOffset: (offset: number) => void;
+  sunsetOffset: number;
+  setSunsetOffset: (offset: number) => void;
   
   autoAlertSettings: AutoAlertSettings;
   setAutoAlertSettings: (settings: AutoAlertSettings) => void;
@@ -252,7 +254,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   announcement, setAnnouncement,
   currentTheme, setCurrentTheme,
   maghribOffset, setMaghribOffset,
-  maghribStartOffset, setMaghribStartOffset,
+  sunriseOffset, setSunriseOffset,
+  sunsetOffset, setSunsetOffset,
   autoAlertSettings, setAutoAlertSettings,
   tickerBg, setTickerBg,
   slidesConfig, setSlidesConfig,
@@ -262,7 +265,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   hijriSettings, setHijriSettings,
 }) => {
   const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization' | 'slideshow' | 'silentAlert' | 'hijri'>('schedule');
-  const [draftHijri, setDraftHijri] = useState<HijriSettings>(hijriSettings);
   const [uploadStatus, setUploadStatus] = useState<string>("");
   const [overrideStatus, setOverrideStatus] = useState<string>("");
   const [expandedPrayer, setExpandedPrayer] = useState<string | null>(null);
@@ -604,51 +606,64 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             {uploadStatus && <div className="mt-6 text-center font-mono text-xl text-mosque-gold">{uploadStatus}</div>}
                          </Card>
 
-                         {/* Maghrib Config Card */}
+                         {/* Maghrib / Sunrise / Sunset Config Card */}
                          <Card>
                             <div className="flex items-start gap-8">
                                 <div className="p-5 bg-indigo-500/10 rounded-2xl text-indigo-400"><Clock className="w-10 h-10" /></div>
                                 <div className="flex-1">
-                                    <h4 className="text-3xl font-bold text-white mb-4">Maghrib Auto-Calculation</h4>
-                                    <p className="text-white/50 text-xl mb-8">Maghrib times are calculated from the daily Sunset time. The sunset display is never affected.</p>
+                                    <h4 className="text-3xl font-bold text-white mb-4">Sunrise, Sunset & Maghrib</h4>
+                                    <p className="text-white/50 text-xl mb-8">Sunset time is the Maghrib start. Offsets apply from −10 to +10 minutes.</p>
 
                                     <div className="flex flex-col gap-10">
-                                        {/* Start Time Offset */}
+                                        {/* Sunrise Offset */}
                                         <div className="flex flex-col gap-4">
-                                            <span className="text-white/60 font-semibold text-xl uppercase tracking-widest">Start Time Offset</span>
-                                            <p className="text-white/40 text-lg">Maghrib Start = Sunset + this offset (default 0).</p>
-                                            <div className="bg-black/30 rounded-2xl p-6 flex items-center justify-between border border-white/5">
-                                                <span className="text-white/70 font-medium text-2xl">Offset Minutes</span>
-                                                <span className="text-4xl font-bold text-mosque-gold">+{maghribStartOffset}</span>
-                                            </div>
-                                            <div className="pt-2">
-                                                <input
-                                                    type="range"
-                                                    min="0" max="30"
-                                                    value={maghribStartOffset}
-                                                    onChange={(e) => setMaghribStartOffset(Number(e.target.value))}
-                                                    className="w-full accent-mosque-gold h-4 bg-white/10 rounded-xl appearance-none cursor-pointer"
-                                                />
-                                            </div>
+                                            <span className="text-white/60 font-semibold text-xl uppercase tracking-widest">Sunrise Offset</span>
+                                            <p className="text-white/40 text-lg">Displayed Sunrise = Astronomical Sunrise + offset.</p>
+                                            <select
+                                                value={sunriseOffset}
+                                                onChange={(e) => setSunriseOffset(Number(e.target.value))}
+                                                className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
+                                            >
+                                                {Array.from({ length: 21 }, (_, i) => i - 10).map(min => (
+                                                    <option key={min} value={min} className="bg-mosque-navy text-white">
+                                                        {min > 0 ? `+${min} min` : min === 0 ? '0 min (no offset)' : `${min} min`}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Sunset Offset */}
+                                        <div className="flex flex-col gap-4">
+                                            <span className="text-white/60 font-semibold text-xl uppercase tracking-widest">Sunset Offset (Maghrib Start)</span>
+                                            <p className="text-white/40 text-lg">Maghrib Start = Sunset + offset. Displayed sunset also updates.</p>
+                                            <select
+                                                value={sunsetOffset}
+                                                onChange={(e) => setSunsetOffset(Number(e.target.value))}
+                                                className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
+                                            >
+                                                {Array.from({ length: 21 }, (_, i) => i - 10).map(min => (
+                                                    <option key={min} value={min} className="bg-mosque-navy text-white">
+                                                        {min > 0 ? `+${min} min` : min === 0 ? '0 min (no offset)' : `${min} min`}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </div>
 
                                         {/* Iqamah Offset */}
                                         <div className="flex flex-col gap-4">
                                             <span className="text-white/60 font-semibold text-xl uppercase tracking-widest">Iqamah Offset</span>
                                             <p className="text-white/40 text-lg">Maghrib Iqamah = Maghrib Start + this offset.</p>
-                                            <div className="bg-black/30 rounded-2xl p-6 flex items-center justify-between border border-white/5">
-                                                <span className="text-white/70 font-medium text-2xl">Offset Minutes</span>
-                                                <span className="text-4xl font-bold text-mosque-gold">+{maghribOffset}</span>
-                                            </div>
-                                            <div className="pt-2">
-                                                <input
-                                                    type="range"
-                                                    min="0" max="30"
-                                                    value={maghribOffset}
-                                                    onChange={(e) => setMaghribOffset(Number(e.target.value))}
-                                                    className="w-full accent-mosque-gold h-4 bg-white/10 rounded-xl appearance-none cursor-pointer"
-                                                />
-                                            </div>
+                                            <select
+                                                value={maghribOffset}
+                                                onChange={(e) => setMaghribOffset(Number(e.target.value))}
+                                                className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
+                                            >
+                                                {Array.from({ length: 31 }, (_, i) => i).map(min => (
+                                                    <option key={min} value={min} className="bg-mosque-navy text-white">
+                                                        {min === 0 ? '0 min (no offset)' : `+${min} min`}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -1198,114 +1213,131 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 {/* --- HIJRI DATE TAB --- */}
                 {activeTab === 'hijri' && (() => {
-                  const todayStr = toEasternDateStr(new Date());
-                  const status = getHijriAnchorStatus(draftHijri, new Date());
-                  const previewDate = draftHijri.monthStartGregorian && draftHijri.monthName && draftHijri.year
-                    ? getHijriDateFromSettings(draftHijri, new Date())
+                  const status = getHijriAnchorStatus(hijriSettings, new Date());
+                  const liveDate = hijriSettings.monthName && hijriSettings.year && hijriSettings.monthStartGregorian
+                    ? getHijriDateFromSettings(hijriSettings, new Date())
                     : null;
-                  const isDirty = JSON.stringify(draftHijri) !== JSON.stringify(hijriSettings);
+
+                  // Compute today's Hijri day from the stored anchor
+                  const computeCurrentDay = (): number => {
+                    if (!hijriSettings.monthStartGregorian) return 1;
+                    const todayStr = toEasternDateStr(new Date());
+                    const [sy, sm, sd] = hijriSettings.monthStartGregorian.split('-').map(Number);
+                    const [ty, tm, td] = todayStr.split('-').map(Number);
+                    const startMs = new Date(sy, sm - 1, sd).getTime();
+                    const todayMs = new Date(ty, tm - 1, td).getTime();
+                    return Math.round((todayMs - startMs) / 86400000) + 1;
+                  };
+
+                  // Compute monthStartGregorian = today − (day − 1)
+                  const anchorFromDay = (day: number): string => {
+                    const todayStr = toEasternDateStr(new Date());
+                    const [ty, tm, td] = todayStr.split('-').map(Number);
+                    const anchor = new Date(ty, tm - 1, td);
+                    anchor.setDate(anchor.getDate() - (day - 1));
+                    return `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, '0')}-${String(anchor.getDate()).padStart(2, '0')}`;
+                  };
+
+                  // When user sets "today is day N", recompute anchor
+                  const handleDayChange = (newDay: number) => {
+                    setHijriSettings({ ...hijriSettings, monthStartGregorian: anchorFromDay(newDay) });
+                  };
+
+                  const currentDay = computeCurrentDay();
+                  const maxDay = hijriSettings.monthLength || 30;
 
                   return (
                     <div className="space-y-16">
-                      <SectionHeader icon={Moon} title="Hijri Date" description="Set the Islamic month following the CHC moon-sighting announcement." />
+                      <SectionHeader icon={Moon} title="Hijri Date" description="Set today's Islamic date — all fields auto-save instantly to every screen." />
 
                       {/* Main settings card */}
                       <Card>
-                        <h4 className="text-3xl font-bold text-white mb-10">Current Islamic Month</h4>
+                        <h4 className="text-3xl font-bold text-white mb-10">Current Islamic Date</h4>
 
                         <div className="grid grid-cols-2 gap-10 mb-10">
                           {/* Month selector */}
                           <div>
                             <label className="block text-xl font-bold uppercase tracking-widest text-mosque-gold/90 mb-4">Month</label>
                             <select
-                              value={draftHijri.monthName}
+                              value={hijriSettings.monthName}
                               onChange={e => {
                                 const idx = HIJRI_MONTHS.indexOf(e.target.value as any);
-                                setDraftHijri(prev => ({ ...prev, monthName: e.target.value, monthNumber: idx + 1 }));
+                                const newStart = hijriSettings.monthStartGregorian || anchorFromDay(currentDay);
+                                setHijriSettings({ ...hijriSettings, monthName: e.target.value, monthNumber: idx + 1, monthStartGregorian: newStart });
                               }}
-                              className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all"
+                              className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
                             >
                               <option value="">— Select month —</option>
                               {HIJRI_MONTHS.map((m, i) => (
-                                <option key={m} value={m}>{i + 1}. {m}</option>
+                                <option key={m} value={m} className="bg-mosque-navy text-white">{i + 1}. {m}</option>
                               ))}
                             </select>
                           </div>
 
-                          {/* Year */}
+                          {/* Year dropdown */}
                           <div>
                             <label className="block text-xl font-bold uppercase tracking-widest text-mosque-gold/90 mb-4">Hijri Year</label>
-                            <input
-                              type="number"
-                              value={draftHijri.year || ''}
-                              onChange={e => setDraftHijri(prev => ({ ...prev, year: Number(e.target.value) }))}
-                              placeholder="e.g. 1447"
-                              className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white placeholder-white/30 focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all"
-                            />
-                          </div>
-
-                          {/* Gregorian start date */}
-                          <div>
-                            <label className="block text-xl font-bold uppercase tracking-widest text-mosque-gold/90 mb-4">Month Started (Gregorian)</label>
-                            <input
-                              type="date"
-                              value={draftHijri.monthStartGregorian}
-                              max={todayStr}
-                              onChange={e => setDraftHijri(prev => ({ ...prev, monthStartGregorian: e.target.value }))}
-                              className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all [color-scheme:dark]"
-                            />
-                            <p className="text-white/40 text-lg mt-2">The Gregorian date the new crescent was sighted (Day 1)</p>
-                          </div>
-
-                          {/* Month length toggle */}
-                          <div>
-                            <label className="block text-xl font-bold uppercase tracking-widest text-mosque-gold/90 mb-4">Month Length (days)</label>
-                            <div className="flex gap-6 h-20">
-                              {([29, 30] as const).map(n => (
-                                <button
-                                  key={n}
-                                  onClick={() => setDraftHijri(prev => ({ ...prev, monthLength: n }))}
-                                  className={`flex-1 rounded-2xl border-2 text-3xl font-bold transition-all ${draftHijri.monthLength === n ? 'border-mosque-gold bg-mosque-gold/10 text-mosque-gold shadow-[0_0_20px_rgba(212,175,55,0.15)]' : 'border-white/10 text-white/50 hover:border-white/30 hover:text-white'}`}
-                                >
-                                  {n}
-                                </button>
+                            <select
+                              value={hijriSettings.year || ''}
+                              onChange={e => {
+                                const newStart = hijriSettings.monthStartGregorian || anchorFromDay(currentDay);
+                                setHijriSettings({ ...hijriSettings, year: Number(e.target.value), monthStartGregorian: newStart });
+                              }}
+                              className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
+                            >
+                              <option value="">— Select year —</option>
+                              {Array.from({ length: 21 }, (_, i) => 1440 + i).map(yr => (
+                                <option key={yr} value={yr} className="bg-mosque-navy text-white">{yr} AH</option>
                               ))}
-                            </div>
+                            </select>
+                          </div>
+
+                          {/* Today's Hijri Day */}
+                          <div>
+                            <label className="block text-xl font-bold uppercase tracking-widest text-mosque-gold/90 mb-4">Today is Day</label>
+                            <select
+                              value={Math.min(Math.max(currentDay, 1), maxDay)}
+                              onChange={e => handleDayChange(Number(e.target.value))}
+                              className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
+                            >
+                              {Array.from({ length: maxDay }, (_, i) => i + 1).map(d => (
+                                <option key={d} value={d} className="bg-mosque-navy text-white">Day {d}</option>
+                              ))}
+                            </select>
+                            <p className="text-white/40 text-lg mt-2">Select what day of the Islamic month it is today</p>
+                          </div>
+
+                          {/* Month Length dropdown */}
+                          <div>
+                            <label className="block text-xl font-bold uppercase tracking-widest text-mosque-gold/90 mb-4">Days in This Month</label>
+                            <select
+                              value={hijriSettings.monthLength}
+                              onChange={e => setHijriSettings({ ...hijriSettings, monthLength: Number(e.target.value) as 29 | 30 })}
+                              className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
+                            >
+                              <option value={29} className="bg-mosque-navy text-white">29 days</option>
+                              <option value={30} className="bg-mosque-navy text-white">30 days</option>
+                            </select>
                             <p className="text-white/40 text-lg mt-2">As announced by CHC after moon sighting</p>
                           </div>
                         </div>
 
-                        {/* Preview / status */}
-                        <div className={`rounded-2xl p-8 mb-10 border ${status.isActive && !isDirty ? 'bg-green-900/20 border-green-500/30' : status.isExpired && !isDirty ? 'bg-red-900/20 border-red-500/30' : 'bg-white/5 border-white/10'}`}>
+                        {/* Live status */}
+                        <div className={`rounded-2xl p-8 border ${status.isActive ? 'bg-green-900/20 border-green-500/30' : status.isExpired ? 'bg-red-900/20 border-red-500/30' : 'bg-white/5 border-white/10'}`}>
                           <div className="flex items-center gap-4 mb-4">
-                            <div className={`w-3 h-3 rounded-full ${status.isActive && !isDirty ? 'bg-green-400' : status.isExpired && !isDirty ? 'bg-red-400' : 'bg-white/30'}`}></div>
+                            <div className={`w-3 h-3 rounded-full ${status.isActive ? 'bg-green-400' : status.isExpired ? 'bg-red-400' : 'bg-white/30'}`}></div>
                             <span className="text-xl font-bold uppercase tracking-widest text-white/60">
-                              {!draftHijri.monthStartGregorian || !draftHijri.monthName || !draftHijri.year
+                              {!hijriSettings.monthStartGregorian || !hijriSettings.monthName || !hijriSettings.year
                                 ? 'Not configured — using automatic calculation'
-                                : status.isActive && !isDirty ? `Active · Day ${status.dayNumber} of ${hijriSettings.monthLength}`
-                                : status.isExpired && !isDirty ? 'Expired · Update for the new month'
-                                : status.isNotStarted && !isDirty ? 'Not started yet'
-                                : 'Preview (unsaved)'}
+                                : status.isActive ? `Active · Day ${status.dayNumber} of ${hijriSettings.monthLength}`
+                                : status.isExpired ? 'Expired · Update for the new month'
+                                : 'Not started yet'}
                             </span>
                           </div>
                           <div className="text-5xl font-bold font-serif text-white tracking-wide">
-                            {previewDate ?? <span className="text-white/30 text-4xl">No date configured</span>}
+                            {liveDate ?? <span className="text-white/30 text-4xl">No date configured</span>}
                           </div>
-                        </div>
-
-                        {/* Apply button */}
-                        <div className="flex items-center justify-between">
-                          {isDirty && (
-                            <p className="text-mosque-gold text-xl animate-pulse">Unsaved changes</p>
-                          )}
-                          <button
-                            disabled={!draftHijri.monthName || !draftHijri.year || !draftHijri.monthStartGregorian}
-                            onClick={() => setHijriSettings(draftHijri)}
-                            className="ml-auto flex items-center gap-4 px-12 py-6 rounded-2xl bg-mosque-gold text-mosque-navy font-bold text-2xl transition-all hover:bg-yellow-400 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg"
-                          >
-                            <Save className="w-8 h-8" />
-                            Apply to Both Screens
-                          </button>
+                          <p className="text-white/40 text-lg mt-4">Changes auto-save and sync to all screens instantly.</p>
                         </div>
                       </Card>
 
@@ -1318,11 +1350,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <div>
                             <h4 className="text-3xl font-bold text-white mb-6">How to update each month</h4>
                             <ol className="space-y-4 text-white/70 text-2xl list-decimal list-inside leading-relaxed">
-                              <li>Wait for the <span className="text-mosque-gold font-semibold">CHC moon-sighting announcement</span> (hilalcommittee.org)</li>
-                              <li>Select the new Islamic month name and Hijri year above</li>
-                              <li>Enter the <span className="text-white font-semibold">Gregorian date the month started</span> (Day 1 of the new month)</li>
+                              <li>Wait for the <span className="text-mosque-gold font-semibold">CHC moon-sighting announcement</span></li>
+                              <li>Select the new <span className="text-white font-semibold">Month</span> and <span className="text-white font-semibold">Year</span> from the dropdowns</li>
+                              <li>Set <span className="text-white font-semibold">"Today is Day"</span> — choose Day 1 on the first day of the new month</li>
                               <li>Choose <span className="text-white font-semibold">29 or 30 days</span> as announced by CHC</li>
-                              <li>Click <span className="text-mosque-gold font-semibold">Apply to Both Screens</span> — the date updates instantly on all displays</li>
+                              <li>All changes save automatically — no button needed</li>
                             </ol>
                           </div>
                         </div>
