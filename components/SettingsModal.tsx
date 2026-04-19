@@ -23,6 +23,8 @@ interface SettingsModalProps {
   setCurrentTheme: (theme: string) => void;
   maghribOffset: number;
   setMaghribOffset: (offset: number) => void;
+  maghribStartOffset: number;
+  setMaghribStartOffset: (offset: number) => void;
   
   autoAlertSettings: AutoAlertSettings;
   setAutoAlertSettings: (settings: AutoAlertSettings) => void;
@@ -250,6 +252,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   announcement, setAnnouncement,
   currentTheme, setCurrentTheme,
   maghribOffset, setMaghribOffset,
+  maghribStartOffset, setMaghribStartOffset,
   autoAlertSettings, setAutoAlertSettings,
   tickerBg, setTickerBg,
   slidesConfig, setSlidesConfig,
@@ -607,21 +610,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 <div className="p-5 bg-indigo-500/10 rounded-2xl text-indigo-400"><Clock className="w-10 h-10" /></div>
                                 <div className="flex-1">
                                     <h4 className="text-3xl font-bold text-white mb-4">Maghrib Auto-Calculation</h4>
-                                    <p className="text-white/50 text-xl mb-8">Maghrib Iqamah is calculated by adding an offset to the daily Sunset time.</p>
-                                    
-                                    <div className="flex flex-col gap-6">
-                                        <div className="bg-black/30 rounded-2xl p-6 flex items-center justify-between border border-white/5">
-                                            <span className="text-white/70 font-medium text-2xl">Offset Minutes</span>
-                                            <span className="text-4xl font-bold text-mosque-gold">+{maghribOffset}</span>
+                                    <p className="text-white/50 text-xl mb-8">Maghrib times are calculated from the daily Sunset time. The sunset display is never affected.</p>
+
+                                    <div className="flex flex-col gap-10">
+                                        {/* Start Time Offset */}
+                                        <div className="flex flex-col gap-4">
+                                            <span className="text-white/60 font-semibold text-xl uppercase tracking-widest">Start Time Offset</span>
+                                            <p className="text-white/40 text-lg">Maghrib Start = Sunset + this offset (default 0).</p>
+                                            <div className="bg-black/30 rounded-2xl p-6 flex items-center justify-between border border-white/5">
+                                                <span className="text-white/70 font-medium text-2xl">Offset Minutes</span>
+                                                <span className="text-4xl font-bold text-mosque-gold">+{maghribStartOffset}</span>
+                                            </div>
+                                            <div className="pt-2">
+                                                <input
+                                                    type="range"
+                                                    min="0" max="30"
+                                                    value={maghribStartOffset}
+                                                    onChange={(e) => setMaghribStartOffset(Number(e.target.value))}
+                                                    className="w-full accent-mosque-gold h-4 bg-white/10 rounded-xl appearance-none cursor-pointer"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="pt-4">
-                                            <input 
-                                                type="range" 
-                                                min="0" max="30" 
-                                                value={maghribOffset} 
-                                                onChange={(e) => setMaghribOffset(Number(e.target.value))}
-                                                className="w-full accent-mosque-gold h-4 bg-white/10 rounded-xl appearance-none cursor-pointer"
-                                            />
+
+                                        {/* Iqamah Offset */}
+                                        <div className="flex flex-col gap-4">
+                                            <span className="text-white/60 font-semibold text-xl uppercase tracking-widest">Iqamah Offset</span>
+                                            <p className="text-white/40 text-lg">Maghrib Iqamah = Maghrib Start + this offset.</p>
+                                            <div className="bg-black/30 rounded-2xl p-6 flex items-center justify-between border border-white/5">
+                                                <span className="text-white/70 font-medium text-2xl">Offset Minutes</span>
+                                                <span className="text-4xl font-bold text-mosque-gold">+{maghribOffset}</span>
+                                            </div>
+                                            <div className="pt-2">
+                                                <input
+                                                    type="range"
+                                                    min="0" max="30"
+                                                    value={maghribOffset}
+                                                    onChange={(e) => setMaghribOffset(Number(e.target.value))}
+                                                    className="w-full accent-mosque-gold h-4 bg-white/10 rounded-xl appearance-none cursor-pointer"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

@@ -125,7 +125,8 @@ CREATE TABLE IF NOT EXISTS global_settings (
     ticker_bg VARCHAR(20) NOT NULL DEFAULT 'white' CHECK (ticker_bg IN ('white', 'navy')),
 
     -- Prayer time settings
-    maghrib_offset INTEGER NOT NULL DEFAULT 20, -- Minutes (masjid standard: 20 min after sunset)
+    maghrib_start_offset INTEGER NOT NULL DEFAULT 0,  -- Minutes after sunset that Maghrib Start begins (default 0 = at sunset)
+    maghrib_offset INTEGER NOT NULL DEFAULT 20, -- Minutes after Maghrib Start that Iqamah begins (masjid standard: 20 min)
 
     -- Auto alert settings
     auto_alert_enabled BOOLEAN NOT NULL DEFAULT true,
@@ -154,8 +155,8 @@ CREATE TABLE IF NOT EXISTS global_settings (
 );
 
 -- Insert default settings row (id=1 is the single canonical row)
-INSERT INTO global_settings (id, theme, ticker_bg, maghrib_offset)
-VALUES (1, 'starry', 'white', 20)
+INSERT INTO global_settings (id, theme, ticker_bg, maghrib_start_offset, maghrib_offset)
+VALUES (1, 'starry', 'white', 0, 20)
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
