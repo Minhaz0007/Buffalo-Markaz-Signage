@@ -590,8 +590,10 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   
   const tickerTextClass = tickerBg === 'navy' ? 'text-white' : 'text-mosque-navy';
 
-  // Helper to render items for the seamless loop
-  const renderTickerItems = useCallback(() => (
+  // Memoize ticker content so the JSX reference is stable between 1-second
+  // clock re-renders — prevents SeamlessTicker from reconciling its clones
+  // on every tick, which would cause unnecessary DOM diffing at 60 Hz.
+  const tickerItems = useMemo(() => (
      <div className={`flex items-center px-4 whitespace-nowrap ${tickerTextClass}`}>
         {announcement.items.map((item) => (
            <React.Fragment key={item.id}>
@@ -726,7 +728,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
               {/* Frame now moved to top level of this container with z-50 to ensure it overlays everything including colored announcements */}
               <ElegantFrame />
               <div className="w-full h-full relative z-10">
-                 <AnimatePresence mode="wait">
+                 <AnimatePresence mode="sync">
                     <motion.div
                        key={isAlertActive ? 'alert-panel' : (!isSlideshowActive || isIqamahFreeze) ? 'static-clock' : activeSlides[currentSlideIndex]?.id}
                        initial={{ opacity: 0, x: 20 }}
@@ -745,7 +747,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       {/* === BOTTOM FOOTER: ANNOUNCEMENT TICKER === */}
       <div className={`h-[10%] ${tickerContainerClass} relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden transition-colors duration-500 flex ticker-container-optimized`}>
           <SeamlessTicker baseSpeed={60}>
-              {renderTickerItems()}
+              {tickerItems}
           </SeamlessTicker>
       </div>
     </div>

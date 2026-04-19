@@ -165,10 +165,27 @@
         100% { background-position: 0% 50%; }
       }
 
-      .animate-text-pulse { animation: textPulse 1.5s infinite ease-in-out; }
-      .animate-text-blink { animation: textBlink 1s infinite steps(1); }
-      .animate-text-shine { animation: text-shine 3s linear infinite; }
-      .animate-gradient-text { animation: gradient-text 3s ease infinite; }
+      .animate-text-pulse {
+        animation: textPulse 1.5s infinite ease-in-out;
+        will-change: transform, opacity;
+        transform: translateZ(0);
+      }
+      .animate-text-blink {
+        animation: textBlink 1s infinite steps(1);
+        will-change: opacity;
+      }
+      .animate-text-shine {
+        animation: text-shine 3s linear infinite;
+        will-change: background-position;
+        transform: translateZ(0);
+        backface-visibility: hidden;
+      }
+      .animate-gradient-text {
+        animation: gradient-text 3s ease infinite;
+        will-change: background-position;
+        transform: translateZ(0);
+        backface-visibility: hidden;
+      }
       .bg-300% { background-size: 300% 300%; }
 
       /* GPU acceleration for animated elements */

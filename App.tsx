@@ -47,11 +47,11 @@ const StarryBackground = React.memo(() => {
        
        <style>{`
          @keyframes star-twinkle {
-           0%, 100% { opacity: 0.3; transform: scale(0.8); }
-           50% { opacity: 0.8; transform: scale(1.1); box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); }
+           0%, 100% { opacity: 0.3; transform: scale(0.8) translateZ(0); }
+           50% { opacity: 0.8; transform: scale(1.1) translateZ(0); }
          }
        `}</style>
-       
+
        {stars.map((star) => (
          <div
            key={star.id}
@@ -65,7 +65,6 @@ const StarryBackground = React.memo(() => {
              animationDelay: `-${star.delay}s`,
              opacity: 0.4,
              willChange: 'opacity, transform',
-             transform: 'translateZ(0)' // Force GPU acceleration
            }}
          />
        ))}
