@@ -150,7 +150,8 @@ export const getScheduleForDate = (
   maghribOffset: number,
   scheduleIndex?: ScheduleIndex, // Optional optimized index for O(1) fallback lookup
   sunriseOffset: number = 0,
-  sunsetOffset: number = 0
+  sunsetOffset: number = 0,
+  fajrIshaAngle: 15 | 18 = 18
 ): { prayers: DailyPrayers, jumuah: { start: string, iqamah: string } } => {
 
   /**
@@ -185,9 +186,9 @@ export const getScheduleForDate = (
   let newJumuah: { start: string, iqamah: string };
 
   try {
-    // Calculate prayer times automatically for Buffalo, NY
-    newPrayers = calculatePrayerTimes(targetDate);
-    newJumuah = calculateJumuahTimes(targetDate);
+    // Calculate prayer times automatically for Buffalo, NY using selected angle
+    newPrayers = calculatePrayerTimes(targetDate, fajrIshaAngle);
+    newJumuah = calculateJumuahTimes(targetDate, fajrIshaAngle);
   } catch (error) {
     // Fallback to defaults if calculation fails
     console.warn('Auto-calculation failed, using defaults:', error);

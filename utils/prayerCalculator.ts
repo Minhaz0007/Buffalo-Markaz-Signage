@@ -6,16 +6,21 @@ import { DEFAULT_PRAYER_TIMES, DEFAULT_JUMUAH_TIMES } from '../constants';
 const BUFFALO_COORDINATES = new Coordinates(42.8864, -78.8784);
 const BUFFALO_TIMEZONE = 'America/New_York';
 
-// Use 18° depression angle for both Fajr and Isha (MWL/Hanafi standard for zip code 14212, Buffalo, NY)
-// 18° means the sun is further below the horizon → earlier Fajr / later Isha
-// e.g. March 21: Fajr ~5:42 AM, Isha ~9:18 PM
-const CALCULATION_PARAMS = CalculationMethod.NorthAmerica();
-CALCULATION_PARAMS.fajrAngle = 18;
-CALCULATION_PARAMS.ishaAngle = 18;
-
 // Use Hanafi madhab for Asr calculation (common in many communities)
-// Can be changed to Madhab.Shafi if needed
-CALCULATION_PARAMS.madhab = Madhab.Hanafi;
+const BASE_MADHAB = Madhab.Hanafi;
+
+/**
+ * Creates calculation parameters for Buffalo, NY with the given Fajr/Isha depression angle.
+ * 15° → sun slightly above true night threshold (later Fajr / earlier Isha — less conservative)
+ * 18° → sun further below horizon (earlier Fajr / later Isha — more conservative, MWL/Hanafi standard)
+ */
+function buildCalculationParams(fajrIshaAngle: 15 | 18 = 18) {
+  const params = CalculationMethod.NorthAmerica();
+  params.fajrAngle = fajrIshaAngle;
+  params.ishaAngle = fajrIshaAngle;
+  params.madhab = BASE_MADHAB;
+  return params;
+}
 
 // Memoization cache for Intl.DateTimeFormat instances
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
@@ -117,9 +122,10 @@ const findBuffaloMidnight = (date: Date): Date => {
  * @param date - The date to calculate prayer times for (defaults to today)
  * @returns DailyPrayers object with calculated times
  */
-export function calculatePrayerTimes(date: Date = new Date()): DailyPrayers {
+export function calculatePrayerTimes(date: Date = new Date(), fajrIshaAngle: 15 | 18 = 18): DailyPrayers {
   try {
     const calculationDate = findBuffaloMidnight(date);
+    const CALCULATION_PARAMS = buildCalculationParams(fajrIshaAngle);
 
     // Calculate prayer times using the adhan library
     const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);
@@ -209,9 +215,10 @@ export function getNextPrayer(prayerTimes: DailyPrayers): string {
  * @param date - The date (should be a Friday)
  * @returns Object with start (Khutbah) and iqamah times
  */
-export function calculateJumuahTimes(date: Date = new Date()): { start: string; iqamah: string } {
+export function calculateJumuahTimes(date: Date = new Date(), fajrIshaAngle: 15 | 18 = 18): { start: string; iqamah: string } {
   try {
     const calculationDate = findBuffaloMidnight(date);
+    const CALCULATION_PARAMS = buildCalculationParams(fajrIshaAngle);
 
     // Calculate prayer times
     const prayerTimes = new PrayerTimes(BUFFALO_COORDINATES, calculationDate, CALCULATION_PARAMS);

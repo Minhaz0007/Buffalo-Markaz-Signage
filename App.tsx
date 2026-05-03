@@ -167,6 +167,7 @@ const App: React.FC = () => {
   const [maghribOffset, setMaghribOffset] = useState<number>(20);
   const [sunriseOffset, setSunriseOffset] = useState<number>(0);
   const [sunsetOffset, setSunsetOffset] = useState<number>(0);
+  const [fajrIshaAngle, setFajrIshaAngle] = useState<15 | 18>(18);
 
   // New Configs
   const [autoAlertSettings, setAutoAlertSettings] = useState<AutoAlertSettings>(DEFAULT_AUTO_ALERTS);
@@ -265,6 +266,7 @@ const App: React.FC = () => {
         setAutoAlertSettings(dbGlobalSettings.autoAlertSettings);
         setMobileAlertSettings(dbGlobalSettings.mobileAlertSettings);
         if (dbGlobalSettings.hijriSettings) setHijriSettings(dbGlobalSettings.hijriSettings);
+        if (dbGlobalSettings.fajrIshaAngle) setFajrIshaAngle(dbGlobalSettings.fajrIshaAngle);
         console.log('✅ Loaded global settings from database');
       }
 
@@ -335,6 +337,7 @@ const App: React.FC = () => {
           setAutoAlertSettings(data.autoAlertSettings);
           setMobileAlertSettings(data.mobileAlertSettings);
           if (data.hijriSettings) setHijriSettings(data.hijriSettings);
+          if (data.fajrIshaAngle) setFajrIshaAngle(data.fajrIshaAngle);
         }
       })
       .subscribe();
@@ -420,8 +423,9 @@ const App: React.FC = () => {
       autoAlertSettings,
       mobileAlertSettings,
       hijriSettings,
+      fajrIshaAngle,
     });
-  }, [currentTheme, tickerBg, maghribOffset, sunriseOffset, sunsetOffset, autoAlertSettings, mobileAlertSettings, hijriSettings, isDataLoaded]);
+  }, [currentTheme, tickerBg, maghribOffset, sunriseOffset, sunsetOffset, autoAlertSettings, mobileAlertSettings, hijriSettings, fajrIshaAngle, isDataLoaded]);
 
   // Scaling Logic for Virtual Viewport (1920x1080)
   useEffect(() => {
@@ -464,12 +468,12 @@ const App: React.FC = () => {
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
     const tomorrowDateStr = toEasternDateStr(tomorrowDate);
 
-    const ydaySchedule = getScheduleForDate(yesterdayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset);
-    const tSchedule = getScheduleForDate(todayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset);
-    const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset);
+    const ydaySchedule = getScheduleForDate(yesterdayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrIshaAngle);
+    const tSchedule = getScheduleForDate(todayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrIshaAngle);
+    const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrIshaAngle);
 
     return { yesterdaySchedule: ydaySchedule, todaySchedule: tSchedule, tomorrowSchedule: tmSchedule };
-  }, [todayDateStr, excelSchedule, manualOverrides, maghribOffset, sunriseOffset, sunsetOffset, scheduleIndex]);
+  }, [todayDateStr, excelSchedule, manualOverrides, maghribOffset, sunriseOffset, sunsetOffset, fajrIshaAngle, scheduleIndex]);
 
   // Update Display State & System Alerts (Only when schedule changes)
   useEffect(() => {
@@ -899,6 +903,8 @@ const App: React.FC = () => {
           scheduleIndex={scheduleIndex}
           hijriSettings={hijriSettings}
           setHijriSettings={setHijriSettings}
+          fajrIshaAngle={fajrIshaAngle}
+          setFajrIshaAngle={setFajrIshaAngle}
         />
 
         {/* Auto-update component for Vercel deployments */}
