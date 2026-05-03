@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers, Lock, PhoneOff, Eye, Volume2, Save, Music, Monitor, LayoutTemplate, List, Info, Sun, Pencil } from 'lucide-react';
 import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig, AutoAlertSettings, MobileSilentAlertSettings, HijriSettings, HIJRI_MONTHS } from '../types';
 import { getHijriDateFromSettings, getHijriAnchorStatus } from '../utils/hijriDate';
@@ -291,6 +291,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [scheduleEditorMonth, setScheduleEditorMonth] = useState(() => new Date().getMonth() + 1);
   const [scheduleEditorYear, setScheduleEditorYear] = useState(() => new Date().getFullYear());
   const [editingCell, setEditingCell] = useState<{ date: string; prayer: string } | null>(null);
+  // Draft state: buffers edits until Save is pressed
+  const [draftSchedule, setDraftSchedule] = useState<Record<string, import('../types').ExcelDaySchedule>>({});
+  const [originalScheduleSnapshot, setOriginalScheduleSnapshot] = useState<Record<string, import('../types').ExcelDaySchedule>>({});
+  const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false);
 
   // Slideshow Editor State
   const [expandedSlideId, setExpandedSlideId] = useState<string | null>(null);
@@ -396,6 +400,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }
       }
       setExcelSchedule(newSchedule);
+      // Clear any in-progress edits so the editor starts fresh with the new file
+      setDraftSchedule({});
+      setOriginalScheduleSnapshot({});
+      setHasUnsavedEdits(false);
+      setEditingCell(null);
 
       // Save to Supabase database (with fresh replacement)
       if (!isSupabaseConfigured()) {
@@ -517,36 +526,70 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   // --- Excel Schedule Editor Helpers ---
+
+  // Write a cell change into the draft (never touches excelSchedule until Save)
   const updateExcelIqamah = (date: string, prayer: 'fajr' | 'dhuhr' | 'asr' | 'isha', value: string) => {
-    const updated = { ...excelSchedule };
-    if (updated[date]) {
-      updated[date] = {
-        ...updated[date],
-        [prayer]: { ...updated[date][prayer], iqamah: value }
+    setDraftSchedule(prev => {
+      if (!prev[date]) return prev;
+      return {
+        ...prev,
+        [date]: { ...prev[date], [prayer]: { ...prev[date][prayer], iqamah: value } }
       };
-      setExcelSchedule(updated);
-    }
+    });
+    setHasUnsavedEdits(true);
     setEditingCell(null);
   };
 
   const updateExcelJumuahIqamah = (date: string, value: string) => {
-    const updated = { ...excelSchedule };
-    if (updated[date]) {
-      updated[date] = { ...updated[date], jumuahIqamah: value };
-      setExcelSchedule(updated);
-    }
+    setDraftSchedule(prev => {
+      if (!prev[date]) return prev;
+      return { ...prev, [date]: { ...prev[date], jumuahIqamah: value } };
+    });
+    setHasUnsavedEdits(true);
     setEditingCell(null);
   };
 
-  // Get all unique year-month combos from the schedule
-  const scheduleMonths = (() => {
+  // Commit draft → excelSchedule (triggers auto-save to Supabase via App.tsx effect)
+  const handleSaveSchedule = () => {
+    setExcelSchedule(draftSchedule);
+    setOriginalScheduleSnapshot(JSON.parse(JSON.stringify(draftSchedule)));
+    setHasUnsavedEdits(false);
+    setEditingCell(null);
+  };
+
+  // Reset draft back to the snapshot taken when the editor was opened
+  const handleDiscardSchedule = () => {
+    setDraftSchedule(JSON.parse(JSON.stringify(originalScheduleSnapshot)));
+    setHasUnsavedEdits(false);
+    setEditingCell(null);
+  };
+
+  // Count cells that differ between draft and original snapshot (across all months)
+  const pendingChangeCount = useMemo(() => {
+    if (!hasUnsavedEdits) return 0;
+    let count = 0;
+    Object.keys(draftSchedule).forEach(date => {
+      const orig = originalScheduleSnapshot[date];
+      const draft = draftSchedule[date];
+      if (!orig || !draft) return;
+      (['fajr', 'dhuhr', 'asr', 'isha'] as const).forEach(p => {
+        if (orig[p]?.iqamah !== draft[p]?.iqamah) count++;
+      });
+      if (orig.jumuahIqamah !== draft.jumuahIqamah) count++;
+    });
+    return count;
+  }, [draftSchedule, originalScheduleSnapshot, hasUnsavedEdits]);
+
+  // Get all unique year-month combos from the DRAFT schedule (or excelSchedule if draft not yet initialized)
+  const scheduleMonths = useMemo(() => {
     const months = new Set<string>();
-    Object.keys(excelSchedule).forEach(date => {
+    const source = Object.keys(draftSchedule).length > 0 ? draftSchedule : excelSchedule;
+    Object.keys(source).forEach(date => {
       const [y, m] = date.split('-');
       months.add(`${y}-${m}`);
     });
     return Array.from(months).sort();
-  })();
+  }, [draftSchedule, excelSchedule]);
 
   const currentMonthKey = `${String(scheduleEditorYear).padStart(4, '0')}-${String(scheduleEditorMonth).padStart(2, '0')}`;
   const monthKeys = scheduleMonths;
@@ -561,10 +604,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
-  // Entries for the currently viewed month
-  const currentMonthEntries = Object.entries(excelSchedule)
-    .filter(([date]) => date.startsWith(currentMonthKey))
-    .sort(([a], [b]) => a.localeCompare(b));
+  // Entries for the currently viewed month — read from DRAFT (fallback to excelSchedule if not yet initialized)
+  const currentMonthEntries = useMemo(() => {
+    const source = Object.keys(draftSchedule).length > 0 ? draftSchedule : excelSchedule;
+    return Object.entries(source)
+      .filter(([date]) => date.startsWith(currentMonthKey))
+      .sort(([a], [b]) => a.localeCompare(b));
+  }, [draftSchedule, excelSchedule, currentMonthKey]);
 
   const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
@@ -778,23 +824,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                        <div>
                          <button
                            onClick={() => {
-                             if (!showScheduleEditor && monthKeys.length > 0) {
+                             if (!showScheduleEditor) {
+                               // On first open (or re-open without a draft): clone excelSchedule into draft + snapshot
+                               if (Object.keys(draftSchedule).length === 0) {
+                                 const snapshot = JSON.parse(JSON.stringify(excelSchedule));
+                                 setDraftSchedule(snapshot);
+                                 setOriginalScheduleSnapshot(snapshot);
+                                 setHasUnsavedEdits(false);
+                               }
                                // Snap to the closest available month to today
-                               const todayKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-                               const closest = monthKeys.reduce((prev, cur) =>
-                                 Math.abs(cur.localeCompare(todayKey)) < Math.abs(prev.localeCompare(todayKey)) ? cur : prev
-                               );
-                               const [y, m] = closest.split('-');
-                               setScheduleEditorYear(Number(y));
-                               setScheduleEditorMonth(Number(m));
+                               const keysToUse = Object.keys(draftSchedule).length > 0 ? scheduleMonths : (() => {
+                                 const months = new Set<string>();
+                                 Object.keys(excelSchedule).forEach(d => { const [y, m] = d.split('-'); months.add(`${y}-${m}`); });
+                                 return Array.from(months).sort();
+                               })();
+                               if (keysToUse.length > 0) {
+                                 const todayKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+                                 const closest = keysToUse.reduce((prev, cur) =>
+                                   Math.abs(cur.localeCompare(todayKey)) < Math.abs(prev.localeCompare(todayKey)) ? cur : prev
+                                 );
+                                 const [y, m] = closest.split('-');
+                                 setScheduleEditorYear(Number(y));
+                                 setScheduleEditorMonth(Number(m));
+                               }
                              }
                              setShowScheduleEditor(v => !v);
                            }}
-                           className="w-full flex items-center justify-between px-10 py-8 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all"
+                           className={`w-full flex items-center justify-between px-10 py-8 border rounded-2xl hover:bg-white/10 transition-all ${hasUnsavedEdits ? 'bg-amber-500/10 border-amber-500/30' : 'bg-white/5 border-white/10'}`}
                          >
                            <h4 className="text-3xl font-bold text-white flex items-center gap-4">
-                             <Pencil className="w-8 h-8 text-mosque-gold" />
+                             <Pencil className={`w-8 h-8 ${hasUnsavedEdits ? 'text-amber-400' : 'text-mosque-gold'}`} />
                              Edit Schedule Data
+                             {hasUnsavedEdits && (
+                               <span className="px-4 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xl font-bold rounded-lg">
+                                 {pendingChangeCount} unsaved {pendingChangeCount === 1 ? 'change' : 'changes'}
+                               </span>
+                             )}
                            </h4>
                            <div className="flex items-center gap-6">
                              <span className="text-white/40 text-xl">{Object.keys(excelSchedule).length} days loaded</span>
@@ -847,46 +912,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                        const dayNum = new Date(date + 'T12:00:00').getDate();
                                        const dayName = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
                                        const isFriday = new Date(date + 'T12:00:00').getDay() === 5;
+                                       const origEntry = originalScheduleSnapshot[date];
 
                                        const renderCell = (
                                          prayerKey: 'fajr' | 'dhuhr' | 'asr' | 'isha' | 'jumuah',
-                                         currentValue: string | undefined
+                                         currentValue: string | undefined,
+                                         originalValue: string | undefined
                                        ) => {
                                          const isEditing = editingCell?.date === date && editingCell?.prayer === prayerKey;
+                                         const isModified = hasUnsavedEdits && originalValue !== undefined && currentValue !== originalValue;
                                          const cellKey = `${date}-${prayerKey}`;
 
                                          if (isEditing) {
                                            return (
                                              <td key={cellKey} className="px-4 py-3">
-                                               <div className="relative">
-                                                 <select
-                                                   autoFocus
-                                                   value={currentValue || ''}
-                                                   onChange={(e) => {
-                                                     if (prayerKey === 'jumuah') {
-                                                       updateExcelJumuahIqamah(date, e.target.value);
-                                                     } else {
-                                                       updateExcelIqamah(date, prayerKey, e.target.value);
+                                               <select
+                                                 autoFocus
+                                                 value={currentValue || ''}
+                                                 onChange={(e) => {
+                                                   if (prayerKey === 'jumuah') {
+                                                     updateExcelJumuahIqamah(date, e.target.value);
+                                                   } else {
+                                                     updateExcelIqamah(date, prayerKey, e.target.value);
+                                                   }
+                                                 }}
+                                                 onBlur={() => setEditingCell(null)}
+                                                 className="w-full bg-mosque-navy border-2 border-mosque-gold rounded-xl px-4 h-14 text-xl text-white outline-none cursor-pointer appearance-none"
+                                               >
+                                                 {(() => {
+                                                   const opts: React.ReactElement[] = [];
+                                                   for (let h = 0; h < 24; h++) {
+                                                     for (let m = 0; m < 60; m += 5) {
+                                                       const period = h < 12 ? 'AM' : 'PM';
+                                                       const dh = h === 0 ? 12 : h > 12 ? h - 12 : h;
+                                                       const dm = m.toString().padStart(2, '0');
+                                                       const t = `${dh}:${dm} ${period}`;
+                                                       opts.push(<option key={t} value={t} className="bg-mosque-navy">{t}</option>);
                                                      }
-                                                   }}
-                                                   onBlur={() => setEditingCell(null)}
-                                                   className="w-full bg-mosque-navy border-2 border-mosque-gold rounded-xl px-4 h-14 text-xl text-white outline-none cursor-pointer appearance-none"
-                                                 >
-                                                   {(() => {
-                                                     const opts: React.ReactElement[] = [];
-                                                     for (let h = 0; h < 24; h++) {
-                                                       for (let m = 0; m < 60; m += 5) {
-                                                         const period = h < 12 ? 'AM' : 'PM';
-                                                         const dh = h === 0 ? 12 : h > 12 ? h - 12 : h;
-                                                         const dm = m.toString().padStart(2, '0');
-                                                         const t = `${dh}:${dm} ${period}`;
-                                                         opts.push(<option key={t} value={t} className="bg-mosque-navy">{t}</option>);
-                                                       }
-                                                     }
-                                                     return opts;
-                                                   })()}
-                                                 </select>
-                                               </div>
+                                                   }
+                                                   return opts;
+                                                 })()}
+                                               </select>
                                              </td>
                                            );
                                          }
@@ -894,12 +960,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                          return (
                                            <td
                                              key={cellKey}
-                                             className="px-6 py-3 cursor-pointer group"
+                                             className={`px-6 py-3 cursor-pointer group transition-colors ${isModified ? 'bg-amber-500/10' : ''}`}
                                              onClick={() => setEditingCell({ date, prayer: prayerKey })}
                                            >
-                                             <div className="flex items-center gap-2 text-white font-mono text-xl group-hover:text-mosque-gold transition-colors">
-                                               <span>{currentValue || <span className="text-white/20 italic">—</span>}</span>
-                                               <Pencil className="w-5 h-5 opacity-0 group-hover:opacity-60 shrink-0 transition-opacity" />
+                                             <div className="flex items-center gap-2 font-mono text-xl group-hover:text-mosque-gold transition-colors">
+                                               {isModified ? (
+                                                 <div className="flex flex-col">
+                                                   <span className="text-amber-300 font-bold">{currentValue || '—'}</span>
+                                                   <span className="text-white/30 text-base line-through">{originalValue}</span>
+                                                 </div>
+                                               ) : (
+                                                 <span className="text-white">{currentValue || <span className="text-white/20 italic">—</span>}</span>
+                                               )}
+                                               <Pencil className="w-5 h-5 opacity-0 group-hover:opacity-60 shrink-0 transition-opacity text-mosque-gold" />
                                              </div>
                                            </td>
                                          );
@@ -916,11 +989,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                <span className="text-white/40 text-lg">{dayName}</span>
                                              </div>
                                            </td>
-                                           {renderCell('fajr', entry.fajr?.iqamah)}
-                                           {renderCell('dhuhr', entry.dhuhr?.iqamah)}
-                                           {renderCell('asr', entry.asr?.iqamah)}
-                                           {renderCell('isha', entry.isha?.iqamah)}
-                                           {renderCell('jumuah', entry.jumuahIqamah)}
+                                           {renderCell('fajr', entry.fajr?.iqamah, origEntry?.fajr?.iqamah)}
+                                           {renderCell('dhuhr', entry.dhuhr?.iqamah, origEntry?.dhuhr?.iqamah)}
+                                           {renderCell('asr', entry.asr?.iqamah, origEntry?.asr?.iqamah)}
+                                           {renderCell('isha', entry.isha?.iqamah, origEntry?.isha?.iqamah)}
+                                           {renderCell('jumuah', entry.jumuahIqamah, origEntry?.jumuahIqamah)}
                                          </tr>
                                        );
                                      })}
@@ -929,9 +1002,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                </div>
                              )}
 
-                             <div className="px-10 py-6 border-t border-white/10 bg-black/10 text-white/30 text-lg flex items-center gap-3">
-                               <Pencil className="w-5 h-5" />
-                               Click any iqamah time to edit it. Changes save instantly. Maghrib iqamah is always auto-calculated (sunset + offset).
+                             {/* Action Bar — always visible at the bottom of the editor */}
+                             <div className={`px-10 py-6 border-t flex items-center justify-between transition-colors ${hasUnsavedEdits ? 'border-amber-500/30 bg-amber-500/10' : 'border-white/10 bg-black/10'}`}>
+                               <div className="flex items-center gap-3 text-lg">
+                                 {hasUnsavedEdits ? (
+                                   <>
+                                     <div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse" />
+                                     <span className="text-amber-300 font-semibold text-xl">
+                                       {pendingChangeCount} unsaved {pendingChangeCount === 1 ? 'change' : 'changes'} — not saved yet
+                                     </span>
+                                   </>
+                                 ) : (
+                                   <>
+                                     <Pencil className="w-5 h-5 text-white/30" />
+                                     <span className="text-white/30">Click any iqamah time to edit. Maghrib is always auto-calculated.</span>
+                                   </>
+                                 )}
+                               </div>
+                               <div className="flex items-center gap-6">
+                                 {hasUnsavedEdits && (
+                                   <button
+                                     onClick={handleDiscardSchedule}
+                                     className="px-10 py-4 rounded-2xl border-2 border-white/20 text-white/60 text-xl font-semibold hover:border-white/40 hover:text-white transition-all"
+                                   >
+                                     Discard All Changes
+                                   </button>
+                                 )}
+                                 <button
+                                   onClick={handleSaveSchedule}
+                                   disabled={!hasUnsavedEdits}
+                                   className={`flex items-center gap-3 px-12 py-4 rounded-2xl text-xl font-bold transition-all ${hasUnsavedEdits ? 'bg-mosque-gold hover:bg-white text-mosque-navy shadow-lg' : 'bg-white/5 text-white/20 border border-white/10 cursor-not-allowed'}`}
+                                 >
+                                   <Save className="w-6 h-6" />
+                                   {hasUnsavedEdits ? 'Save Changes' : 'Saved'}
+                                 </button>
+                               </div>
                              </div>
                            </div>
                          )}
