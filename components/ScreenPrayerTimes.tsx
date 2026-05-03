@@ -590,8 +590,11 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   
   const tickerTextClass = tickerBg === 'navy' ? 'text-white' : 'text-mosque-navy';
 
-  // Helper to render items for the seamless loop
-  const renderTickerItems = useCallback(() => (
+  // Stable JSX reference for the ticker content.
+  // useMemo (not useCallback + inline call) ensures the same object reference is
+  // returned between renders so React.memo on SeamlessTicker can bail out of
+  // re-rendering every second when the clock ticks.
+  const tickerItems = useMemo(() => (
      <div className={`flex items-center px-4 whitespace-nowrap ${tickerTextClass}`}>
         {announcement.items.map((item) => (
            <React.Fragment key={item.id}>
@@ -745,7 +748,7 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       {/* === BOTTOM FOOTER: ANNOUNCEMENT TICKER === */}
       <div className={`h-[10%] ${tickerContainerClass} relative z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] shrink-0 overflow-hidden transition-colors duration-500 flex ticker-container-optimized`}>
           <SeamlessTicker baseSpeed={60}>
-              {renderTickerItems()}
+              {tickerItems}
           </SeamlessTicker>
       </div>
     </div>

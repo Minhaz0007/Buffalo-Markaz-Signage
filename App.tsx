@@ -201,6 +201,11 @@ const App: React.FC = () => {
   const [alertTargetTime, setAlertTargetTime] = useState<Date | null>(null);
   const [isPreviewAlert, setIsPreviewAlert] = useState(false);
 
+  // Set to true when an auto-update reload happened while in fullscreen but the
+  // browser blocked the automatic requestFullscreen() call (requires a gesture).
+  // In that case we show a tap-to-restore banner.
+  const [needsFullscreenRestore, setNeedsFullscreenRestore] = useState(false);
+
   // Supabase sync state
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -214,9 +219,23 @@ const App: React.FC = () => {
   // has mounted and painted its first frame.  The splash covers the screen on
   // page load and after every navigation so the GPU compositor always has a
   // navy frame to show — preventing the green flash on HDMI extended displays.
+  //
+  // Also: if the previous page was in fullscreen when AutoUpdate triggered a
+  // reload, attempt to restore fullscreen immediately.  requestFullscreen()
+  // succeeds without a gesture in Electron, Chrome kiosk mode, and any context
+  // where the Fullscreen Permission Policy is pre-granted.  If it's blocked
+  // (regular browser, requires a user gesture) we fall back to a tap-to-restore
+  // banner so the screen can be put back into fullscreen with a single click.
   useEffect(() => {
     const splash = document.getElementById('nav-splash');
     if (splash) splash.style.display = 'none';
+
+    if (sessionStorage.getItem('signage_was_fullscreen') === '1') {
+      sessionStorage.removeItem('signage_was_fullscreen');
+      document.documentElement.requestFullscreen().catch(() => {
+        setNeedsFullscreenRestore(true);
+      });
+    }
   }, []);
 
   // Load data from Supabase on mount
@@ -909,6 +928,23 @@ const App: React.FC = () => {
           fajrIshaAngle={fajrIshaAngle}
           setFajrIshaAngle={setFajrIshaAngle}
         />
+
+        {/* Fullscreen-restore banner: shown when auto-update reloaded the page
+            while in fullscreen but the browser blocked automatic re-entry */}
+        {needsFullscreenRestore && (
+          <div
+            className="absolute inset-0 z-[9998] flex items-end justify-center pb-16 cursor-pointer"
+            onClick={() => {
+              toggleFullscreen();
+              setNeedsFullscreenRestore(false);
+            }}
+          >
+            <div className="bg-mosque-navy/90 border-2 border-mosque-gold rounded-xl px-10 py-5 text-center shadow-2xl animate-pulse">
+              <p className="text-mosque-gold text-2xl font-bold tracking-wide">Display Updated</p>
+              <p className="text-white/80 text-lg mt-1">Tap anywhere to restore fullscreen</p>
+            </div>
+          </div>
+        )}
 
         {/* Auto-update component for Vercel deployments */}
         <AutoUpdate />
