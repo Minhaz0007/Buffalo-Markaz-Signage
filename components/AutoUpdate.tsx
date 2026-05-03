@@ -28,10 +28,15 @@ import { supabase, isSupabaseConfigured } from '../utils/supabase';
  *    Fix: first check runs after 5 s (enough time for the app to settle).
  */
 
-const BROADCAST_CHANNEL = 'signage-app-updates';
-const BROADCAST_EVENT    = 'reload';
-const POLL_INTERVAL_MS   = 60_000; // 1 minute fallback poll
-const INITIAL_DELAY_MS   =  5_000; // 5 s — enough for app to fully mount
+const BROADCAST_CHANNEL      = 'signage-app-updates';
+const BROADCAST_EVENT        = 'reload';
+const POLL_INTERVAL_MS       =  60_000; // 1 minute fallback poll
+const INITIAL_DELAY_MS       =   5_000; // 5 s — enough for app to fully mount
+const VERSION_STABILIZE_MS   =  30_000; // wait 30 s after detecting a new version
+                                         // before reloading — gives npm run build time
+                                         // to finish writing all files to dist/
+const MAX_RELOADS_PER_SESSION = 5;       // safety cap — prevents infinite reload loop
+                                         // if a bad build keeps changing the version
 
 export const AutoUpdate: React.FC = () => {
   const [isUpdating, setIsUpdating] = useState(false);
@@ -40,6 +45,12 @@ export const AutoUpdate: React.FC = () => {
   const currentVersionRef  = useRef<string | null>(null);
   const reloadScheduledRef = useRef(false);       // guard against double-reload
   const channelRef         = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  // Debounce: track first detection of a new version before committing to reload.
+  // On LAN builds the new index.html is written before the JS bundle finishes,
+  // so a naive immediate reload can catch a partially-written dist/ folder.
+  const pendingVersionRef  = useRef<{ version: string; detectedAt: number } | null>(null);
+  // Cap total reloads this page-session to prevent runaway loops.
+  const reloadCountRef     = useRef(0);
 
   // ── Smooth reload ──────────────────────────────────────────────────────────
   //
@@ -84,7 +95,7 @@ export const AutoUpdate: React.FC = () => {
     //
     // Strategy: two requestAnimationFrame calls guarantee the splash div has been
     // painted in at least one GPU compositor frame, THEN we wait an additional
-    // 1500 ms so slower HDMI TVs (300–800 ms pipeline) have time to receive and
+    // 3000 ms so slower HDMI TVs (300–800 ms pipeline) have time to receive and
     // display the navy frame before the old page is torn down.
     // Two RAFs = rAF 1 queues the task, rAF 2 confirms it ran in the next frame.
     requestAnimationFrame(() => {
@@ -93,7 +104,7 @@ export const AutoUpdate: React.FC = () => {
           const url = new URL(window.location.href);
           url.searchParams.set('_r', Date.now().toString());
           window.location.replace(url.toString());
-        }, 1_500);
+        }, 3_000);
       });
     });
   };
@@ -140,9 +151,45 @@ export const AutoUpdate: React.FC = () => {
       }
 
       if (fetched !== currentVersionRef.current) {
-        console.log('[AutoUpdate] New version detected:', fetched, '(was:', currentVersionRef.current + ')');
-        // Broadcast to all tabs → all reload simultaneously
-        broadcastReload(fetched);
+        if (reloadCountRef.current >= MAX_RELOADS_PER_SESSION) {
+          console.warn('[AutoUpdate] Max reloads reached this session — skipping reload to prevent loop.');
+          return;
+        }
+
+        if (!pendingVersionRef.current) {
+          // First detection of this new version — start the stabilization window.
+          // We wait VERSION_STABILIZE_MS before reloading so that a LAN npm build
+          // has time to finish writing ALL files to dist/ before we try to fetch them.
+          pendingVersionRef.current = { version: fetched, detectedAt: Date.now() };
+          console.log('[AutoUpdate] New version detected, stabilizing for 30 s before reload:', fetched);
+
+          setTimeout(() => {
+            // Re-validate: if the version is still different and not yet reloading, go ahead.
+            if (
+              pendingVersionRef.current?.version === fetched &&
+              !reloadScheduledRef.current &&
+              reloadCountRef.current < MAX_RELOADS_PER_SESSION
+            ) {
+              console.log('[AutoUpdate] Version stable after 30 s — broadcasting reload:', fetched);
+              reloadCountRef.current++;
+              pendingVersionRef.current = null;
+              broadcastReload(fetched);
+            } else {
+              pendingVersionRef.current = null;
+            }
+          }, VERSION_STABILIZE_MS);
+        } else if (pendingVersionRef.current.version !== fetched) {
+          // Version changed AGAIN while we were debouncing — reset the window.
+          console.log('[AutoUpdate] Version changed during stabilization window, resetting:', fetched);
+          pendingVersionRef.current = { version: fetched, detectedAt: Date.now() };
+        }
+        // else: same version still pending — timer already running, do nothing.
+      } else {
+        // Version matches current — clear any pending debounce (build may have been reverted).
+        if (pendingVersionRef.current) {
+          console.log('[AutoUpdate] Version returned to baseline, clearing pending reload.');
+          pendingVersionRef.current = null;
+        }
       }
     } catch {
       // Network errors are expected during deploys — ignore and retry next poll
