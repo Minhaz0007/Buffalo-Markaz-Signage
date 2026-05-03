@@ -1,54 +1,38 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-// Returns milliseconds until the next 1:00 AM Eastern time.
-// Uses the Intl API so DST transitions are handled correctly year-to-year.
-function msUntilNextEastern1AM(): number {
-  const now  = new Date();
-  const fmt  = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-    hour:     'numeric',
-    minute:   'numeric',
-    second:   'numeric',
-    hour12:   false,
-  });
-  const parts = fmt.formatToParts(now);
-  const get   = (type: string) =>
-    parseInt(parts.find(p => p.type === type)!.value, 10);
-
-  const secondsNow    = get('hour') * 3600 + get('minute') * 60 + get('second');
-  const secondsTarget = 1 * 3600; // 01:00:00 Eastern
-
-  // If we're already past 1 AM, target tomorrow's 1 AM
-  const secondsLeft =
-    secondsNow < secondsTarget
-      ? secondsTarget - secondsNow
-      : 24 * 3600 - secondsNow + secondsTarget;
-
-  return secondsLeft * 1000;
-}
+// How often to check for a new deployment (polls /index.html and compares
+// the build-version meta tag injected by vite.config.ts).
+const POLL_INTERVAL_MS = 60_000;  // every minute
+const INITIAL_DELAY_MS =  5_000;  // let the app settle before first check
+const STABILIZE_MS     = 30_000;  // wait 30 s after first detection so the
+                                   // full build has time to finish deploying
 
 export const AutoUpdate: React.FC = () => {
-  const [isUpdating,      setIsUpdating]      = useState(false);
-  const reloadScheduledRef = useRef(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const performSmoothReload = () => {
-    if (reloadScheduledRef.current) return;
-    reloadScheduledRef.current = true;
-    console.log('[DailyReload] 1:00 AM Eastern — performing nightly reload.');
+  const baselineRef     = useRef<string | null>(null); // version on page load
+  const pendingVersion  = useRef<string | null>(null); // version being stabilised
+  const pendingTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reloadScheduled = useRef(false);
+
+  // ── Smooth reload ────────────────────────────────────────────────────────
+  const doReload = () => {
+    if (reloadScheduled.current) return;
+    reloadScheduled.current = true;
+    console.log('[AutoUpdate] New build confirmed — reloading display.');
 
     // Show the navy splash synchronously so the GPU compositor always has a
-    // navy frame during navigation, preventing the green flash on HDMI displays.
+    // navy frame during navigation (prevents green flash on HDMI displays).
     const splash = document.getElementById('nav-splash');
     if (splash) splash.style.display = 'block';
-
     setIsUpdating(true);
 
-    // Two RAFs guarantee the splash is in the GPU pipeline.
-    // 1 s covers the slowest HDMI TV pipelines (300–800 ms signal latency).
-    // The ?_r= query param busts the CDN cache so fresh HTML is always fetched.
+    // Two RAFs guarantee the splash frame is in the GPU pipeline before we
+    // navigate. 1 s covers even the slowest HDMI TV pipelines (300–800 ms).
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setTimeout(() => {
+          // ?_r= cache-busts the CDN so fresh HTML is always fetched.
           const url = new URL(window.location.href);
           url.searchParams.set('_r', Date.now().toString());
           window.location.replace(url.toString());
@@ -57,16 +41,72 @@ export const AutoUpdate: React.FC = () => {
     });
   };
 
+  // ── Version check ────────────────────────────────────────────────────────
+  const checkVersion = async () => {
+    try {
+      const res = await fetch(`/index.html?_=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' },
+      });
+      if (!res.ok) return;
+
+      const html    = await res.text();
+      const match   = html.match(/<meta name="build-version" content="([^"]+)"/);
+      const fetched = match?.[1] ?? null;
+      if (!fetched) return;
+
+      // First call — establish the baseline from the currently-running page.
+      if (!baselineRef.current) {
+        const localMeta  = document.querySelector<HTMLMetaElement>('meta[name="build-version"]');
+        baselineRef.current = localMeta?.content ?? fetched;
+        console.log('[AutoUpdate] Baseline version:', baselineRef.current);
+        return;
+      }
+
+      // No change — clear any in-flight stabilisation timer (deploy reverted?).
+      if (fetched === baselineRef.current) {
+        if (pendingTimer.current) {
+          clearTimeout(pendingTimer.current);
+          pendingTimer.current  = null;
+          pendingVersion.current = null;
+        }
+        return;
+      }
+
+      // New version already being waited on — do nothing.
+      if (pendingVersion.current === fetched) return;
+
+      // Different new version seen while already waiting — reset the timer.
+      if (pendingTimer.current) clearTimeout(pendingTimer.current);
+
+      pendingVersion.current = fetched;
+      console.log('[AutoUpdate] New version detected, stabilising for 30 s:', fetched);
+
+      pendingTimer.current = setTimeout(() => {
+        // Re-confirm the version is still different before committing to reload.
+        if (pendingVersion.current === fetched && !reloadScheduled.current) {
+          pendingVersion.current = null;
+          doReload();
+        }
+      }, STABILIZE_MS);
+
+    } catch {
+      // Network errors during a deploy are expected — silently retry next poll.
+    }
+  };
+
+  // ── Poll ─────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const ms = msUntilNextEastern1AM();
-    console.log(
-      `[DailyReload] Next refresh scheduled for 1:00 AM Eastern ` +
-      `(in ${Math.round(ms / 60_000)} min).`
-    );
-    const timer = setTimeout(performSmoothReload, ms);
-    return () => clearTimeout(timer);
+    const initial = setTimeout(checkVersion, INITIAL_DELAY_MS);
+    const poll    = setInterval(checkVersion, POLL_INTERVAL_MS);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(poll);
+      if (pendingTimer.current) clearTimeout(pendingTimer.current);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Navy overlay shown briefly while the new page loads.
   return (
     <div
       className={`fixed inset-0 z-[9999] bg-[#0B1E3B] flex items-center justify-center transition-opacity duration-150 ease-out ${
@@ -74,7 +114,7 @@ export const AutoUpdate: React.FC = () => {
       }`}
     >
       <div className="text-white text-2xl font-semibold animate-pulse tracking-widest uppercase">
-        Refreshing Display…
+        Updating Display…
       </div>
     </div>
   );
