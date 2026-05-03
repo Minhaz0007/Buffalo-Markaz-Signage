@@ -299,6 +299,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // Slideshow Editor State
   const [expandedSlideId, setExpandedSlideId] = useState<string | null>(null);
 
+  // --- useMemo hooks MUST be before any early return (Rules of Hooks) ---
+
+  // Count cells that differ between draft and original snapshot (across all months)
+  const pendingChangeCount = useMemo(() => {
+    if (!hasUnsavedEdits) return 0;
+    let count = 0;
+    Object.keys(draftSchedule).forEach(date => {
+      const orig = originalScheduleSnapshot[date];
+      const draft = draftSchedule[date];
+      if (!orig || !draft) return;
+      (['fajr', 'dhuhr', 'asr', 'isha'] as const).forEach(p => {
+        if (orig[p]?.iqamah !== draft[p]?.iqamah) count++;
+      });
+      if (orig.jumuahIqamah !== draft.jumuahIqamah) count++;
+    });
+    return count;
+  }, [draftSchedule, originalScheduleSnapshot, hasUnsavedEdits]);
+
+  // Get all unique year-month combos from the draft (or excelSchedule if draft not yet initialized)
+  const scheduleMonths = useMemo(() => {
+    const months = new Set<string>();
+    const source = Object.keys(draftSchedule).length > 0 ? draftSchedule : excelSchedule;
+    Object.keys(source).forEach(date => {
+      const [y, m] = date.split('-');
+      months.add(`${y}-${m}`);
+    });
+    return Array.from(months).sort();
+  }, [draftSchedule, excelSchedule]);
+
+  const currentMonthKey = `${String(scheduleEditorYear).padStart(4, '0')}-${String(scheduleEditorMonth).padStart(2, '0')}`;
+  const monthKeys = scheduleMonths;
+  const currentMonthIdx = monthKeys.indexOf(currentMonthKey);
+
+  // Entries for the currently viewed month — read from draft
+  const currentMonthEntries = useMemo(() => {
+    const source = Object.keys(draftSchedule).length > 0 ? draftSchedule : excelSchedule;
+    return Object.entries(source)
+      .filter(([date]) => date.startsWith(currentMonthKey))
+      .sort(([a], [b]) => a.localeCompare(b));
+  }, [draftSchedule, excelSchedule, currentMonthKey]);
+
   if (!isOpen) return null;
 
   const handlePreviewToggle = () => {
@@ -564,36 +605,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setEditingCell(null);
   };
 
-  // Count cells that differ between draft and original snapshot (across all months)
-  const pendingChangeCount = useMemo(() => {
-    if (!hasUnsavedEdits) return 0;
-    let count = 0;
-    Object.keys(draftSchedule).forEach(date => {
-      const orig = originalScheduleSnapshot[date];
-      const draft = draftSchedule[date];
-      if (!orig || !draft) return;
-      (['fajr', 'dhuhr', 'asr', 'isha'] as const).forEach(p => {
-        if (orig[p]?.iqamah !== draft[p]?.iqamah) count++;
-      });
-      if (orig.jumuahIqamah !== draft.jumuahIqamah) count++;
-    });
-    return count;
-  }, [draftSchedule, originalScheduleSnapshot, hasUnsavedEdits]);
-
-  // Get all unique year-month combos from the DRAFT schedule (or excelSchedule if draft not yet initialized)
-  const scheduleMonths = useMemo(() => {
-    const months = new Set<string>();
-    const source = Object.keys(draftSchedule).length > 0 ? draftSchedule : excelSchedule;
-    Object.keys(source).forEach(date => {
-      const [y, m] = date.split('-');
-      months.add(`${y}-${m}`);
-    });
-    return Array.from(months).sort();
-  }, [draftSchedule, excelSchedule]);
-
-  const currentMonthKey = `${String(scheduleEditorYear).padStart(4, '0')}-${String(scheduleEditorMonth).padStart(2, '0')}`;
-  const monthKeys = scheduleMonths;
-  const currentMonthIdx = monthKeys.indexOf(currentMonthKey);
+  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
 
   const navigateMonth = (dir: 1 | -1) => {
     const newIdx = currentMonthIdx + dir;
@@ -603,17 +616,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setScheduleEditorMonth(Number(m));
     }
   };
-
-  // Entries for the currently viewed month — read from DRAFT (fallback to excelSchedule if not yet initialized)
-  const currentMonthEntries = useMemo(() => {
-    const source = Object.keys(draftSchedule).length > 0 ? draftSchedule : excelSchedule;
-    return Object.entries(source)
-      .filter(([date]) => date.startsWith(currentMonthKey))
-      .sort(([a], [b]) => a.localeCompare(b));
-  }, [draftSchedule, excelSchedule, currentMonthKey]);
-
-  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
 
   // --- Styles ---
   const inputBase = "w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white placeholder-white/30 focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold focus:bg-black/50 outline-none transition-all duration-200";
