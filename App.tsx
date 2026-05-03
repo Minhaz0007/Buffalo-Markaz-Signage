@@ -334,9 +334,12 @@ const App: React.FC = () => {
           setMaghribOffset(data.maghribOffset);
           setSunriseOffset(data.sunriseOffset ?? 0);
           setSunsetOffset(data.sunsetOffset ?? 0);
-          setAutoAlertSettings(data.autoAlertSettings);
-          setMobileAlertSettings(data.mobileAlertSettings);
-          if (data.hijriSettings) setHijriSettings(data.hijriSettings);
+          // Use functional updates with JSON comparison to avoid creating new object
+          // references when values haven't changed — prevents effectiveAnnouncement
+          // from recomputing and restarting the SeamlessTicker on every remote save.
+          setAutoAlertSettings(prev => JSON.stringify(prev) === JSON.stringify(data.autoAlertSettings) ? prev : data.autoAlertSettings);
+          setMobileAlertSettings(prev => JSON.stringify(prev) === JSON.stringify(data.mobileAlertSettings) ? prev : data.mobileAlertSettings);
+          if (data.hijriSettings) setHijriSettings(prev => JSON.stringify(prev) === JSON.stringify(data.hijriSettings) ? prev : data.hijriSettings);
           if (data.fajrIshaAngle) setFajrIshaAngle(data.fajrIshaAngle);
         }
       })

@@ -354,6 +354,11 @@ export const loadSlideshowConfigFromDatabase = async (): Promise<{ success: bool
 // GLOBAL SETTINGS OPERATIONS
 // ============================================================
 
+// Cached result of whether the fajr_isha_angle column exists in global_settings.
+// null = unknown (first call), true = confirmed, false = confirmed missing.
+// Avoids a double upsert (try with column, fail, retry without) on every save.
+let fajrIshaAngleColumnExists: boolean | null = null;
+
 export const saveGlobalSettingsToDatabase = async (settings: {
   theme: string;
   tickerBg: 'white' | 'navy';
@@ -397,22 +402,33 @@ export const saveGlobalSettingsToDatabase = async (settings: {
   };
 
   try {
-    // Try saving with the new fajr_isha_angle column (requires migration)
-    const row = { ...baseRow, fajr_isha_angle: settings.fajrIshaAngle };
-    const { error } = await supabase!
-      .from('global_settings')
-      .upsert(row, { onConflict: 'id' });
+    if (fajrIshaAngleColumnExists === false) {
+      // Column confirmed missing from a previous call — skip it immediately (no double-upsert).
+      const { error } = await supabase!
+        .from('global_settings')
+        .upsert(baseRow, { onConflict: 'id' });
+      if (error) throw error;
+    } else {
+      // Column present (or unknown) — try saving with fajr_isha_angle.
+      const row = { ...baseRow, fajr_isha_angle: settings.fajrIshaAngle };
+      const { error } = await supabase!
+        .from('global_settings')
+        .upsert(row, { onConflict: 'id' });
 
-    if (error) {
-      // If the column doesn't exist yet (migration not run), fall back to saving without it
-      if (error.message?.includes('fajr_isha_angle') || error.code === '42703') {
-        console.warn('⚠️ fajr_isha_angle column not in DB yet — run migration SQL. Saving other settings without it.');
-        const { error: fallbackError } = await supabase!
-          .from('global_settings')
-          .upsert(baseRow, { onConflict: 'id' });
-        if (fallbackError) throw fallbackError;
+      if (error) {
+        if (error.message?.includes('fajr_isha_angle') || error.code === '42703') {
+          // Column missing — cache this so subsequent calls skip the column immediately.
+          fajrIshaAngleColumnExists = false;
+          console.warn('⚠️ fajr_isha_angle column not in DB yet — run migration SQL. Saving other settings without it.');
+          const { error: fallbackError } = await supabase!
+            .from('global_settings')
+            .upsert(baseRow, { onConflict: 'id' });
+          if (fallbackError) throw fallbackError;
+        } else {
+          throw error;
+        }
       } else {
-        throw error;
+        fajrIshaAngleColumnExists = true; // Confirmed — skip probe on future calls.
       }
     }
 
