@@ -363,44 +363,58 @@ export const saveGlobalSettingsToDatabase = async (settings: {
   autoAlertSettings: AutoAlertSettings;
   mobileAlertSettings: MobileSilentAlertSettings;
   hijriSettings: HijriSettings;
+  fajrIshaAngle: 15 | 18;
 }) => {
   if (!isSupabaseConfigured()) return { success: false };
 
-  try {
-    const row = {
-      id: 1, // Single row
-      theme: settings.theme,
-      ticker_bg: settings.tickerBg,
-      maghrib_offset: settings.maghribOffset,
-      sunrise_offset: settings.sunriseOffset,
-      sunset_offset: settings.sunsetOffset,
-      auto_alert_enabled: settings.autoAlertSettings.enabled,
-      auto_alert_template: settings.autoAlertSettings.template,
-      auto_alert_color: settings.autoAlertSettings.color,
-      auto_alert_animation: settings.autoAlertSettings.animation,
-      mobile_alert_enabled: settings.mobileAlertSettings.enabled,
-      mobile_alert_mode: settings.mobileAlertSettings.mode,
-      mobile_alert_trigger_minutes: settings.mobileAlertSettings.triggerMinutes,
-      mobile_alert_background_color: settings.mobileAlertSettings.backgroundColor,
-      mobile_alert_text: settings.mobileAlertSettings.text,
-      mobile_alert_icon: settings.mobileAlertSettings.icon,
-      mobile_alert_animation: settings.mobileAlertSettings.animation,
-      mobile_alert_beep_enabled: settings.mobileAlertSettings.beepEnabled,
-      mobile_alert_beep_type: settings.mobileAlertSettings.beepType,
-      mobile_alert_beep_volume: settings.mobileAlertSettings.beepVolume,
-      mobile_alert_disable_for_jumuah: settings.mobileAlertSettings.disableForJumuah,
-      hijri_month_name: settings.hijriSettings.monthName || null,
-      hijri_month_number: settings.hijriSettings.monthNumber || null,
-      hijri_year: settings.hijriSettings.year || null,
-      hijri_month_start_gregorian: settings.hijriSettings.monthStartGregorian || null,
-      hijri_month_length: settings.hijriSettings.monthLength,
-    };
+  const baseRow = {
+    id: 1, // Single row
+    theme: settings.theme,
+    ticker_bg: settings.tickerBg,
+    maghrib_offset: settings.maghribOffset,
+    sunrise_offset: settings.sunriseOffset,
+    sunset_offset: settings.sunsetOffset,
+    auto_alert_enabled: settings.autoAlertSettings.enabled,
+    auto_alert_template: settings.autoAlertSettings.template,
+    auto_alert_color: settings.autoAlertSettings.color,
+    auto_alert_animation: settings.autoAlertSettings.animation,
+    mobile_alert_enabled: settings.mobileAlertSettings.enabled,
+    mobile_alert_mode: settings.mobileAlertSettings.mode,
+    mobile_alert_trigger_minutes: settings.mobileAlertSettings.triggerMinutes,
+    mobile_alert_background_color: settings.mobileAlertSettings.backgroundColor,
+    mobile_alert_text: settings.mobileAlertSettings.text,
+    mobile_alert_icon: settings.mobileAlertSettings.icon,
+    mobile_alert_animation: settings.mobileAlertSettings.animation,
+    mobile_alert_beep_enabled: settings.mobileAlertSettings.beepEnabled,
+    mobile_alert_beep_type: settings.mobileAlertSettings.beepType,
+    mobile_alert_beep_volume: settings.mobileAlertSettings.beepVolume,
+    mobile_alert_disable_for_jumuah: settings.mobileAlertSettings.disableForJumuah,
+    hijri_month_name: settings.hijriSettings.monthName || null,
+    hijri_month_number: settings.hijriSettings.monthNumber || null,
+    hijri_year: settings.hijriSettings.year || null,
+    hijri_month_start_gregorian: settings.hijriSettings.monthStartGregorian || null,
+    hijri_month_length: settings.hijriSettings.monthLength,
+  };
 
+  try {
+    // Try saving with the new fajr_isha_angle column (requires migration)
+    const row = { ...baseRow, fajr_isha_angle: settings.fajrIshaAngle };
     const { error } = await supabase!
       .from('global_settings')
       .upsert(row, { onConflict: 'id' });
 
-    if (error) throw error;
+    if (error) {
+      // If the column doesn't exist yet (migration not run), fall back to saving without it
+      if (error.message?.includes('fajr_isha_angle') || error.code === '42703') {
+        console.warn('⚠️ fajr_isha_angle column not in DB yet — run migration SQL. Saving other settings without it.');
+        const { error: fallbackError } = await supabase!
+          .from('global_settings')
+          .upsert(baseRow, { onConflict: 'id' });
+        if (fallbackError) throw fallbackError;
+      } else {
+        throw error;
+      }
+    }
 
     console.log('✅ Saved global settings to Supabase');
     return { success: true };
@@ -430,6 +444,7 @@ export const loadGlobalSettingsFromDatabase = async () => {
       maghribOffset: data.maghrib_offset,
       sunriseOffset: data.sunrise_offset ?? 0,
       sunsetOffset: data.sunset_offset ?? 0,
+      fajrIshaAngle: (data.fajr_isha_angle === 15 ? 15 : 18) as 15 | 18,
       autoAlertSettings: {
         enabled: data.auto_alert_enabled ?? true,
         template: data.auto_alert_template ?? "⚠️ NOTICE: Iqamah changes tomorrow for {prayers} to {new time}",
