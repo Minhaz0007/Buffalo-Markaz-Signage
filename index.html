@@ -81,23 +81,41 @@
         // causing an infinite reload loop and repeated green flashes.
         function reloadCacheBusted() {
           if (getReloadCount() >= MAX_AUTO_RELOADS) {
-            // Too many automatic reloads — show the splash with an error hint
-            // instead of looping forever. The user or the app can manually reload.
-            console.error('[SignageGuard] Max auto-reloads reached — stopping to prevent infinite loop.');
+            // Too many rapid reloads — deployment probably isn't stable yet.
+            // Wait 3 minutes then auto-retry. This screen runs unattended so we
+            // can't rely on a human to tap "reload". After 3 min the deployment
+            // should be fully propagated.
+            console.warn('[SignageGuard] Max auto-reloads reached — waiting 3 min before retry.');
             var splash = document.getElementById('nav-splash');
             if (splash) {
+              var remaining = 180;
+              function updateMsg() {
+                var el = document.getElementById('signage-countdown');
+                if (el) el.textContent = 'Auto-reloading in ' + remaining + 's…';
+              }
               splash.innerHTML = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#D4AF37;font-family:sans-serif;text-align:center;padding:40px;">' +
-                '<div style="font-size:28px;font-weight:bold;margin-bottom:16px;">Loading failed</div>' +
-                '<div style="font-size:18px;color:#aaa;margin-bottom:32px;">Tap to retry</div>' +
-                '<button onclick="sessionStorage.clear();window.location.replace(window.location.pathname)" style="padding:14px 28px;background:#D4AF37;color:#0B1E3B;border:none;border-radius:8px;font-size:18px;font-weight:bold;cursor:pointer;">Reload</button>' +
+                '<div style="font-size:28px;font-weight:bold;margin-bottom:12px;">Buffalo Markaz Masjid</div>' +
+                '<div style="font-size:18px;color:#aaa;margin-bottom:8px;">Updating display…</div>' +
+                '<div id="signage-countdown" style="font-size:16px;color:#666;margin-bottom:32px;">Auto-reloading in 180s…</div>' +
+                '<button onclick="sessionStorage.clear();window.location.replace(window.location.pathname)" style="padding:12px 24px;background:#D4AF37;color:#0B1E3B;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer;">Reload Now</button>' +
                 '</div>';
               splash.style.display = 'block';
+              // Countdown ticker
+              var ticker = setInterval(function() {
+                remaining--;
+                updateMsg();
+                if (remaining <= 0) { clearInterval(ticker); }
+              }, 1000);
+              // Auto-reload after 3 minutes — clears counter so we get 3 more tries
+              setTimeout(function() {
+                sessionStorage.clear();
+                window.location.replace(window.location.pathname);
+              }, 180000);
             }
             return;
           }
-          // Show the persistent splash div (if React has hidden it) so the screen
-          // stays navy while the new page loads, preventing the GPU compositor
-          // green flash on HDMI extended displays.
+          // Show the persistent splash div so the screen stays navy while the
+          // new page loads, preventing the GPU compositor green flash on HDMI.
           var splash = document.getElementById('nav-splash');
           if (splash) splash.style.display = 'block';
 
@@ -125,22 +143,36 @@
         });
 
         // ── Ultimate splash fallback ──────────────────────────────────────────
-        // If the JS module (index.tsx) fails to load at all, the setTimeout in
-        // index.tsx never runs.  This inline timer fires regardless of module
-        // loading success, ensuring the navy splash eventually gives way to
-        // SOMETHING — either the mounted React app (normal path) or an error hint.
+        // If index.tsx fails to load at all (chunk 404, network error, etc.),
+        // the setTimeout in index.tsx never runs. This inline timer fires
+        // regardless of whether the JS module loaded. After 15 s of a visible
+        // splash, it auto-reloads after a 2-minute countdown — no human needed.
         setTimeout(function() {
           var splash = document.getElementById('nav-splash');
           if (splash && splash.style.display !== 'none') {
-            // Module failed to load or React crashed before hiding the splash.
-            // Show a minimal error hint with a manual reload button.
+            var remaining = 120;
+            function updateMsg() {
+              var el = document.getElementById('signage-fallback-countdown');
+              if (el) el.textContent = 'Auto-reloading in ' + remaining + 's…';
+            }
             splash.innerHTML = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#D4AF37;font-family:sans-serif;text-align:center;padding:40px;">' +
-              '<div style="font-size:28px;font-weight:bold;margin-bottom:16px;">Buffalo Markaz Masjid</div>' +
-              '<div style="font-size:18px;color:#aaa;margin-bottom:32px;">Display loading... tap to reload if this persists</div>' +
-              '<button onclick="sessionStorage.clear();window.location.replace(window.location.pathname)" style="padding:14px 28px;background:#D4AF37;color:#0B1E3B;border:none;border-radius:8px;font-size:18px;font-weight:bold;cursor:pointer;">Reload Now</button>' +
+              '<div style="font-size:28px;font-weight:bold;margin-bottom:12px;">Buffalo Markaz Masjid</div>' +
+              '<div style="font-size:18px;color:#aaa;margin-bottom:8px;">Display is loading…</div>' +
+              '<div id="signage-fallback-countdown" style="font-size:16px;color:#666;margin-bottom:32px;">Auto-reloading in 120s…</div>' +
+              '<button onclick="sessionStorage.clear();window.location.replace(window.location.pathname)" style="padding:12px 24px;background:#D4AF37;color:#0B1E3B;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer;">Reload Now</button>' +
               '</div>';
+            var ticker = setInterval(function() {
+              remaining--;
+              updateMsg();
+              if (remaining <= 0) { clearInterval(ticker); }
+            }, 1000);
+            // Auto-reload after 2 minutes
+            setTimeout(function() {
+              sessionStorage.clear();
+              window.location.replace(window.location.pathname);
+            }, 120000);
           }
-        }, 12000); // 12 s: enough for slow connections; index.tsx hides splash in < 500 ms on success
+        }, 15000); // 15 s: generous for slow connections; normal load hides splash in < 1 s
       })();
     </script>
 
