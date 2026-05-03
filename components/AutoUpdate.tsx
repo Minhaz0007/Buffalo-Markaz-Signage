@@ -1,106 +1,51 @@
-import { useEffect, useRef, useState } from 'react';
-import { supabase, isSupabaseConfigured } from '../utils/supabase';
+import React, { useEffect, useRef, useState } from 'react';
 
-/**
- * AutoUpdate — zero-green-screen deployment handler
- *
- * Problems solved:
- *
- * 1. GREEN SCREEN on new Vercel deployment
- *    Vercel replaces JS chunk files with new content-hash filenames. If the
- *    running app tries to lazy-load an old chunk URL → 404 → React crash →
- *    Chrome GPU compositor flashes green. A synchronous guard in index.html
- *    catches those failures first (see the <script> block in index.html).
- *    This component handles the graceful version-change reload path.
- *
- * 2. TABS RELOADING OUT OF SYNC
- *    Each Chrome tab previously polled independently. Tab 1 could reload
- *    60 seconds before Tab 2, so the two HDMI screens showed different
- *    content for up to a minute.
- *    Fix: Supabase Realtime BROADCAST (not postgres_changes — no SQL needed,
- *    pure WebSocket). The first tab to detect a new build broadcasts
- *    "reload" to the shared channel. ALL subscribed tabs receive it in
- *    milliseconds and reload simultaneously.
- *
- * 3. 30-SECOND BLIND WINDOW
- *    The old component waited 30 s before the first check. During that
- *    window a chunk-load crash could occur with no reload guard.
- *    Fix: first check runs after 5 s (enough time for the app to settle).
- */
+// Returns milliseconds until the next 1:00 AM Eastern time.
+// Uses the Intl API so DST transitions are handled correctly year-to-year.
+function msUntilNextEastern1AM(): number {
+  const now  = new Date();
+  const fmt  = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour:     'numeric',
+    minute:   'numeric',
+    second:   'numeric',
+    hour12:   false,
+  });
+  const parts = fmt.formatToParts(now);
+  const get   = (type: string) =>
+    parseInt(parts.find(p => p.type === type)!.value, 10);
 
-const BROADCAST_CHANNEL      = 'signage-app-updates';
-const BROADCAST_EVENT        = 'reload';
-const POLL_INTERVAL_MS       =  60_000; // 1 minute fallback poll
-const INITIAL_DELAY_MS       =   5_000; // 5 s — enough for app to fully mount
-const VERSION_STABILIZE_MS   =  30_000; // wait 30 s after detecting a new version
-                                         // before reloading — gives npm run build time
-                                         // to finish writing all files to dist/
-const MAX_RELOADS_PER_SESSION = 5;       // safety cap — prevents infinite reload loop
-                                         // if a bad build keeps changing the version
+  const secondsNow    = get('hour') * 3600 + get('minute') * 60 + get('second');
+  const secondsTarget = 1 * 3600; // 01:00:00 Eastern
+
+  // If we're already past 1 AM, target tomorrow's 1 AM
+  const secondsLeft =
+    secondsNow < secondsTarget
+      ? secondsTarget - secondsNow
+      : 24 * 3600 - secondsNow + secondsTarget;
+
+  return secondsLeft * 1000;
+}
 
 export const AutoUpdate: React.FC = () => {
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isUpdating,      setIsUpdating]      = useState(false);
+  const reloadScheduledRef = useRef(false);
 
-  // Stable refs — never need to re-create the effect
-  const currentVersionRef  = useRef<string | null>(null);
-  const reloadScheduledRef = useRef(false);       // guard against double-reload
-  const channelRef         = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  // Debounce: track first detection of a new version before committing to reload.
-  // On LAN builds the new index.html is written before the JS bundle finishes,
-  // so a naive immediate reload can catch a partially-written dist/ folder.
-  const pendingVersionRef  = useRef<{ version: string; detectedAt: number } | null>(null);
-  // Cap total reloads this page-session to prevent runaway loops.
-  const reloadCountRef     = useRef(0);
-
-  // ── Smooth reload ──────────────────────────────────────────────────────────
-  //
-  // THREE-LAYER strategy for zero-green-screen on HDMI extended displays:
-  //
-  // Layer 1 — #nav-splash (index.html, non-React DOM)
-  //   Shown synchronously via direct DOM manipulation BEFORE React re-renders.
-  //   This is the most reliable layer: it requires no React state update and
-  //   no CSS transition.  Critically, this same div is visible on the NEW
-  //   page immediately (before any JS runs), so the GPU compositor always
-  //   has a navy frame to composite — no green flash.
-  //
-  // Layer 2 — React "Updating Display…" overlay (this component)
-  //   Shown for user-facing feedback.  Appears on top of the splash.
-  //   Uses a fast 150 ms transition so it is fully opaque well before Layer 3.
-  //
-  // Layer 3 — Cache-busting navigation after 200 ms
-  //   window.location.replace() with a unique ?_r=<timestamp> query param.
-  //   This forces the Vercel CDN to fetch fresh HTML from the origin (not
-  //   a cached copy with old chunk filenames).  200 ms is enough for the
-  //   browser to paint Layer 1 at least once.
-  //
-  // WHY NOT window.location.reload():
-  //   reload() is a soft reload — the Vercel CDN edge can return the OLD
-  //   cached index.html even after a new deployment.  The old index.html
-  //   still references the old build-version, so AutoUpdate immediately
-  //   detects a mismatch again → infinite reload loop / repeated green flash.
   const performSmoothReload = () => {
-    if (reloadScheduledRef.current) return; // prevent double-trigger
+    if (reloadScheduledRef.current) return;
     reloadScheduledRef.current = true;
-    console.log('[AutoUpdate] Performing smooth reload...');
+    console.log('[DailyReload] 1:00 AM Eastern — performing nightly reload.');
 
-    // Persist fullscreen state so the new page can restore it immediately.
-    if (document.fullscreenElement) {
-      sessionStorage.setItem('signage_was_fullscreen', '1');
-    }
-
-    // Layer 1: show the persistent #nav-splash immediately (synchronous DOM op).
-    // This runs before React re-renders so there is zero gap.
+    // Show the navy splash synchronously so the GPU compositor always has a
+    // navy frame during navigation, preventing the green flash on HDMI displays.
     const splash = document.getElementById('nav-splash');
     if (splash) splash.style.display = 'block';
 
-    // Layer 2: trigger React overlay for "Updating Display…" text (best-effort).
     setIsUpdating(true);
 
-    // Layer 3: navigate after ensuring the browser has painted the navy splash.
-    //
-    // Two RAFs guarantee the splash is in the GPU compositor frame pipeline.
-    // 1000 ms covers even slow HDMI TV pipelines (300–800 ms) while avoiding
-    // the jarring 3-second blue screen that the previous 3000 ms caused.
+    // Two RAFs guarantee the splash is in the GPU pipeline.
+    // 1 s covers the slowest HDMI TV pipelines (300–800 ms signal latency).
+    // The ?_r= query param busts the CDN cache so fresh HTML is always fetched.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setTimeout(() => {
@@ -112,123 +57,16 @@ export const AutoUpdate: React.FC = () => {
     });
   };
 
-  // ── Broadcast reload signal to ALL tabs ───────────────────────────────────
-  // Supabase Realtime Broadcast sends a raw WebSocket message to every
-  // client subscribed to the same channel. No database write, no SQL.
-  // The sending tab also calls performSmoothReload() immediately after.
-  const broadcastReload = async (newVersion: string) => {
-    if (!channelRef.current) { performSmoothReload(); return; }
-    try {
-      await channelRef.current.send({
-        type:    'broadcast',
-        event:   BROADCAST_EVENT,
-        payload: { version: newVersion },
-      });
-    } catch (err) {
-      console.warn('[AutoUpdate] Broadcast failed, reloading locally only.', err);
-    }
-    // Always reload this tab too (sender doesn't receive its own broadcast)
-    performSmoothReload();
-  };
-
-  // ── Version check ──────────────────────────────────────────────────────────
-  const checkForUpdates = async () => {
-    try {
-      const res = await fetch(`/index.html?_=${Date.now()}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
-      });
-      if (!res.ok) return;
-
-      const html = await res.text();
-      const match = html.match(/<meta name="build-version" content="([^"]+)"/);
-      const fetched = match?.[1] ?? null;
-      if (!fetched) return;
-
-      if (!currentVersionRef.current) {
-        // First check — establish baseline
-        const localMeta = document.querySelector<HTMLMetaElement>('meta[name="build-version"]');
-        currentVersionRef.current = localMeta?.content || fetched;
-        console.log('[AutoUpdate] Version baseline:', currentVersionRef.current);
-        return;
-      }
-
-      if (fetched !== currentVersionRef.current) {
-        if (reloadCountRef.current >= MAX_RELOADS_PER_SESSION) {
-          console.warn('[AutoUpdate] Max reloads reached this session — skipping reload to prevent loop.');
-          return;
-        }
-
-        if (!pendingVersionRef.current) {
-          // First detection of this new version — start the stabilization window.
-          // We wait VERSION_STABILIZE_MS before reloading so that a LAN npm build
-          // has time to finish writing ALL files to dist/ before we try to fetch them.
-          pendingVersionRef.current = { version: fetched, detectedAt: Date.now() };
-          console.log('[AutoUpdate] New version detected, stabilizing for 30 s before reload:', fetched);
-
-          setTimeout(() => {
-            // Re-validate: if the version is still different and not yet reloading, go ahead.
-            if (
-              pendingVersionRef.current?.version === fetched &&
-              !reloadScheduledRef.current &&
-              reloadCountRef.current < MAX_RELOADS_PER_SESSION
-            ) {
-              console.log('[AutoUpdate] Version stable after 30 s — broadcasting reload:', fetched);
-              reloadCountRef.current++;
-              pendingVersionRef.current = null;
-              broadcastReload(fetched);
-            } else {
-              pendingVersionRef.current = null;
-            }
-          }, VERSION_STABILIZE_MS);
-        } else if (pendingVersionRef.current.version !== fetched) {
-          // Version changed AGAIN while we were debouncing — reset the window.
-          console.log('[AutoUpdate] Version changed during stabilization window, resetting:', fetched);
-          pendingVersionRef.current = { version: fetched, detectedAt: Date.now() };
-        }
-        // else: same version still pending — timer already running, do nothing.
-      } else {
-        // Version matches current — clear any pending debounce (build may have been reverted).
-        if (pendingVersionRef.current) {
-          console.log('[AutoUpdate] Version returned to baseline, clearing pending reload.');
-          pendingVersionRef.current = null;
-        }
-      }
-    } catch {
-      // Network errors are expected during deploys — ignore and retry next poll
-    }
-  };
-
-  // ── Effect: subscribe + poll ───────────────────────────────────────────────
   useEffect(() => {
-    // Subscribe to the broadcast channel so this tab reloads when ANY other
-    // tab (or the same tab) broadcasts the reload signal.
-    if (isSupabaseConfigured() && supabase) {
-      const ch = supabase
-        .channel(BROADCAST_CHANNEL)
-        .on('broadcast', { event: BROADCAST_EVENT }, () => {
-          console.log('[AutoUpdate] Received reload broadcast — reloading now.');
-          performSmoothReload();
-        })
-        .subscribe();
-      channelRef.current = ch;
-    }
+    const ms = msUntilNextEastern1AM();
+    console.log(
+      `[DailyReload] Next refresh scheduled for 1:00 AM Eastern ` +
+      `(in ${Math.round(ms / 60_000)} min).`
+    );
+    const timer = setTimeout(performSmoothReload, ms);
+    return () => clearTimeout(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Initial check after a short settle delay, then poll every minute
-    const initialTimer = setTimeout(checkForUpdates, INITIAL_DELAY_MS);
-    const pollInterval = setInterval(checkForUpdates, POLL_INTERVAL_MS);
-
-    return () => {
-      clearTimeout(initialTimer);
-      clearInterval(pollInterval);
-      if (channelRef.current && supabase) {
-        supabase.removeChannel(channelRef.current);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally empty — refs keep values stable
-
-  // ── Navy overlay ───────────────────────────────────────────────────────────
   return (
     <div
       className={`fixed inset-0 z-[9999] bg-[#0B1E3B] flex items-center justify-center transition-opacity duration-150 ease-out ${
@@ -236,7 +74,7 @@ export const AutoUpdate: React.FC = () => {
       }`}
     >
       <div className="text-white text-2xl font-semibold animate-pulse tracking-widest uppercase">
-        Updating Display…
+        Refreshing Display…
       </div>
     </div>
   );
