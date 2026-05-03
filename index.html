@@ -282,14 +282,8 @@
 
       /* Optimized container for smooth scrolling ticker */
       .ticker-container-optimized {
-        /* Ensure smooth rendering */
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
-        /* Force GPU compositing */
-        transform: translateZ(0);
-        -webkit-transform: translateZ(0);
-        /* Prevent layout shifts */
-        contain: layout style paint;
+        /* Prevent layout shifts from the scrolling child */
+        contain: layout style;
         /* Optimize font rendering */
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
