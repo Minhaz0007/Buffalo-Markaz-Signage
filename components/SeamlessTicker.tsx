@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo, memo } from 'react';
 
 
 interface SeamlessTickerProps {
@@ -14,7 +14,7 @@ interface SeamlessTickerProps {
   direction?: 'left' | 'right';
 }
 
-export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
+const SeamlessTickerInner: React.FC<SeamlessTickerProps> = ({
   children,
   className = '',
   baseSpeed = 60,
@@ -178,3 +178,7 @@ export const SeamlessTicker: React.FC<SeamlessTickerProps> = ({
     </div>
   );
 };
+
+// memo prevents re-renders when the parent clock ticks every second.
+// The ticker only needs to re-render when the announcement items or speed change.
+export const SeamlessTicker = memo(SeamlessTickerInner);

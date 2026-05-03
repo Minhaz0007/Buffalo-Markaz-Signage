@@ -83,6 +83,11 @@ export const AutoUpdate: React.FC = () => {
     reloadScheduledRef.current = true;
     console.log('[AutoUpdate] Performing smooth reload...');
 
+    // Persist fullscreen state so the new page can restore it immediately.
+    if (document.fullscreenElement) {
+      sessionStorage.setItem('signage_was_fullscreen', '1');
+    }
+
     // Layer 1: show the persistent #nav-splash immediately (synchronous DOM op).
     // This runs before React re-renders so there is zero gap.
     const splash = document.getElementById('nav-splash');
@@ -93,18 +98,16 @@ export const AutoUpdate: React.FC = () => {
 
     // Layer 3: navigate after ensuring the browser has painted the navy splash.
     //
-    // Strategy: two requestAnimationFrame calls guarantee the splash div has been
-    // painted in at least one GPU compositor frame, THEN we wait an additional
-    // 3000 ms so slower HDMI TVs (300–800 ms pipeline) have time to receive and
-    // display the navy frame before the old page is torn down.
-    // Two RAFs = rAF 1 queues the task, rAF 2 confirms it ran in the next frame.
+    // Two RAFs guarantee the splash is in the GPU compositor frame pipeline.
+    // 1000 ms covers even slow HDMI TV pipelines (300–800 ms) while avoiding
+    // the jarring 3-second blue screen that the previous 3000 ms caused.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setTimeout(() => {
           const url = new URL(window.location.href);
           url.searchParams.set('_r', Date.now().toString());
           window.location.replace(url.toString());
-        }, 3_000);
+        }, 1_000);
       });
     });
   };
