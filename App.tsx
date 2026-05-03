@@ -220,18 +220,16 @@ const App: React.FC = () => {
   // page load and after every navigation so the GPU compositor always has a
   // navy frame to show — preventing the green flash on HDMI extended displays.
   //
-  // Also: if the previous page was in fullscreen when AutoUpdate triggered a
-  // reload, attempt to restore fullscreen immediately.  requestFullscreen()
-  // succeeds without a gesture in Electron, Chrome kiosk mode, and any context
-  // where the Fullscreen Permission Policy is pre-granted.  If it's blocked
-  // (regular browser, requires a user gesture) we fall back to a tap-to-restore
-  // banner so the screen can be put back into fullscreen with a single click.
+  // Also restores fullscreen if the user had it enabled.  The preference is
+  // stored in localStorage so it survives the nightly 1 AM reload and any
+  // browser/Electron restarts.  requestFullscreen() succeeds without a user
+  // gesture in Electron and Chrome kiosk mode.  In a regular browser it may
+  // be blocked — we fall back to a tap-to-restore banner in that case.
   useEffect(() => {
     const splash = document.getElementById('nav-splash');
     if (splash) splash.style.display = 'none';
 
-    if (sessionStorage.getItem('signage_was_fullscreen') === '1') {
-      sessionStorage.removeItem('signage_was_fullscreen');
+    if (localStorage.getItem('signage_fullscreen_pref') === '1') {
       document.documentElement.requestFullscreen().catch(() => {
         setNeedsFullscreenRestore(true);
       });
@@ -756,10 +754,21 @@ const App: React.FC = () => {
   // --- Fullscreen & Shortcuts ---
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true));
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+        // Persist the preference so fullscreen is restored automatically after
+        // the nightly 1 AM reload and after any browser/Electron restart.
+        localStorage.setItem('signage_fullscreen_pref', '1');
+        setNeedsFullscreenRestore(false);
+      });
     } else {
       if (document.exitFullscreen) {
-        document.exitFullscreen().then(() => setIsFullscreen(false));
+        document.exitFullscreen().then(() => {
+          setIsFullscreen(false);
+          // User explicitly pressed the button to exit — clear the preference
+          // so fullscreen is not automatically restored on next load.
+          localStorage.removeItem('signage_fullscreen_pref');
+        });
       }
     }
   }, []);
