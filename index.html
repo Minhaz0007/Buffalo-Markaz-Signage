@@ -32,6 +32,37 @@
     -->
     <script>
       (function () {
+        // ── Reload-loop guard ──────────────────────────────────────────────────
+        // reloadCacheBusted() uses window.location.replace() to load a fresh page.
+        // If the NEW page ALSO has a chunk error (e.g. Vercel still propagating
+        // new chunks), the guard would fire again → infinite loop of navy screens.
+        // We cap this at 3 automatic reloads per browser session.
+        var RELOAD_KEY      = 'signage_chunk_reload_count';
+        var RELOAD_RESET_MS = 5 * 60 * 1000; // reset counter after 5 minutes
+        var RELOAD_RESET_KEY= 'signage_chunk_reload_ts';
+        var MAX_AUTO_RELOADS = 3;
+
+        function getReloadCount() {
+          try {
+            var ts = parseInt(sessionStorage.getItem(RELOAD_RESET_KEY) || '0', 10);
+            if (Date.now() - ts > RELOAD_RESET_MS) {
+              sessionStorage.setItem(RELOAD_KEY, '0');
+              sessionStorage.setItem(RELOAD_RESET_KEY, String(Date.now()));
+              return 0;
+            }
+            return parseInt(sessionStorage.getItem(RELOAD_KEY) || '0', 10);
+          } catch (e) { return 0; }
+        }
+        function incrementReloadCount() {
+          try {
+            var n = getReloadCount() + 1;
+            sessionStorage.setItem(RELOAD_KEY, String(n));
+            if (!sessionStorage.getItem(RELOAD_RESET_KEY)) {
+              sessionStorage.setItem(RELOAD_RESET_KEY, String(Date.now()));
+            }
+          } catch (e) {}
+        }
+
         function isChunkError(msg) {
           return (
             msg && (
@@ -49,12 +80,28 @@
         // stale CDN-cached HTML containing the old (now-404) chunk filenames,
         // causing an infinite reload loop and repeated green flashes.
         function reloadCacheBusted() {
+          if (getReloadCount() >= MAX_AUTO_RELOADS) {
+            // Too many automatic reloads — show the splash with an error hint
+            // instead of looping forever. The user or the app can manually reload.
+            console.error('[SignageGuard] Max auto-reloads reached — stopping to prevent infinite loop.');
+            var splash = document.getElementById('nav-splash');
+            if (splash) {
+              splash.innerHTML = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#D4AF37;font-family:sans-serif;text-align:center;padding:40px;">' +
+                '<div style="font-size:28px;font-weight:bold;margin-bottom:16px;">Loading failed</div>' +
+                '<div style="font-size:18px;color:#aaa;margin-bottom:32px;">Tap to retry</div>' +
+                '<button onclick="sessionStorage.clear();window.location.replace(window.location.pathname)" style="padding:14px 28px;background:#D4AF37;color:#0B1E3B;border:none;border-radius:8px;font-size:18px;font-weight:bold;cursor:pointer;">Reload</button>' +
+                '</div>';
+              splash.style.display = 'block';
+            }
+            return;
+          }
           // Show the persistent splash div (if React has hidden it) so the screen
           // stays navy while the new page loads, preventing the GPU compositor
           // green flash on HDMI extended displays.
           var splash = document.getElementById('nav-splash');
           if (splash) splash.style.display = 'block';
 
+          incrementReloadCount();
           var url = new URL(window.location.href);
           url.searchParams.set('_r', Date.now().toString());
           window.location.replace(url.toString());
@@ -76,6 +123,24 @@
             reloadCacheBusted();
           }
         });
+
+        // ── Ultimate splash fallback ──────────────────────────────────────────
+        // If the JS module (index.tsx) fails to load at all, the setTimeout in
+        // index.tsx never runs.  This inline timer fires regardless of module
+        // loading success, ensuring the navy splash eventually gives way to
+        // SOMETHING — either the mounted React app (normal path) or an error hint.
+        setTimeout(function() {
+          var splash = document.getElementById('nav-splash');
+          if (splash && splash.style.display !== 'none') {
+            // Module failed to load or React crashed before hiding the splash.
+            // Show a minimal error hint with a manual reload button.
+            splash.innerHTML = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#D4AF37;font-family:sans-serif;text-align:center;padding:40px;">' +
+              '<div style="font-size:28px;font-weight:bold;margin-bottom:16px;">Buffalo Markaz Masjid</div>' +
+              '<div style="font-size:18px;color:#aaa;margin-bottom:32px;">Display loading... tap to reload if this persists</div>' +
+              '<button onclick="sessionStorage.clear();window.location.replace(window.location.pathname)" style="padding:14px 28px;background:#D4AF37;color:#0B1E3B;border:none;border-radius:8px;font-size:18px;font-weight:bold;cursor:pointer;">Reload Now</button>' +
+              '</div>';
+          }
+        }, 12000); // 12 s: enough for slow connections; index.tsx hides splash in < 500 ms on success
       })();
     </script>
 
