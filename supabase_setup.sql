@@ -94,6 +94,8 @@ CREATE TABLE IF NOT EXISTS public.global_settings (
     mobile_alert_beep_volume INTEGER NOT NULL DEFAULT 50,
     mobile_alert_disable_for_jumuah BOOLEAN NOT NULL DEFAULT true,
     fajr_isha_angle INTEGER NOT NULL DEFAULT 18 CHECK (fajr_isha_angle IN (15, 18)),
+    fajr_angle INTEGER DEFAULT 18 CHECK (fajr_angle IN (15, 18)),
+    isha_angle INTEGER DEFAULT 18 CHECK (isha_angle IN (15, 18)),
     hijri_month_name VARCHAR(50) DEFAULT NULL,
     hijri_month_number SMALLINT DEFAULT NULL,
     hijri_year INTEGER DEFAULT NULL,
@@ -115,6 +117,9 @@ ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS auto_alert_color VAR
 ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS auto_alert_animation VARCHAR(20) NOT NULL DEFAULT 'pulse';
 ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS mobile_alert_disable_for_jumuah BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS fajr_isha_angle INTEGER NOT NULL DEFAULT 18 CHECK (fajr_isha_angle IN (15, 18));
+-- Separate angle columns for independent Fajr and Isha configuration
+ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS fajr_angle INTEGER DEFAULT 18 CHECK (fajr_angle IN (15, 18));
+ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS isha_angle INTEGER DEFAULT 18 CHECK (isha_angle IN (15, 18));
 ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS hijri_month_name VARCHAR(50) DEFAULT NULL;
 ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS hijri_month_number SMALLINT DEFAULT NULL;
 ALTER TABLE public.global_settings ADD COLUMN IF NOT EXISTS hijri_year INTEGER DEFAULT NULL;

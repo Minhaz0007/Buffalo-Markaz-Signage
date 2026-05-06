@@ -151,7 +151,8 @@ export const getScheduleForDate = (
   scheduleIndex?: ScheduleIndex, // Optional optimized index for O(1) fallback lookup
   sunriseOffset: number = 0,
   sunsetOffset: number = 0,
-  fajrIshaAngle: 15 | 18 = 18
+  fajrAngle: 15 | 18 = 18,
+  ishaAngle: 15 | 18 = 18
 ): { prayers: DailyPrayers, jumuah: { start: string, iqamah: string } } => {
 
   /**
@@ -186,9 +187,9 @@ export const getScheduleForDate = (
   let newJumuah: { start: string, iqamah: string };
 
   try {
-    // Calculate prayer times automatically for Buffalo, NY using selected angle
-    newPrayers = calculatePrayerTimes(targetDate, fajrIshaAngle);
-    newJumuah = calculateJumuahTimes(targetDate, fajrIshaAngle);
+    // Calculate prayer times automatically for Buffalo, NY using selected angles
+    newPrayers = calculatePrayerTimes(targetDate, fajrAngle, ishaAngle);
+    newJumuah = calculateJumuahTimes(targetDate, fajrAngle, ishaAngle);
   } catch (error) {
     // Fallback to defaults if calculation fails
     console.warn('Auto-calculation failed, using defaults:', error);
@@ -230,23 +231,37 @@ export const getScheduleForDate = (
 
   // Apply the Excel data if found (either exact match or year-round match)
   // NOTE: Maghrib is EXCLUDED from Excel - always calculated from sunset + offset
-  // NOTE: Start Times are Autonomous (Calculated) - Excel only updates Iqamah
   // IMPORTANT: Apply ensureAmPm to all Excel times to ensure AM/PM formatting
   if (excelDataForDate) {
     const day = excelDataForDate;
 
-    // Apply Excel data (Iqamah ONLY)
-    if (day.fajr) {
+    // Apply Excel start times (when explicitly stored, they override auto-calculation)
+    if (day.fajr?.start) {
+      newPrayers.fajr.start = ensureAmPm(day.fajr.start, false);
+    }
+    if (day.dhuhr?.start) {
+      newPrayers.dhuhr.start = ensureAmPm(day.dhuhr.start, true);
+    }
+    if (day.asr?.start) {
+      newPrayers.asr.start = ensureAmPm(day.asr.start, true);
+    }
+    // Maghrib start is skipped (always sunset + sunsetOffset)
+    if (day.isha?.start) {
+      newPrayers.isha.start = ensureAmPm(day.isha.start, true);
+    }
+
+    // Apply Excel iqamah times
+    if (day.fajr?.iqamah) {
       newPrayers.fajr.iqamah = ensureAmPm(day.fajr.iqamah, false);
     }
-    if (day.dhuhr) {
+    if (day.dhuhr?.iqamah) {
       newPrayers.dhuhr.iqamah = ensureAmPm(day.dhuhr.iqamah, true);
     }
-    if (day.asr) {
+    if (day.asr?.iqamah) {
       newPrayers.asr.iqamah = ensureAmPm(day.asr.iqamah, true);
     }
-    // Maghrib is skipped (handled by offset below)
-    if (day.isha) {
+    // Maghrib iqamah is skipped (handled by offset below)
+    if (day.isha?.iqamah) {
       newPrayers.isha.iqamah = ensureAmPm(day.isha.iqamah, true);
     }
 
