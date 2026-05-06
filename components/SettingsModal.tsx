@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 import { saveExcelScheduleToDatabase, clearExcelScheduleFromDatabase } from '../utils/database';
 import { ScheduleIndex, computeIqamahRanges } from '../utils/scheduler';
 import { isSupabaseConfigured } from '../utils/supabase';
+import { calculatePrayerTimes } from '../utils/prayerCalculator';
 
 // --- Types ---
 interface SettingsModalProps {
@@ -43,8 +44,10 @@ interface SettingsModalProps {
   scheduleIndex?: ScheduleIndex;
   hijriSettings: HijriSettings;
   setHijriSettings: (settings: HijriSettings) => void;
-  fajrIshaAngle: 15 | 18;
-  setFajrIshaAngle: (angle: 15 | 18) => void;
+  fajrAngle: 15 | 18;
+  setFajrAngle: (angle: 15 | 18) => void;
+  ishaAngle: 15 | 18;
+  setIshaAngle: (angle: 15 | 18) => void;
 }
 
 // --- Reusable UI Components (SCALED UP FOR 1920x1080) ---
@@ -265,7 +268,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   setIsPreviewAlert,
   scheduleIndex,
   hijriSettings, setHijriSettings,
-  fajrIshaAngle, setFajrIshaAngle,
+  fajrAngle, setFajrAngle,
+  ishaAngle, setIshaAngle,
 }) => {
   const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization' | 'slideshow' | 'silentAlert' | 'hijri'>('schedule');
   const [uploadStatus, setUploadStatus] = useState<string>("");
@@ -290,7 +294,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [showScheduleEditor, setShowScheduleEditor] = useState(false);
   const [scheduleEditorMonth, setScheduleEditorMonth] = useState(() => new Date().getMonth() + 1);
   const [scheduleEditorYear, setScheduleEditorYear] = useState(() => new Date().getFullYear());
-  const [editingCell, setEditingCell] = useState<{ date: string; prayer: string } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ date: string; prayer: string; field: 'start' | 'iqamah' } | null>(null);
   // Draft state: buffers edits until Save is pressed
   const [draftSchedule, setDraftSchedule] = useState<Record<string, import('../types').ExcelDaySchedule>>({});
   const [originalScheduleSnapshot, setOriginalScheduleSnapshot] = useState<Record<string, import('../types').ExcelDaySchedule>>({});
@@ -308,37 +312,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     Object.keys(draftSchedule).forEach(date => {
       const orig = originalScheduleSnapshot[date];
       const draft = draftSchedule[date];
-      if (!orig || !draft) return;
+      if (!draft) return;
       (['fajr', 'dhuhr', 'asr', 'isha'] as const).forEach(p => {
-        if (orig[p]?.iqamah !== draft[p]?.iqamah) count++;
+        if (orig?.[p]?.start !== draft[p]?.start) count++;
+        if (orig?.[p]?.iqamah !== draft[p]?.iqamah) count++;
       });
-      if (orig.jumuahIqamah !== draft.jumuahIqamah) count++;
+      if (orig?.jumuahIqamah !== draft.jumuahIqamah) count++;
     });
     return count;
   }, [draftSchedule, originalScheduleSnapshot, hasUnsavedEdits]);
 
-  // Get all unique year-month combos from the draft (or excelSchedule if draft not yet initialized)
-  const scheduleMonths = useMemo(() => {
-    const months = new Set<string>();
-    const source = Object.keys(draftSchedule).length > 0 ? draftSchedule : excelSchedule;
-    Object.keys(source).forEach(date => {
-      const [y, m] = date.split('-');
-      months.add(`${y}-${m}`);
-    });
-    return Array.from(months).sort();
-  }, [draftSchedule, excelSchedule]);
-
   const currentMonthKey = `${String(scheduleEditorYear).padStart(4, '0')}-${String(scheduleEditorMonth).padStart(2, '0')}`;
-  const monthKeys = scheduleMonths;
-  const currentMonthIdx = monthKeys.indexOf(currentMonthKey);
 
-  // Entries for the currently viewed month — read from draft
+  // Helper: build a base ExcelDaySchedule from auto-calculated prayer times
+  const buildCalculatedEntry = (dateStr: string): ExcelDaySchedule => {
+    const calc = calculatePrayerTimes(new Date(dateStr + 'T12:00:00'), fajrAngle, ishaAngle);
+    return {
+      date: dateStr,
+      fajr: { start: calc.fajr.start, iqamah: calc.fajr.iqamah ?? '' },
+      dhuhr: { start: calc.dhuhr.start, iqamah: calc.dhuhr.iqamah ?? '' },
+      asr: { start: calc.asr.start, iqamah: calc.asr.iqamah ?? '' },
+      maghrib: { start: calc.maghrib.start, iqamah: calc.maghrib.iqamah ?? '' },
+      isha: { start: calc.isha.start, iqamah: calc.isha.iqamah ?? '' },
+    };
+  };
+
+  // Entries for the currently viewed month — always generates all days using calculated times
+  // as the base, overlaid with any draft/excel overrides.
   const currentMonthEntries = useMemo(() => {
-    const source = Object.keys(draftSchedule).length > 0 ? draftSchedule : excelSchedule;
-    return Object.entries(source)
-      .filter(([date]) => date.startsWith(currentMonthKey))
-      .sort(([a], [b]) => a.localeCompare(b));
-  }, [draftSchedule, excelSchedule, currentMonthKey]);
+    const daysInMonth = new Date(scheduleEditorYear, scheduleEditorMonth, 0).getDate();
+    const entries: [string, ExcelDaySchedule & { _isAutoCalc?: boolean }][] = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${scheduleEditorYear}-${String(scheduleEditorMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      if (draftSchedule[dateStr]) {
+        entries.push([dateStr, draftSchedule[dateStr]]);
+      } else if (excelSchedule[dateStr]) {
+        entries.push([dateStr, excelSchedule[dateStr]]);
+      } else {
+        entries.push([dateStr, { ...buildCalculatedEntry(dateStr), _isAutoCalc: true } as any]);
+      }
+    }
+    return entries;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftSchedule, excelSchedule, scheduleEditorYear, scheduleEditorMonth, fajrAngle, ishaAngle]);
 
   if (!isOpen) return null;
 
@@ -568,14 +584,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // --- Excel Schedule Editor Helpers ---
 
-  // Write a cell change into the draft (never touches excelSchedule until Save)
+  // Ensure a date exists in the draft (seed from excelSchedule or auto-calculate)
+  const ensureDraftEntry = (prev: Record<string, ExcelDaySchedule>, date: string): Record<string, ExcelDaySchedule> => {
+    if (prev[date]) return prev;
+    const base = excelSchedule[date] || buildCalculatedEntry(date);
+    return { ...prev, [date]: { ...base } };
+  };
+
+  // Write a start time change into the draft
+  const updateExcelStart = (date: string, prayer: 'fajr' | 'dhuhr' | 'asr' | 'isha', value: string) => {
+    setDraftSchedule(prev => {
+      const next = ensureDraftEntry(prev, date);
+      return { ...next, [date]: { ...next[date], [prayer]: { ...next[date][prayer], start: value } } };
+    });
+    setHasUnsavedEdits(true);
+    setEditingCell(null);
+  };
+
+  // Write an iqamah change into the draft (never touches excelSchedule until Save)
   const updateExcelIqamah = (date: string, prayer: 'fajr' | 'dhuhr' | 'asr' | 'isha', value: string) => {
     setDraftSchedule(prev => {
-      if (!prev[date]) return prev;
-      return {
-        ...prev,
-        [date]: { ...prev[date], [prayer]: { ...prev[date][prayer], iqamah: value } }
-      };
+      const next = ensureDraftEntry(prev, date);
+      return { ...next, [date]: { ...next[date], [prayer]: { ...next[date][prayer], iqamah: value } } };
     });
     setHasUnsavedEdits(true);
     setEditingCell(null);
@@ -583,8 +613,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const updateExcelJumuahIqamah = (date: string, value: string) => {
     setDraftSchedule(prev => {
-      if (!prev[date]) return prev;
-      return { ...prev, [date]: { ...prev[date], jumuahIqamah: value } };
+      const next = ensureDraftEntry(prev, date);
+      return { ...next, [date]: { ...next[date], jumuahIqamah: value } };
     });
     setHasUnsavedEdits(true);
     setEditingCell(null);
@@ -609,12 +639,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     'July', 'August', 'September', 'October', 'November', 'December'];
 
   const navigateMonth = (dir: 1 | -1) => {
-    const newIdx = currentMonthIdx + dir;
-    if (newIdx >= 0 && newIdx < monthKeys.length) {
-      const [y, m] = monthKeys[newIdx].split('-');
-      setScheduleEditorYear(Number(y));
-      setScheduleEditorMonth(Number(m));
-    }
+    let newMonth = scheduleEditorMonth + dir;
+    let newYear = scheduleEditorYear;
+    if (newMonth > 12) { newMonth = 1; newYear++; }
+    if (newMonth < 1) { newMonth = 12; newYear--; }
+    setScheduleEditorMonth(newMonth);
+    setScheduleEditorYear(newYear);
   };
 
   // --- Styles ---
@@ -781,73 +811,99 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                          </Card>
                      </div>
 
-                     {/* Fajr / Isha Calculation Angle */}
+                     {/* Fajr / Isha Calculation Angles — separate selectors */}
                      <Card>
                        <div className="flex items-start gap-8">
                          <div className="p-5 bg-amber-500/10 rounded-2xl text-amber-400 shrink-0"><Sun className="w-10 h-10" /></div>
                          <div className="flex-1">
                            <h4 className="text-3xl font-bold text-white mb-3">Fajr & Isha Calculation (Buffalo, NY 14212)</h4>
                            <p className="text-white/50 text-xl mb-8">
-                             Select the solar depression angle used to calculate Fajr and Isha start times.
+                             Choose the solar depression angle separately for Fajr and Isha.
                              A larger angle means the sun is further below the horizon — earlier Fajr and later Isha.
                            </p>
-                           <div className="grid grid-cols-2 gap-8">
-                             {([15, 18] as const).map(deg => {
-                               const isSelected = fajrIshaAngle === deg;
-                               const desc = deg === 15
-                                 ? 'ISNA / North America standard. Moderate — slightly later Fajr, slightly earlier Isha.'
-                                 : 'MWL / Hanafi standard. Conservative — earlier Fajr, later Isha.';
-                               return (
-                                 <button
-                                   key={deg}
-                                   onClick={() => setFajrIshaAngle(deg)}
-                                   className={`relative p-8 rounded-3xl border-2 text-left transition-all duration-300 ${isSelected ? 'border-mosque-gold bg-mosque-gold/10 shadow-[0_0_20px_rgba(212,175,55,0.15)]' : 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10'}`}
-                                 >
-                                   {isSelected && (
-                                     <div className="absolute top-5 right-5 bg-mosque-gold text-mosque-navy rounded-full p-1">
-                                       <CheckCircle2 className="w-7 h-7" />
+
+                           {/* Fajr Angle */}
+                           <div className="mb-10">
+                             <div className="text-white/60 font-bold text-xl uppercase tracking-widest mb-4 flex items-center gap-3">
+                               <span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
+                               Fajr Angle
+                             </div>
+                             <div className="grid grid-cols-2 gap-6">
+                               {([15, 18] as const).map(deg => {
+                                 const isSelected = fajrAngle === deg;
+                                 const desc = deg === 15
+                                   ? 'ISNA / North America. Slightly later Fajr.'
+                                   : 'MWL / Hanafi. Earlier Fajr (more conservative).';
+                                 return (
+                                   <button
+                                     key={`fajr-${deg}`}
+                                     onClick={() => setFajrAngle(deg)}
+                                     className={`relative p-6 rounded-2xl border-2 text-left transition-all duration-300 ${isSelected ? 'border-amber-400 bg-amber-400/10 shadow-[0_0_16px_rgba(251,191,36,0.2)]' : 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10'}`}
+                                   >
+                                     {isSelected && (
+                                       <div className="absolute top-4 right-4 bg-amber-400 text-mosque-navy rounded-full p-1">
+                                         <CheckCircle2 className="w-6 h-6" />
+                                       </div>
+                                     )}
+                                     <div className={`text-5xl font-bold mb-2 ${isSelected ? 'text-amber-400' : 'text-white/60'}`}>{deg}°</div>
+                                     <div className={`text-xl font-bold mb-1 ${isSelected ? 'text-white' : 'text-white/70'}`}>
+                                       {deg === 15 ? 'ISNA / 15°' : 'MWL / 18°'}
                                      </div>
-                                   )}
-                                   <div className={`text-6xl font-bold mb-3 ${isSelected ? 'text-mosque-gold' : 'text-white/60'}`}>{deg}°</div>
-                                   <div className={`text-2xl font-bold mb-2 ${isSelected ? 'text-white' : 'text-white/70'}`}>
-                                     {deg === 15 ? 'ISNA / 15 Degree' : 'MWL / 18 Degree'}
-                                   </div>
-                                   <div className="text-white/40 text-lg leading-relaxed">{desc}</div>
-                                 </button>
-                               );
-                             })}
+                                     <div className="text-white/40 text-lg leading-relaxed">{desc}</div>
+                                   </button>
+                                 );
+                               })}
+                             </div>
+                           </div>
+
+                           {/* Isha Angle */}
+                           <div>
+                             <div className="text-white/60 font-bold text-xl uppercase tracking-widest mb-4 flex items-center gap-3">
+                               <span className="w-2 h-2 rounded-full bg-indigo-400 inline-block"></span>
+                               Isha Angle
+                             </div>
+                             <div className="grid grid-cols-2 gap-6">
+                               {([15, 18] as const).map(deg => {
+                                 const isSelected = ishaAngle === deg;
+                                 const desc = deg === 15
+                                   ? 'ISNA / North America. Slightly earlier Isha.'
+                                   : 'MWL / Hanafi. Later Isha (more conservative).';
+                                 return (
+                                   <button
+                                     key={`isha-${deg}`}
+                                     onClick={() => setIshaAngle(deg)}
+                                     className={`relative p-6 rounded-2xl border-2 text-left transition-all duration-300 ${isSelected ? 'border-indigo-400 bg-indigo-400/10 shadow-[0_0_16px_rgba(129,140,248,0.2)]' : 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10'}`}
+                                   >
+                                     {isSelected && (
+                                       <div className="absolute top-4 right-4 bg-indigo-400 text-mosque-navy rounded-full p-1">
+                                         <CheckCircle2 className="w-6 h-6" />
+                                       </div>
+                                     )}
+                                     <div className={`text-5xl font-bold mb-2 ${isSelected ? 'text-indigo-400' : 'text-white/60'}`}>{deg}°</div>
+                                     <div className={`text-xl font-bold mb-1 ${isSelected ? 'text-white' : 'text-white/70'}`}>
+                                       {deg === 15 ? 'ISNA / 15°' : 'MWL / 18°'}
+                                     </div>
+                                     <div className="text-white/40 text-lg leading-relaxed">{desc}</div>
+                                   </button>
+                                 );
+                               })}
+                             </div>
                            </div>
                          </div>
                        </div>
                      </Card>
 
-                     {/* Excel Schedule Editor */}
-                     {Object.keys(excelSchedule).length > 0 && (
-                       <div>
+                     {/* Excel Schedule Editor — always visible */}
+                     <div>
                          <button
                            onClick={() => {
                              if (!showScheduleEditor) {
-                               // On first open (or re-open without a draft): clone excelSchedule into draft + snapshot
-                               if (Object.keys(draftSchedule).length === 0) {
+                               // On first open: seed draft from excelSchedule if not already seeded
+                               if (Object.keys(draftSchedule).length === 0 && Object.keys(excelSchedule).length > 0) {
                                  const snapshot = JSON.parse(JSON.stringify(excelSchedule));
                                  setDraftSchedule(snapshot);
                                  setOriginalScheduleSnapshot(snapshot);
                                  setHasUnsavedEdits(false);
-                               }
-                               // Snap to the closest available month to today
-                               const keysToUse = Object.keys(draftSchedule).length > 0 ? scheduleMonths : (() => {
-                                 const months = new Set<string>();
-                                 Object.keys(excelSchedule).forEach(d => { const [y, m] = d.split('-'); months.add(`${y}-${m}`); });
-                                 return Array.from(months).sort();
-                               })();
-                               if (keysToUse.length > 0) {
-                                 const todayKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-                                 const closest = keysToUse.reduce((prev, cur) =>
-                                   Math.abs(cur.localeCompare(todayKey)) < Math.abs(prev.localeCompare(todayKey)) ? cur : prev
-                                 );
-                                 const [y, m] = closest.split('-');
-                                 setScheduleEditorYear(Number(y));
-                                 setScheduleEditorMonth(Number(m));
                                }
                              }
                              setShowScheduleEditor(v => !v);
@@ -864,7 +920,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                              )}
                            </h4>
                            <div className="flex items-center gap-6">
-                             <span className="text-white/40 text-xl">{Object.keys(excelSchedule).length} days loaded</span>
+                             {Object.keys(excelSchedule).length > 0 ? (
+                               <span className="text-white/40 text-xl">{Object.keys(excelSchedule).length} days loaded</span>
+                             ) : (
+                               <span className="text-white/30 text-xl italic">Auto-calculated</span>
+                             )}
                              <ChevronRight className={`w-8 h-8 text-white/50 transition-transform ${showScheduleEditor ? 'rotate-90' : ''}`} />
                            </div>
                          </button>
@@ -875,8 +935,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                              <div className="flex items-center justify-between px-10 py-6 border-b border-white/10 bg-black/20">
                                <button
                                  onClick={() => navigateMonth(-1)}
-                                 disabled={currentMonthIdx <= 0}
-                                 className="p-3 hover:bg-white/10 rounded-full text-white/70 disabled:opacity-20 transition-colors"
+                                 className="p-3 hover:bg-white/10 rounded-full text-white/70 transition-colors"
                                >
                                  <ChevronLeft className="w-8 h-8" />
                                </button>
@@ -888,25 +947,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                </div>
                                <button
                                  onClick={() => navigateMonth(1)}
-                                 disabled={currentMonthIdx >= monthKeys.length - 1}
-                                 className="p-3 hover:bg-white/10 rounded-full text-white/70 disabled:opacity-20 transition-colors"
+                                 className="p-3 hover:bg-white/10 rounded-full text-white/70 transition-colors"
                                >
                                  <ChevronRight className="w-8 h-8" />
                                </button>
                              </div>
 
-                             {currentMonthEntries.length === 0 ? (
-                               <div className="text-center text-white/30 text-xl py-12">No data for this month. Use the navigator to find months with data.</div>
-                             ) : (
                                <div className="overflow-x-auto">
-                                 <table className="w-full">
+                                 <table className="w-full min-w-max">
                                    <thead>
                                      <tr className="border-b border-white/10 bg-black/10">
-                                       <th className="text-left px-8 py-5 text-white/50 font-bold uppercase tracking-widest text-lg">Date</th>
-                                       {(['fajr', 'dhuhr', 'asr', 'isha'] as const).map(p => (
-                                         <th key={p} className="text-left px-6 py-5 text-white/50 font-bold uppercase tracking-widest text-lg">{p} Iqamah</th>
+                                       <th className="text-left px-6 py-4 text-white/50 font-bold uppercase tracking-widest text-base sticky left-0 bg-black/10">Date</th>
+                                       {(['Fajr', 'Dhuhr', 'Asr', 'Isha'] as const).map(p => (
+                                         <th key={p} className="text-left px-4 py-4 text-white/50 font-bold uppercase tracking-widest text-base" colSpan={2}>
+                                           <div className="flex items-center gap-3">
+                                             <span>{p}</span>
+                                             <span className="text-white/20 font-normal text-sm normal-case tracking-normal">Start · Iqamah</span>
+                                           </div>
+                                         </th>
                                        ))}
-                                       <th className="text-left px-6 py-5 text-white/50 font-bold uppercase tracking-widest text-lg">Jumu'ah Iqamah</th>
+                                       <th className="text-left px-4 py-4 text-white/50 font-bold uppercase tracking-widest text-base">
+                                         <div>Jumu'ah<br /><span className="text-white/20 font-normal text-sm normal-case">Iqamah</span></div>
+                                       </th>
                                      </tr>
                                    </thead>
                                    <tbody>
@@ -915,46 +977,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                        const dayName = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
                                        const isFriday = new Date(date + 'T12:00:00').getDay() === 5;
                                        const origEntry = originalScheduleSnapshot[date];
+                                       const isAutoCalcRow = !(draftSchedule[date] || excelSchedule[date]);
 
-                                       const renderCell = (
-                                         prayerKey: 'fajr' | 'dhuhr' | 'asr' | 'isha' | 'jumuah',
-                                         currentValue: string | undefined,
-                                         originalValue: string | undefined
+                                       // Inline time-select dropdown for editing
+                                       const renderTimeSelect = (
+                                         value: string,
+                                         onConfirm: (v: string) => void
+                                       ) => (
+                                         <select
+                                           autoFocus
+                                           value={value || ''}
+                                           onChange={(e) => onConfirm(e.target.value)}
+                                           onBlur={() => setEditingCell(null)}
+                                           className="w-28 bg-mosque-navy border-2 border-mosque-gold rounded-xl px-2 h-12 text-lg text-white outline-none cursor-pointer appearance-none"
+                                         >
+                                           {(() => {
+                                             const opts: React.ReactElement[] = [];
+                                             for (let h = 0; h < 24; h++) {
+                                               for (let m = 0; m < 60; m += 5) {
+                                                 const period = h < 12 ? 'AM' : 'PM';
+                                                 const dh = h === 0 ? 12 : h > 12 ? h - 12 : h;
+                                                 const dm = m.toString().padStart(2, '0');
+                                                 const t = `${dh}:${dm} ${period}`;
+                                                 opts.push(<option key={t} value={t} className="bg-mosque-navy">{t}</option>);
+                                               }
+                                             }
+                                             return opts;
+                                           })()}
+                                         </select>
+                                       );
+
+                                       // Renders a single Start or Iqamah cell
+                                       const renderFieldCell = (
+                                         prayerKey: 'fajr' | 'dhuhr' | 'asr' | 'isha',
+                                         field: 'start' | 'iqamah',
+                                         currentVal: string | undefined,
+                                         origVal: string | undefined
                                        ) => {
-                                         const isEditing = editingCell?.date === date && editingCell?.prayer === prayerKey;
-                                         const isModified = hasUnsavedEdits && originalValue !== undefined && currentValue !== originalValue;
-                                         const cellKey = `${date}-${prayerKey}`;
+                                         const isEditing = editingCell?.date === date && editingCell?.prayer === prayerKey && editingCell?.field === field;
+                                         const isModified = hasUnsavedEdits && origVal !== undefined && currentVal !== origVal;
+                                         const cellKey = `${date}-${prayerKey}-${field}`;
 
                                          if (isEditing) {
                                            return (
-                                             <td key={cellKey} className="px-4 py-3">
-                                               <select
-                                                 autoFocus
-                                                 value={currentValue || ''}
-                                                 onChange={(e) => {
-                                                   if (prayerKey === 'jumuah') {
-                                                     updateExcelJumuahIqamah(date, e.target.value);
-                                                   } else {
-                                                     updateExcelIqamah(date, prayerKey, e.target.value);
-                                                   }
-                                                 }}
-                                                 onBlur={() => setEditingCell(null)}
-                                                 className="w-full bg-mosque-navy border-2 border-mosque-gold rounded-xl px-4 h-14 text-xl text-white outline-none cursor-pointer appearance-none"
-                                               >
-                                                 {(() => {
-                                                   const opts: React.ReactElement[] = [];
-                                                   for (let h = 0; h < 24; h++) {
-                                                     for (let m = 0; m < 60; m += 5) {
-                                                       const period = h < 12 ? 'AM' : 'PM';
-                                                       const dh = h === 0 ? 12 : h > 12 ? h - 12 : h;
-                                                       const dm = m.toString().padStart(2, '0');
-                                                       const t = `${dh}:${dm} ${period}`;
-                                                       opts.push(<option key={t} value={t} className="bg-mosque-navy">{t}</option>);
-                                                     }
-                                                   }
-                                                   return opts;
-                                                 })()}
-                                               </select>
+                                             <td key={cellKey} className="px-2 py-2">
+                                               {renderTimeSelect(currentVal || '', (v) => {
+                                                 if (field === 'start') updateExcelStart(date, prayerKey, v);
+                                                 else updateExcelIqamah(date, prayerKey, v);
+                                               })}
                                              </td>
                                            );
                                          }
@@ -962,19 +1032,67 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                          return (
                                            <td
                                              key={cellKey}
-                                             className={`px-6 py-3 cursor-pointer group transition-colors ${isModified ? 'bg-amber-500/10' : ''}`}
-                                             onClick={() => setEditingCell({ date, prayer: prayerKey })}
+                                             className={`px-3 py-2 cursor-pointer group transition-colors ${isModified ? 'bg-amber-500/10' : ''}`}
+                                             onClick={() => setEditingCell({ date, prayer: prayerKey, field })}
                                            >
-                                             <div className="flex items-center gap-2 font-mono text-xl group-hover:text-mosque-gold transition-colors">
+                                             <div className="flex items-center gap-1">
                                                {isModified ? (
                                                  <div className="flex flex-col">
-                                                   <span className="text-amber-300 font-bold">{currentValue || '—'}</span>
-                                                   <span className="text-white/30 text-base line-through">{originalValue}</span>
+                                                   <span className="font-mono text-lg text-amber-300 font-bold leading-tight">{currentVal || '—'}</span>
+                                                   <span className="font-mono text-sm text-white/30 line-through leading-tight">{origVal}</span>
                                                  </div>
                                                ) : (
-                                                 <span className="text-white">{currentValue || <span className="text-white/20 italic">—</span>}</span>
+                                                 <span className={`font-mono text-lg leading-tight group-hover:text-mosque-gold transition-colors ${isAutoCalcRow ? 'text-white/50 italic' : 'text-white'}`}>
+                                                   {currentVal || <span className="text-white/20">—</span>}
+                                                 </span>
                                                )}
-                                               <Pencil className="w-5 h-5 opacity-0 group-hover:opacity-60 shrink-0 transition-opacity text-mosque-gold" />
+                                               <Pencil className="w-4 h-4 opacity-0 group-hover:opacity-50 shrink-0 transition-opacity text-mosque-gold ml-1" />
+                                             </div>
+                                             {isAutoCalcRow && !isModified && (
+                                               <div className="text-xs text-white/25 mt-0.5">auto</div>
+                                             )}
+                                           </td>
+                                         );
+                                       };
+
+                                       // Jumu'ah iqamah cell
+                                       const renderJumuahCell = () => {
+                                         const isEditing = editingCell?.date === date && editingCell?.prayer === 'jumuah' && editingCell?.field === 'iqamah';
+                                         const currentVal = entry.jumuahIqamah;
+                                         const origVal = origEntry?.jumuahIqamah;
+                                         const isModified = hasUnsavedEdits && origVal !== undefined && currentVal !== origVal;
+                                         const cellKey = `${date}-jumuah-iqamah`;
+
+                                         if (isEditing) {
+                                           return (
+                                             <td key={cellKey} className="px-2 py-2">
+                                               {renderTimeSelect(currentVal || '', (v) => updateExcelJumuahIqamah(date, v))}
+                                             </td>
+                                           );
+                                         }
+
+                                         if (!isFriday) {
+                                           return <td key={cellKey} className="px-3 py-2 text-white/15 font-mono text-lg">—</td>;
+                                         }
+
+                                         return (
+                                           <td
+                                             key={cellKey}
+                                             className={`px-3 py-2 cursor-pointer group transition-colors ${isModified ? 'bg-amber-500/10' : ''}`}
+                                             onClick={() => setEditingCell({ date, prayer: 'jumuah', field: 'iqamah' })}
+                                           >
+                                             <div className="flex items-center gap-1">
+                                               {isModified ? (
+                                                 <div className="flex flex-col">
+                                                   <span className="font-mono text-lg text-amber-300 font-bold leading-tight">{currentVal || '—'}</span>
+                                                   <span className="font-mono text-sm text-white/30 line-through leading-tight">{origVal}</span>
+                                                 </div>
+                                               ) : (
+                                                 <span className={`font-mono text-lg leading-tight group-hover:text-mosque-gold transition-colors ${isAutoCalcRow ? 'text-white/50 italic' : 'text-white'}`}>
+                                                   {currentVal || <span className="text-white/20">—</span>}
+                                                 </span>
+                                               )}
+                                               <Pencil className="w-4 h-4 opacity-0 group-hover:opacity-50 shrink-0 transition-opacity text-mosque-gold ml-1" />
                                              </div>
                                            </td>
                                          );
@@ -983,26 +1101,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                        return (
                                          <tr
                                            key={date}
-                                           className={`border-b border-white/5 hover:bg-white/5 transition-colors ${isFriday ? 'bg-mosque-gold/5' : ''}`}
+                                           className={`border-b border-white/5 hover:bg-white/5 transition-colors ${isFriday ? 'bg-mosque-gold/5' : ''} ${isAutoCalcRow ? 'opacity-80' : ''}`}
                                          >
-                                           <td className="px-8 py-3 shrink-0">
+                                           <td className="px-6 py-2 shrink-0 sticky left-0 bg-[#0f2445]">
                                              <div className="flex flex-col">
-                                               <span className={`text-2xl font-bold ${isFriday ? 'text-mosque-gold' : 'text-white'}`}>{dayNum}</span>
-                                               <span className="text-white/40 text-lg">{dayName}</span>
+                                               <span className={`text-xl font-bold ${isFriday ? 'text-mosque-gold' : 'text-white'}`}>{dayNum}</span>
+                                               <span className="text-white/40 text-base">{dayName}</span>
                                              </div>
                                            </td>
-                                           {renderCell('fajr', entry.fajr?.iqamah, origEntry?.fajr?.iqamah)}
-                                           {renderCell('dhuhr', entry.dhuhr?.iqamah, origEntry?.dhuhr?.iqamah)}
-                                           {renderCell('asr', entry.asr?.iqamah, origEntry?.asr?.iqamah)}
-                                           {renderCell('isha', entry.isha?.iqamah, origEntry?.isha?.iqamah)}
-                                           {renderCell('jumuah', entry.jumuahIqamah, origEntry?.jumuahIqamah)}
+                                           {renderFieldCell('fajr', 'start', entry.fajr?.start, origEntry?.fajr?.start)}
+                                           {renderFieldCell('fajr', 'iqamah', entry.fajr?.iqamah, origEntry?.fajr?.iqamah)}
+                                           {renderFieldCell('dhuhr', 'start', entry.dhuhr?.start, origEntry?.dhuhr?.start)}
+                                           {renderFieldCell('dhuhr', 'iqamah', entry.dhuhr?.iqamah, origEntry?.dhuhr?.iqamah)}
+                                           {renderFieldCell('asr', 'start', entry.asr?.start, origEntry?.asr?.start)}
+                                           {renderFieldCell('asr', 'iqamah', entry.asr?.iqamah, origEntry?.asr?.iqamah)}
+                                           {renderFieldCell('isha', 'start', entry.isha?.start, origEntry?.isha?.start)}
+                                           {renderFieldCell('isha', 'iqamah', entry.isha?.iqamah, origEntry?.isha?.iqamah)}
+                                           {renderJumuahCell()}
                                          </tr>
                                        );
                                      })}
                                    </tbody>
                                  </table>
                                </div>
-                             )}
 
                              {/* Action Bar — always visible at the bottom of the editor */}
                              <div className={`px-10 py-6 border-t flex items-center justify-between transition-colors ${hasUnsavedEdits ? 'border-amber-500/30 bg-amber-500/10' : 'border-white/10 bg-black/10'}`}>
@@ -1017,7 +1138,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                  ) : (
                                    <>
                                      <Pencil className="w-5 h-5 text-white/30" />
-                                     <span className="text-white/30">Click any iqamah time to edit. Maghrib is always auto-calculated.</span>
+                                     <span className="text-white/30">Click any Start or Iqamah time to edit. Italicised times are auto-calculated. Maghrib is always auto-calculated from sunset.</span>
                                    </>
                                  )}
                                </div>
@@ -1043,7 +1164,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                            </div>
                          )}
                        </div>
-                     )}
 
                      {/* Excel Iqamah Schedule Viewer */}
                      {Object.keys(excelSchedule).length > 0 && (() => {

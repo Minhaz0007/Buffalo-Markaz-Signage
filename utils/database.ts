@@ -354,10 +354,9 @@ export const loadSlideshowConfigFromDatabase = async (): Promise<{ success: bool
 // GLOBAL SETTINGS OPERATIONS
 // ============================================================
 
-// Cached result of whether the fajr_isha_angle column exists in global_settings.
-// null = unknown (first call), true = confirmed, false = confirmed missing.
-// Avoids a double upsert (try with column, fail, retry without) on every save.
-let fajrIshaAngleColumnExists: boolean | null = null;
+// Cached result of whether the separate fajr_angle/isha_angle columns exist.
+// null = unknown, true = confirmed present, false = confirmed missing (fall back to fajr_isha_angle).
+let separateAngleColumnsExist: boolean | null = null;
 
 export const saveGlobalSettingsToDatabase = async (settings: {
   theme: string;
@@ -368,12 +367,13 @@ export const saveGlobalSettingsToDatabase = async (settings: {
   autoAlertSettings: AutoAlertSettings;
   mobileAlertSettings: MobileSilentAlertSettings;
   hijriSettings: HijriSettings;
-  fajrIshaAngle: 15 | 18;
+  fajrAngle: 15 | 18;
+  ishaAngle: 15 | 18;
 }) => {
   if (!isSupabaseConfigured()) return { success: false };
 
   const baseRow = {
-    id: 1, // Single row
+    id: 1,
     theme: settings.theme,
     ticker_bg: settings.tickerBg,
     maghrib_offset: settings.maghribOffset,
@@ -399,27 +399,28 @@ export const saveGlobalSettingsToDatabase = async (settings: {
     hijri_year: settings.hijriSettings.year || null,
     hijri_month_start_gregorian: settings.hijriSettings.monthStartGregorian || null,
     hijri_month_length: settings.hijriSettings.monthLength,
+    // Keep legacy column in sync for backward compatibility
+    fajr_isha_angle: settings.fajrAngle === settings.ishaAngle ? settings.fajrAngle : 18,
   };
 
   try {
-    if (fajrIshaAngleColumnExists === false) {
-      // Column confirmed missing from a previous call — skip it immediately (no double-upsert).
+    if (separateAngleColumnsExist === false) {
+      // Columns confirmed missing — save without them.
       const { error } = await supabase!
         .from('global_settings')
         .upsert(baseRow, { onConflict: 'id' });
       if (error) throw error;
     } else {
-      // Column present (or unknown) — try saving with fajr_isha_angle.
-      const row = { ...baseRow, fajr_isha_angle: settings.fajrIshaAngle };
+      // Try with separate fajr_angle / isha_angle columns.
+      const row = { ...baseRow, fajr_angle: settings.fajrAngle, isha_angle: settings.ishaAngle };
       const { error } = await supabase!
         .from('global_settings')
         .upsert(row, { onConflict: 'id' });
 
       if (error) {
-        if (error.message?.includes('fajr_isha_angle') || error.code === '42703') {
-          // Column missing — cache this so subsequent calls skip the column immediately.
-          fajrIshaAngleColumnExists = false;
-          console.warn('⚠️ fajr_isha_angle column not in DB yet — run migration SQL. Saving other settings without it.');
+        if (error.message?.includes('fajr_angle') || error.message?.includes('isha_angle') || error.code === '42703') {
+          separateAngleColumnsExist = false;
+          console.warn('⚠️ fajr_angle/isha_angle columns not in DB yet — run migration SQL. Saving with legacy column.');
           const { error: fallbackError } = await supabase!
             .from('global_settings')
             .upsert(baseRow, { onConflict: 'id' });
@@ -428,7 +429,7 @@ export const saveGlobalSettingsToDatabase = async (settings: {
           throw error;
         }
       } else {
-        fajrIshaAngleColumnExists = true; // Confirmed — skip probe on future calls.
+        separateAngleColumnsExist = true;
       }
     }
 
@@ -454,13 +455,16 @@ export const loadGlobalSettingsFromDatabase = async () => {
 
     if (!data) return { success: true, data: null };
 
+    // Read separate angles if available; fall back to legacy fajr_isha_angle for both.
+    const legacyAngle = (data.fajr_isha_angle === 15 ? 15 : 18) as 15 | 18;
     const settings = {
       theme: data.theme,
       tickerBg: data.ticker_bg,
       maghribOffset: data.maghrib_offset,
       sunriseOffset: data.sunrise_offset ?? 0,
       sunsetOffset: data.sunset_offset ?? 0,
-      fajrIshaAngle: (data.fajr_isha_angle === 15 ? 15 : 18) as 15 | 18,
+      fajrAngle: (data.fajr_angle != null ? (data.fajr_angle === 15 ? 15 : 18) : legacyAngle) as 15 | 18,
+      ishaAngle: (data.isha_angle != null ? (data.isha_angle === 15 ? 15 : 18) : legacyAngle) as 15 | 18,
       autoAlertSettings: {
         enabled: data.auto_alert_enabled ?? true,
         template: data.auto_alert_template ?? "⚠️ NOTICE: Iqamah changes tomorrow for {prayers} to {new time}",

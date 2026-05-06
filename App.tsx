@@ -167,7 +167,8 @@ const App: React.FC = () => {
   const [maghribOffset, setMaghribOffset] = useState<number>(20);
   const [sunriseOffset, setSunriseOffset] = useState<number>(0);
   const [sunsetOffset, setSunsetOffset] = useState<number>(0);
-  const [fajrIshaAngle, setFajrIshaAngle] = useState<15 | 18>(18);
+  const [fajrAngle, setFajrAngle] = useState<15 | 18>(18);
+  const [ishaAngle, setIshaAngle] = useState<15 | 18>(18);
 
   // New Configs
   const [autoAlertSettings, setAutoAlertSettings] = useState<AutoAlertSettings>(DEFAULT_AUTO_ALERTS);
@@ -283,7 +284,8 @@ const App: React.FC = () => {
         setAutoAlertSettings(dbGlobalSettings.autoAlertSettings);
         setMobileAlertSettings(dbGlobalSettings.mobileAlertSettings);
         if (dbGlobalSettings.hijriSettings) setHijriSettings(dbGlobalSettings.hijriSettings);
-        if (dbGlobalSettings.fajrIshaAngle) setFajrIshaAngle(dbGlobalSettings.fajrIshaAngle);
+        if (dbGlobalSettings.fajrAngle) setFajrAngle(dbGlobalSettings.fajrAngle);
+        if (dbGlobalSettings.ishaAngle) setIshaAngle(dbGlobalSettings.ishaAngle);
         console.log('✅ Loaded global settings from database');
       }
 
@@ -357,7 +359,8 @@ const App: React.FC = () => {
           setAutoAlertSettings(prev => JSON.stringify(prev) === JSON.stringify(data.autoAlertSettings) ? prev : data.autoAlertSettings);
           setMobileAlertSettings(prev => JSON.stringify(prev) === JSON.stringify(data.mobileAlertSettings) ? prev : data.mobileAlertSettings);
           if (data.hijriSettings) setHijriSettings(prev => JSON.stringify(prev) === JSON.stringify(data.hijriSettings) ? prev : data.hijriSettings);
-          if (data.fajrIshaAngle) setFajrIshaAngle(data.fajrIshaAngle);
+          if (data.fajrAngle) setFajrAngle(data.fajrAngle);
+          if (data.ishaAngle) setIshaAngle(data.ishaAngle);
         }
       })
       .subscribe();
@@ -443,9 +446,10 @@ const App: React.FC = () => {
       autoAlertSettings,
       mobileAlertSettings,
       hijriSettings,
-      fajrIshaAngle,
+      fajrAngle,
+      ishaAngle,
     });
-  }, [currentTheme, tickerBg, maghribOffset, sunriseOffset, sunsetOffset, autoAlertSettings, mobileAlertSettings, hijriSettings, fajrIshaAngle, isDataLoaded]);
+  }, [currentTheme, tickerBg, maghribOffset, sunriseOffset, sunsetOffset, autoAlertSettings, mobileAlertSettings, hijriSettings, fajrAngle, ishaAngle, isDataLoaded]);
 
   // Scaling Logic for Virtual Viewport (1920x1080)
   useEffect(() => {
@@ -488,12 +492,12 @@ const App: React.FC = () => {
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
     const tomorrowDateStr = toEasternDateStr(tomorrowDate);
 
-    const ydaySchedule = getScheduleForDate(yesterdayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrIshaAngle);
-    const tSchedule = getScheduleForDate(todayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrIshaAngle);
-    const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrIshaAngle);
+    const ydaySchedule = getScheduleForDate(yesterdayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrAngle, ishaAngle);
+    const tSchedule = getScheduleForDate(todayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrAngle, ishaAngle);
+    const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrAngle, ishaAngle);
 
     return { yesterdaySchedule: ydaySchedule, todaySchedule: tSchedule, tomorrowSchedule: tmSchedule };
-  }, [todayDateStr, excelSchedule, manualOverrides, maghribOffset, sunriseOffset, sunsetOffset, fajrIshaAngle, scheduleIndex]);
+  }, [todayDateStr, excelSchedule, manualOverrides, maghribOffset, sunriseOffset, sunsetOffset, fajrAngle, ishaAngle, scheduleIndex]);
 
   // Update Display State & System Alerts (Only when schedule changes)
   useEffect(() => {
@@ -934,8 +938,10 @@ const App: React.FC = () => {
           scheduleIndex={scheduleIndex}
           hijriSettings={hijriSettings}
           setHijriSettings={setHijriSettings}
-          fajrIshaAngle={fajrIshaAngle}
-          setFajrIshaAngle={setFajrIshaAngle}
+          fajrAngle={fajrAngle}
+          setFajrAngle={setFajrAngle}
+          ishaAngle={ishaAngle}
+          setIshaAngle={setIshaAngle}
         />
 
         {/* Fullscreen-restore banner: shown when auto-update reloaded the page
