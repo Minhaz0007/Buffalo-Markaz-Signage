@@ -382,8 +382,19 @@ const App: React.FC = () => {
     setTickerBg,
   ]);
 
-  // Save Excel schedule to Supabase whenever it changes (after initial load)
-  // Skip if the change arrived from a Realtime event (data already in Supabase).
+  // Delta save: called by SettingsModal when user saves schedule edits.
+  // Only the changed rows are upserted (avoids triggering 365 realtime events).
+  // isRemoteUpdate is set BEFORE the state merge so the auto-save effect below
+  // does not re-trigger a full save when the state change lands.
+  const handleScheduleChange = useCallback((changedRows: Record<string, ExcelDaySchedule>) => {
+    isRemoteUpdate.current.add('excel_schedule');
+    setExcelSchedule(prev => ({ ...prev, ...changedRows }));
+    saveExcelScheduleToDatabase(changedRows);
+  }, []);
+
+  // Save Excel schedule to Supabase whenever it changes (after initial load).
+  // Skipped for delta saves (handled by handleScheduleChange above) and for
+  // changes that arrived from a Realtime event (data already in Supabase).
   useEffect(() => {
     if (!isDataLoaded) return;
     if (Object.keys(excelSchedule).length === 0) return;
@@ -942,6 +953,7 @@ const App: React.FC = () => {
           setFajrAngle={setFajrAngle}
           ishaAngle={ishaAngle}
           setIshaAngle={setIshaAngle}
+          onSaveScheduleChanges={handleScheduleChange}
         />
 
         {/* Fullscreen-restore banner: shown when auto-update reloaded the page
