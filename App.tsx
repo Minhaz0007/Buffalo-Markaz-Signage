@@ -289,10 +289,9 @@ const App: React.FC = () => {
         console.log('✅ Loaded global settings from database');
       }
 
-      // Mark all tables as remote-updated so the save effects don't write
-      // the freshly-loaded Supabase data back to Supabase when isDataLoaded
-      // flips to true (which would re-trigger save effects for all deps).
-      isRemoteUpdate.current.add('excel_schedule');
+      // Mark tables as remote-updated so the auto-save effects skip writing
+      // the freshly-loaded data back to Supabase when isDataLoaded flips to true.
+      // (excel_schedule has no auto-save effect; the others do.)
       isRemoteUpdate.current.add('manual_overrides');
       isRemoteUpdate.current.add('announcement_items');
       isRemoteUpdate.current.add('slideshow_config');
@@ -314,6 +313,10 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) return;
 
+    // Debounce timer for excel_schedule reloads — collapses bursts of realtime
+    // events (e.g. 365 events from a full-schedule file upload) into one reload.
+    let excelReloadTimer: ReturnType<typeof setTimeout> | null = null;
+
     const channel = supabase
       .channel('settings-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_overrides' }, async () => {
@@ -323,12 +326,14 @@ const App: React.FC = () => {
           setManualOverrides(data);
         }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'excel_schedule' }, async () => {
-        const { success, data } = await loadExcelScheduleFromDatabase();
-        if (success) {
-          isRemoteUpdate.current.add('excel_schedule');
-          setExcelSchedule(data);
-        }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'excel_schedule' }, () => {
+        if (excelReloadTimer) clearTimeout(excelReloadTimer);
+        excelReloadTimer = setTimeout(async () => {
+          const { success, data } = await loadExcelScheduleFromDatabase();
+          if (success) {
+            setExcelSchedule(data);
+          }
+        }, 600);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'announcement_items' }, async () => {
         const { success, data } = await loadAnnouncementItemsFromDatabase();
@@ -383,27 +388,13 @@ const App: React.FC = () => {
   ]);
 
   // Delta save: called by SettingsModal when user saves schedule edits.
-  // Only the changed rows are upserted (avoids triggering 365 realtime events).
-  // isRemoteUpdate is set BEFORE the state merge so the auto-save effect below
-  // does not re-trigger a full save when the state change lands.
+  // Merges only the changed rows into state and saves only those rows to DB.
+  // No auto-save effect for excel_schedule — all saves go through here or
+  // handleFileUpload (which calls saveExcelScheduleToDatabase directly).
   const handleScheduleChange = useCallback((changedRows: Record<string, ExcelDaySchedule>) => {
-    isRemoteUpdate.current.add('excel_schedule');
     setExcelSchedule(prev => ({ ...prev, ...changedRows }));
     saveExcelScheduleToDatabase(changedRows);
   }, []);
-
-  // Save Excel schedule to Supabase whenever it changes (after initial load).
-  // Skipped for delta saves (handled by handleScheduleChange above) and for
-  // changes that arrived from a Realtime event (data already in Supabase).
-  useEffect(() => {
-    if (!isDataLoaded) return;
-    if (Object.keys(excelSchedule).length === 0) return;
-    if (isRemoteUpdate.current.has('excel_schedule')) {
-      isRemoteUpdate.current.delete('excel_schedule');
-      return;
-    }
-    saveExcelScheduleToDatabase(excelSchedule);
-  }, [excelSchedule, isDataLoaded]);
 
   // Save manual overrides to Supabase whenever they change (after initial load)
   useEffect(() => {
