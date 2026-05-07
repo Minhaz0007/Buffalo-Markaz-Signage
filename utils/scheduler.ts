@@ -231,26 +231,15 @@ export const getScheduleForDate = (
 
   // Apply the Excel data if found (either exact match or year-round match)
   // NOTE: Maghrib is EXCLUDED from Excel - always calculated from sunset + offset
+  // NOTE: Start times are always auto-calculated from the selected angle so that
+  //       the Fajr/Isha angle selectors remain effective. Only iqamah times are
+  //       overridden here; start time edits in the schedule editor are stored for
+  //       reference but do not override the angle-based calculation on screen.
   // IMPORTANT: Apply ensureAmPm to all Excel times to ensure AM/PM formatting
   if (excelDataForDate) {
     const day = excelDataForDate;
 
-    // Apply Excel start times (when explicitly stored, they override auto-calculation)
-    if (day.fajr?.start) {
-      newPrayers.fajr.start = ensureAmPm(day.fajr.start, false);
-    }
-    if (day.dhuhr?.start) {
-      newPrayers.dhuhr.start = ensureAmPm(day.dhuhr.start, true);
-    }
-    if (day.asr?.start) {
-      newPrayers.asr.start = ensureAmPm(day.asr.start, true);
-    }
-    // Maghrib start is skipped (always sunset + sunsetOffset)
-    if (day.isha?.start) {
-      newPrayers.isha.start = ensureAmPm(day.isha.start, true);
-    }
-
-    // Apply Excel iqamah times
+    // Apply Excel iqamah times only (start times always come from angle calculation)
     if (day.fajr?.iqamah) {
       newPrayers.fajr.iqamah = ensureAmPm(day.fajr.iqamah, false);
     }
