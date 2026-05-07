@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers, Lock, PhoneOff, Eye, Volume2, Save, Music, Monitor, LayoutTemplate, List, Info, Sun, Pencil } from 'lucide-react';
+import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers, Lock, PhoneOff, Eye, Volume2, Save, Music, Monitor, LayoutTemplate, Info, Sun, Pencil } from 'lucide-react';
 import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig, AutoAlertSettings, MobileSilentAlertSettings, HijriSettings, HIJRI_MONTHS } from '../types';
 import { getHijriDateFromSettings, getHijriAnchorStatus } from '../utils/hijriDate';
 import { toEasternDateStr } from '../utils/easternTime';
 import { ALERT_MESSAGES } from '../constants';
 import * as XLSX from 'xlsx';
 import { saveExcelScheduleToDatabase, clearExcelScheduleFromDatabase } from '../utils/database';
-import { ScheduleIndex, computeIqamahRanges } from '../utils/scheduler';
+import { ScheduleIndex } from '../utils/scheduler';
 import { isSupabaseConfigured } from '../utils/supabase';
 import { calculatePrayerTimes } from '../utils/prayerCalculator';
 
@@ -48,6 +48,7 @@ interface SettingsModalProps {
   setFajrAngle: (angle: 15 | 18) => void;
   ishaAngle: 15 | 18;
   setIshaAngle: (angle: 15 | 18) => void;
+  onSaveScheduleChanges?: (changed: Record<string, ExcelDaySchedule>) => void;
 }
 
 // --- Reusable UI Components (SCALED UP FOR 1920x1080) ---
@@ -110,147 +111,6 @@ const ColorPickerPreset = ({ value, onChange }: { value: string, onChange: (c: s
     );
 };
 
-// --- Time Dropdown Component ---
-const TimeDropdown = ({ value, onChange, placeholder = "Select time" }: { value: string, onChange: (time: string) => void, placeholder?: string }) => {
-    // Generate time options in 5-minute increments
-    const generateTimeOptions = () => {
-        const times: string[] = [];
-        for (let hour = 0; hour < 24; hour++) {
-            for (let minute = 0; minute < 60; minute += 5) {
-                const period = hour < 12 ? 'AM' : 'PM';
-                const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                const displayMinute = minute.toString().padStart(2, '0');
-                times.push(`${displayHour}:${displayMinute} ${period}`);
-            }
-        }
-        return times;
-    };
-
-    const timeOptions = generateTimeOptions();
-    const inputBase = "w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white placeholder-white/30 focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold focus:bg-black/50 outline-none transition-all duration-200 cursor-pointer appearance-none";
-
-    return (
-        <select
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className={inputBase}
-        >
-            <option value="" className="bg-mosque-navy text-white/50">{placeholder}</option>
-            {timeOptions.map(time => (
-                <option key={time} value={time} className="bg-mosque-navy text-white">
-                    {time}
-                </option>
-            ))}
-        </select>
-    );
-};
-
-// --- Calendar Component (Refined) ---
-interface RangeCalendarProps {
-  startDate: string;
-  endDate: string;
-  onChange: (start: string, end: string) => void;
-}
-
-const RangeCalendar: React.FC<RangeCalendarProps> = ({ startDate, endDate, onChange }) => {
-  const [currentDate, setCurrentDate] = useState(() => startDate ? new Date(startDate) : new Date());
-  const [isSelectingEnd, setIsSelectingEnd] = useState(false);
-  const todayStr = new Date().toISOString().split('T')[0];
-
-  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
-
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const daysInMonth = getDaysInMonth(year, month);
-  const firstDay = getFirstDayOfMonth(year, month);
-  
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-  const handleDayClick = (day: number) => {
-    const clickedDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    if (!isSelectingEnd) {
-      onChange(clickedDateStr, clickedDateStr);
-      setIsSelectingEnd(true);
-    } else {
-      if (clickedDateStr < startDate) {
-         onChange(clickedDateStr, startDate);
-      } else {
-         onChange(startDate, clickedDateStr);
-      }
-      setIsSelectingEnd(false);
-    }
-  };
-
-  const isSelected = (day: number) => {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return dateStr === startDate || dateStr === endDate;
-  };
-
-  const isInRange = (day: number) => {
-    if (!startDate || !endDate) return false;
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return dateStr > startDate && dateStr < endDate;
-  };
-
-  const isToday = (day: number) => {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return dateStr === todayStr;
-  };
-
-  const changeMonth = (offset: number) => {
-    setCurrentDate(new Date(year, month + offset, 1));
-  };
-
-  return (
-    <div className="bg-black/20 border border-white/10 rounded-3xl p-8 select-none shadow-inner w-full">
-       <div className="flex items-center justify-between mb-8">
-         <button onClick={() => changeMonth(-1)} className="p-4 hover:bg-white/10 rounded-full text-white/70 transition-colors"><ChevronLeft className="w-8 h-8" /></button>
-         <div className="font-bold text-white text-3xl tracking-wide uppercase">{monthNames[month]} {year}</div>
-         <button onClick={() => changeMonth(1)} className="p-4 hover:bg-white/10 rounded-full text-white/70 transition-colors"><ChevronRight className="w-8 h-8" /></button>
-       </div>
-       
-       <div className="grid grid-cols-7 gap-4 mb-4">
-         {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-           <div key={d} className="text-center text-xl text-white/40 uppercase font-bold">{d}</div>
-         ))}
-       </div>
-       
-       <div className="grid grid-cols-7 gap-4">
-          {Array.from({ length: firstDay }).map((_, i) => <div key={`empty-${i}`} />)}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-             const day = i + 1;
-             const selected = isSelected(day);
-             const inRange = isInRange(day);
-             const today = isToday(day);
-             
-             let bgClass = "bg-white/5 text-white/70 hover:bg-white/20";
-             if (selected) bgClass = "bg-mosque-gold text-mosque-navy font-bold shadow-lg scale-105 z-10";
-             else if (inRange) bgClass = "bg-mosque-gold/20 text-mosque-gold";
-             else if (today) bgClass = "bg-white/10 text-white font-semibold ring-2 ring-mosque-gold/70";
-
-             return (
-               <button 
-                 key={day} 
-                 onClick={() => handleDayClick(day)}
-                 className={`h-16 w-full rounded-xl flex items-center justify-center text-2xl transition-all duration-200 ${bgClass}`}
-               >
-                 {day}
-               </button>
-             );
-          })}
-       </div>
-       <div className="mt-6 flex items-center justify-between text-xl text-white/40 border-t border-white/5 pt-6">
-         <span>{isSelectingEnd ? "Select end date..." : "Select start date"}</span>
-         {startDate && (
-           <span className="font-mono text-mosque-gold text-2xl">
-              {startDate === endDate ? startDate : `${startDate} → ${endDate}`}
-           </span>
-         )}
-       </div>
-    </div>
-  );
-};
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen, onClose,
@@ -270,25 +130,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   hijriSettings, setHijriSettings,
   fajrAngle, setFajrAngle,
   ishaAngle, setIshaAngle,
+  onSaveScheduleChanges,
 }) => {
   const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization' | 'slideshow' | 'silentAlert' | 'hijri'>('schedule');
   const [uploadStatus, setUploadStatus] = useState<string>("");
-  const [overrideStatus, setOverrideStatus] = useState<string>("");
-  const [expandedPrayer, setExpandedPrayer] = useState<string | null>(null);
-  const [newOverride, setNewOverride] = useState<Partial<ManualOverride>>({
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
-    iqamah: ''
-  });
-  
+
   // Announcement Editor State
   const defaultItemState = { text: "", color: "#FFFFFF", animation: 'none' as const };
   const [newItem, setNewItem] = useState<Omit<AnnouncementItem, 'id'>>(defaultItemState);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-
-  // Excel Iqamah Ranges viewer
-  const [showExcelRanges, setShowExcelRanges] = useState(false);
 
   // Excel Schedule Editor
   const [showScheduleEditor, setShowScheduleEditor] = useState(false);
@@ -492,45 +343,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
-  const handleAddOverride = (prayerKey: string) => {
-    if (!newOverride.iqamah || !newOverride.startDate || !newOverride.endDate) {
-      setOverrideStatus('Please fill in Iqamah time and Date range.');
-      setTimeout(() => setOverrideStatus(''), 3000);
-      return;
-    }
-
-    // Check for overlaps with existing overrides for the same prayer
-    const existingForPrayer = manualOverrides.filter(o => o.prayerKey === prayerKey);
-    const newStart = newOverride.startDate;
-    const newEnd = newOverride.endDate;
-
-    for (const o of existingForPrayer) {
-       // Check overlap: StartA <= EndB && EndA >= StartB
-       if (o.startDate <= newEnd && o.endDate >= newStart) {
-          const conflictDate = o.startDate > newStart ? o.startDate : newStart;
-          const prayerName = prayerKey.charAt(0).toUpperCase() + prayerKey.slice(1);
-          setOverrideStatus(`${prayerName} time already set for date ${conflictDate}`);
-          setTimeout(() => setOverrideStatus(''), 3000);
-          return;
-       }
-    }
-
-    const override: ManualOverride = {
-        id: Date.now().toString(),
-        prayerKey: prayerKey as any,
-        startDate: newOverride.startDate!,
-        endDate: newOverride.endDate!,
-        iqamah: newOverride.iqamah!
-    };
-
-    setManualOverrides((prev) => [...prev, override]);
-    setNewOverride((prev) => ({ startDate: prev.startDate, endDate: prev.endDate, iqamah: '' }));
-    setOverrideStatus(`Override added successfully for ${prayerKey}!`);
-    setTimeout(() => setOverrideStatus(''), 3000);
-  };
-
-  const deleteOverride = (id: string) => setManualOverrides(manualOverrides.filter(o => o.id !== id));
-
   // --- Announcement Handlers ---
   const openEditor = (item?: AnnouncementItem) => {
     if (item) {
@@ -620,9 +432,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setEditingCell(null);
   };
 
-  // Commit draft → excelSchedule (triggers auto-save to Supabase via App.tsx effect)
+  // Commit draft → delta save (only changed rows propagate to App.tsx + Supabase)
   const handleSaveSchedule = () => {
-    setExcelSchedule(draftSchedule);
+    const changedRows: Record<string, ExcelDaySchedule> = {};
+    Object.keys(draftSchedule).forEach(date => {
+      const orig = originalScheduleSnapshot[date];
+      const draft = draftSchedule[date];
+      if (!draft) return;
+      const changed =
+        !orig ||
+        orig.fajr?.start !== draft.fajr?.start ||
+        orig.fajr?.iqamah !== draft.fajr?.iqamah ||
+        orig.dhuhr?.start !== draft.dhuhr?.start ||
+        orig.dhuhr?.iqamah !== draft.dhuhr?.iqamah ||
+        orig.asr?.start !== draft.asr?.start ||
+        orig.asr?.iqamah !== draft.asr?.iqamah ||
+        orig.isha?.start !== draft.isha?.start ||
+        orig.isha?.iqamah !== draft.isha?.iqamah ||
+        orig.jumuahIqamah !== draft.jumuahIqamah;
+      if (changed) changedRows[date] = draft;
+    });
+
+    if (Object.keys(changedRows).length > 0) {
+      onSaveScheduleChanges?.(changedRows);
+    }
+
     setOriginalScheduleSnapshot(JSON.parse(JSON.stringify(draftSchedule)));
     setHasUnsavedEdits(false);
     setEditingCell(null);
@@ -650,7 +484,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // --- Styles ---
   const inputBase = "w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white placeholder-white/30 focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold focus:bg-black/50 outline-none transition-all duration-200";
   const labelBase = "block text-xl font-bold uppercase tracking-widest text-mosque-gold/90 mb-4";
-  const prayersList = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'jumuah'];
 
   const renderSidebarItem = (id: string, label: string, Icon: any) => (
       <button 
@@ -1165,130 +998,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                          )}
                        </div>
 
-                     {/* Excel Iqamah Schedule Viewer */}
-                     {Object.keys(excelSchedule).length > 0 && (() => {
-                       const ranges = computeIqamahRanges(excelSchedule);
-                       const prayers = ['fajr', 'dhuhr', 'asr', 'isha', 'jumuah'] as const;
-                       const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                       return (
-                         <div>
-                           <button
-                             onClick={() => setShowExcelRanges(v => !v)}
-                             className="w-full flex items-center justify-between px-10 py-8 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all"
-                           >
-                             <h4 className="text-3xl font-bold text-white flex items-center gap-4">
-                               <List className="w-8 h-8 text-mosque-gold" />
-                               Excel Iqamah Schedule
-                             </h4>
-                             <ChevronRight className={`w-8 h-8 text-white/50 transition-transform ${showExcelRanges ? 'rotate-90' : ''}`} />
-                           </button>
-
-                           {showExcelRanges && (
-                             <div className="mt-4 bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-                               <table className="w-full">
-                                 <thead>
-                                   <tr className="border-b border-white/10 bg-black/20">
-                                     <th className="text-left px-10 py-6 text-white/50 font-bold uppercase tracking-widest text-xl">Prayer</th>
-                                     <th className="text-left px-10 py-6 text-white/50 font-bold uppercase tracking-widest text-xl">From</th>
-                                     <th className="text-left px-10 py-6 text-white/50 font-bold uppercase tracking-widest text-xl">To</th>
-                                     <th className="text-left px-10 py-6 text-white/50 font-bold uppercase tracking-widest text-xl">Iqamah</th>
-                                   </tr>
-                                 </thead>
-                                 <tbody>
-                                   {prayers.flatMap(prayer =>
-                                     (ranges[prayer] || []).map((r, i) => (
-                                       <tr key={`${prayer}-${i}`} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                         {i === 0 && (
-                                           <td
-                                             rowSpan={ranges[prayer].length}
-                                             className="px-10 py-5 font-bold uppercase text-mosque-gold text-2xl align-middle border-r border-white/5"
-                                           >
-                                             {prayer}
-                                           </td>
-                                         )}
-                                         <td className="px-10 py-5 text-white/70 text-xl font-mono">{fmt(r.startDate)}</td>
-                                         <td className="px-10 py-5 text-white/70 text-xl font-mono">{fmt(r.endDate)}</td>
-                                         <td className="px-10 py-5 text-white font-bold text-xl font-mono">{r.iqamah}</td>
-                                       </tr>
-                                     ))
-                                   )}
-                                 </tbody>
-                               </table>
-                             </div>
-                           )}
-                         </div>
-                       );
-                     })()}
-
-                     {/* Manual Overrides */}
-                     <div>
-                        <h4 className="text-3xl font-bold text-white mb-8 flex items-center gap-4">
-                            <Edit2 className="w-8 h-8 text-mosque-gold" />
-                            Manual Overrides
-                        </h4>
-                        <div className="space-y-6">
-                            {prayersList.filter(p => p !== 'maghrib').map((prayer) => {
-                                const activeOverride = manualOverrides.find(o => o.prayerKey === prayer && new Date().toISOString().split('T')[0] >= o.startDate && new Date().toISOString().split('T')[0] <= o.endDate);
-                                const isExpanded = expandedPrayer === prayer;
-                                
-                                return (
-                                    <div key={prayer} className={`bg-white/5 rounded-2xl border transition-all overflow-hidden ${isExpanded ? 'border-mosque-gold bg-black/20' : 'border-white/5 hover:bg-white/10'}`}>
-                                        <div 
-                                            className="p-8 flex items-center justify-between cursor-pointer"
-                                            onClick={() => setExpandedPrayer(isExpanded ? null : prayer)}
-                                        >
-                                            <div className="flex items-center gap-8">
-                                                <span className="w-40 font-bold uppercase text-white tracking-wider text-2xl">{prayer}</span>
-                                                {activeOverride ? (
-                                                    <span className="px-4 py-2 bg-mosque-gold text-mosque-navy rounded-lg text-lg font-bold uppercase">Active Override</span>
-                                                ) : (
-                                                    <span className="text-white/30 text-xl">Default Schedule</span>
-                                                )}
-                                            </div>
-                                            <ChevronRight className={`w-8 h-8 text-white/50 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                                        </div>
-
-                                        {isExpanded && (
-                                            <div className="p-10 border-t border-white/10 grid grid-cols-12 gap-10 animate-in slide-in-from-top-2">
-                                                <div className="col-span-8 space-y-8">
-                                                    <div>
-                                                        <label className={labelBase}>Iqamah</label>
-                                                        <TimeDropdown value={newOverride.iqamah || ''} onChange={v => setNewOverride((prev) => ({ ...prev, iqamah: v }))} placeholder="Select iqamah time" />
-                                                    </div>
-                                                    <div>
-                                                        <label className={labelBase}>Date Range</label>
-                                                        <RangeCalendar startDate={newOverride.startDate || ''} endDate={newOverride.endDate || ''} onChange={(start, end) => setNewOverride((prev) => ({ ...prev, startDate: start, endDate: end }))} />
-                                                    </div>
-                                                    <button onClick={() => handleAddOverride(prayer)} className="w-full py-6 bg-mosque-gold hover:bg-white text-mosque-navy font-bold text-2xl rounded-2xl transition-colors">Save Override</button>
-                                                    {overrideStatus && (
-                                                      <div className={`text-center font-mono text-xl mt-4 ${overrideStatus.includes('successfully') ? 'text-mosque-gold' : 'text-red-400'}`}>
-                                                        {overrideStatus}
-                                                      </div>
-                                                    )}
-                                                </div>
-
-                                                <div className="col-span-4 bg-white/5 rounded-2xl p-8 border border-white/5">
-                                                    <h5 className="text-white/60 font-bold uppercase tracking-widest text-sm mb-6">Active Overrides</h5>
-                                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
-                                                        {manualOverrides.filter(o => o.prayerKey === prayer).map(o => (
-                                                            <div key={o.id} className="bg-black/20 p-6 rounded-xl border border-white/5 flex items-start justify-between group">
-                                                                <div>
-                                                                    <div className="text-mosque-gold font-bold text-lg mb-2">{o.startDate === o.endDate ? o.startDate : `${o.startDate}...`}</div>
-                                                                    <div className="text-white/70 text-lg font-mono">Iqamah: {o.iqamah}</div>
-                                                                </div>
-                                                                <button onClick={() => deleteOverride(o.id)} className="text-white/20 hover:text-red-400"><Trash2 className="w-6 h-6" /></button>
-                                                            </div>
-                                                        ))}
-                                                        {manualOverrides.filter(o => o.prayerKey === prayer).length === 0 && <div className="text-white/20 text-xl italic text-center py-8">No overrides set.</div>}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                     </div>
                   </div>
                 )}
 
