@@ -48,6 +48,22 @@ interface SettingsModalProps {
   setFajrAngle: (angle: 15 | 18) => void;
   ishaAngle: 15 | 18;
   setIshaAngle: (angle: 15 | 18) => void;
+  fajrStartOffset: number;
+  setFajrStartOffset: (v: number) => void;
+  fajrIqamahOffset: number;
+  setFajrIqamahOffset: (v: number) => void;
+  dhuhrStartOffset: number;
+  setDhuhrStartOffset: (v: number) => void;
+  dhuhrIqamahOffset: number;
+  setDhuhrIqamahOffset: (v: number) => void;
+  asrStartOffset: number;
+  setAsrStartOffset: (v: number) => void;
+  asrIqamahOffset: number;
+  setAsrIqamahOffset: (v: number) => void;
+  ishaStartOffset: number;
+  setIshaStartOffset: (v: number) => void;
+  ishaIqamahOffset: number;
+  setIshaIqamahOffset: (v: number) => void;
   onSaveScheduleChanges?: (changed: Record<string, ExcelDaySchedule>) => void;
 }
 
@@ -130,6 +146,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   hijriSettings, setHijriSettings,
   fajrAngle, setFajrAngle,
   ishaAngle, setIshaAngle,
+  fajrStartOffset, setFajrStartOffset,
+  fajrIqamahOffset, setFajrIqamahOffset,
+  dhuhrStartOffset, setDhuhrStartOffset,
+  dhuhrIqamahOffset, setDhuhrIqamahOffset,
+  asrStartOffset, setAsrStartOffset,
+  asrIqamahOffset, setAsrIqamahOffset,
+  ishaStartOffset, setIshaStartOffset,
+  ishaIqamahOffset, setIshaIqamahOffset,
   onSaveScheduleChanges,
 }) => {
   const [activeTab, setActiveTab] = useState<'schedule' | 'announcements' | 'customization' | 'slideshow' | 'silentAlert' | 'hijri'>('schedule');
@@ -580,174 +604,105 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="space-y-16">
                      <SectionHeader icon={CalendarIcon} title="Prayer Times" description="Manage annual schedule and one-off adjustments." />
 
-                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
-                         {/* Excel Import Card */}
-                         <Card>
-                            <div className="flex items-start justify-between mb-8">
-                                <div>
-                                    <h4 className="text-3xl font-bold text-white mb-4">Excel Data Source</h4>
-                                    <p className="text-white/50 text-xl leading-relaxed max-w-lg">Import your annual <code>.xlsx</code> schedule. Supports Markaz format (Date, Fajr Iqamah, Dhuhr Iqamah, Asr Iqamah, Isha Iqamah, Jumuah Iqamah) or full format with Start times.</p>
-                                </div>
-                                <div className={`px-6 py-3 rounded-xl font-mono text-xl border ${Object.keys(excelSchedule).length > 0 ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
-                                    {Object.keys(excelSchedule).length} Days Loaded
-                                </div>
+                     {/* Excel Import Card */}
+                     <Card>
+                        <div className="flex flex-row gap-8 items-start">
+                            {/* Left half: icon + title + description */}
+                            <div className="flex-1">
+                                <h4 className="text-3xl font-bold text-white mb-4">Excel Data Source</h4>
+                                <p className="text-white/50 text-xl leading-relaxed">Import your annual <code>.xlsx</code> schedule. Supports Markaz format (Date, Fajr Iqamah, Dhuhr Iqamah, Asr Iqamah, Isha Iqamah, Jumuah Iqamah) or full format with Start times.</p>
                             </div>
-                            
-                            <label className="flex items-center justify-center w-full h-48 border-4 border-dashed border-white/10 rounded-3xl hover:border-mosque-gold/50 hover:bg-white/5 transition-all cursor-pointer group">
-                                <div className="flex flex-col items-center gap-4">
-                                    <Upload className="w-12 h-12 text-white/30 group-hover:text-mosque-gold transition-colors" />
-                                    <span className="text-white/50 group-hover:text-white font-medium text-2xl">Click to upload .xlsx file</span>
-                                </div>
-                                <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="hidden" />
-                            </label>
-                            {uploadStatus && <div className="mt-6 text-center font-mono text-xl text-mosque-gold">{uploadStatus}</div>}
-                         </Card>
-
-                         {/* Maghrib / Sunrise / Sunset Config Card */}
-                         <Card>
-                            <div className="flex items-start gap-8">
-                                <div className="p-5 bg-indigo-500/10 rounded-2xl text-indigo-400"><Clock className="w-10 h-10" /></div>
-                                <div className="flex-1">
-                                    <h4 className="text-3xl font-bold text-white mb-4">Sunrise, Sunset & Maghrib</h4>
-                                    <p className="text-white/50 text-xl mb-8">Sunset time is the Maghrib start. Offsets apply from −10 to +10 minutes.</p>
-
-                                    <div className="flex flex-col gap-10">
-                                        {/* Sunrise Offset */}
-                                        <div className="flex flex-col gap-4">
-                                            <span className="text-white/60 font-semibold text-xl uppercase tracking-widest">Sunrise Offset</span>
-                                            <p className="text-white/40 text-lg">Displayed Sunrise = Astronomical Sunrise + offset.</p>
-                                            <select
-                                                value={sunriseOffset}
-                                                onChange={(e) => setSunriseOffset(Number(e.target.value))}
-                                                className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
-                                            >
-                                                {Array.from({ length: 21 }, (_, i) => i - 10).map(min => (
-                                                    <option key={min} value={min} className="bg-mosque-navy text-white">
-                                                        {min > 0 ? `+${min} min` : min === 0 ? '0 min (no offset)' : `${min} min`}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        {/* Sunset Offset */}
-                                        <div className="flex flex-col gap-4">
-                                            <span className="text-white/60 font-semibold text-xl uppercase tracking-widest">Sunset Offset (Maghrib Start)</span>
-                                            <p className="text-white/40 text-lg">Maghrib Start = Sunset + offset. Displayed sunset also updates.</p>
-                                            <select
-                                                value={sunsetOffset}
-                                                onChange={(e) => setSunsetOffset(Number(e.target.value))}
-                                                className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
-                                            >
-                                                {Array.from({ length: 21 }, (_, i) => i - 10).map(min => (
-                                                    <option key={min} value={min} className="bg-mosque-navy text-white">
-                                                        {min > 0 ? `+${min} min` : min === 0 ? '0 min (no offset)' : `${min} min`}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        {/* Iqamah Offset */}
-                                        <div className="flex flex-col gap-4">
-                                            <span className="text-white/60 font-semibold text-xl uppercase tracking-widest">Iqamah Offset</span>
-                                            <p className="text-white/40 text-lg">Maghrib Iqamah = Maghrib Start + this offset.</p>
-                                            <select
-                                                value={maghribOffset}
-                                                onChange={(e) => setMaghribOffset(Number(e.target.value))}
-                                                className="w-full bg-black/30 border border-white/10 rounded-2xl px-8 h-20 text-2xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
-                                            >
-                                                {Array.from({ length: 31 }, (_, i) => i).map(min => (
-                                                    <option key={min} value={min} className="bg-mosque-navy text-white">
-                                                        {min === 0 ? '0 min (no offset)' : `+${min} min`}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
+                            {/* Right half: badge + upload zone */}
+                            <div className="flex-1 flex flex-col gap-4">
+                                <div className="flex justify-end">
+                                    <div className={`px-6 py-3 rounded-xl font-mono text-xl border ${Object.keys(excelSchedule).length > 0 ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                                        {Object.keys(excelSchedule).length} Days Loaded
                                     </div>
                                 </div>
+                                <label className="flex items-center justify-center w-full h-48 border-4 border-dashed border-white/10 rounded-3xl hover:border-mosque-gold/50 hover:bg-white/5 transition-all cursor-pointer group">
+                                    <div className="flex flex-col items-center gap-4">
+                                        <Upload className="w-12 h-12 text-white/30 group-hover:text-mosque-gold transition-colors" />
+                                        <span className="text-white/50 group-hover:text-white font-medium text-2xl">Click to upload .xlsx file</span>
+                                    </div>
+                                    <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="hidden" />
+                                </label>
+                                {uploadStatus && <div className="mt-2 text-center font-mono text-xl text-mosque-gold">{uploadStatus}</div>}
                             </div>
-                         </Card>
-                     </div>
+                        </div>
+                     </Card>
 
-                     {/* Fajr / Isha Calculation Angles — separate selectors */}
+                     {/* Offset Config Card — full-width */}
                      <Card>
-                       <div className="flex items-start gap-8">
-                         <div className="p-5 bg-amber-500/10 rounded-2xl text-amber-400 shrink-0"><Sun className="w-10 h-10" /></div>
-                         <div className="flex-1">
-                           <h4 className="text-3xl font-bold text-white mb-3">Fajr & Isha Calculation (Buffalo, NY 14212)</h4>
-                           <p className="text-white/50 text-xl mb-8">
-                             Choose the solar depression angle separately for Fajr and Isha.
-                             A larger angle means the sun is further below the horizon — earlier Fajr and later Isha.
-                           </p>
-
-                           {/* Fajr Angle */}
-                           <div className="mb-10">
-                             <div className="text-white/60 font-bold text-xl uppercase tracking-widest mb-4 flex items-center gap-3">
-                               <span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
-                               Fajr Angle
-                             </div>
-                             <div className="grid grid-cols-2 gap-6">
-                               {([15, 18] as const).map(deg => {
-                                 const isSelected = fajrAngle === deg;
-                                 const desc = deg === 15
-                                   ? 'ISNA / North America. Slightly later Fajr.'
-                                   : 'MWL / Hanafi. Earlier Fajr (more conservative).';
-                                 return (
-                                   <button
-                                     key={`fajr-${deg}`}
-                                     onClick={() => setFajrAngle(deg)}
-                                     className={`relative p-6 rounded-2xl border-2 text-left transition-all duration-300 ${isSelected ? 'border-amber-400 bg-amber-400/10 shadow-[0_0_16px_rgba(251,191,36,0.2)]' : 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10'}`}
-                                   >
-                                     {isSelected && (
-                                       <div className="absolute top-4 right-4 bg-amber-400 text-mosque-navy rounded-full p-1">
-                                         <CheckCircle2 className="w-6 h-6" />
-                                       </div>
-                                     )}
-                                     <div className={`text-5xl font-bold mb-2 ${isSelected ? 'text-amber-400' : 'text-white/60'}`}>{deg}°</div>
-                                     <div className={`text-xl font-bold mb-1 ${isSelected ? 'text-white' : 'text-white/70'}`}>
-                                       {deg === 15 ? 'ISNA / 15°' : 'MWL / 18°'}
-                                     </div>
-                                     <div className="text-white/40 text-lg leading-relaxed">{desc}</div>
-                                   </button>
-                                 );
-                               })}
-                             </div>
-                           </div>
-
-                           {/* Isha Angle */}
-                           <div>
-                             <div className="text-white/60 font-bold text-xl uppercase tracking-widest mb-4 flex items-center gap-3">
-                               <span className="w-2 h-2 rounded-full bg-indigo-400 inline-block"></span>
-                               Isha Angle
-                             </div>
-                             <div className="grid grid-cols-2 gap-6">
-                               {([15, 18] as const).map(deg => {
-                                 const isSelected = ishaAngle === deg;
-                                 const desc = deg === 15
-                                   ? 'ISNA / North America. Slightly earlier Isha.'
-                                   : 'MWL / Hanafi. Later Isha (more conservative).';
-                                 return (
-                                   <button
-                                     key={`isha-${deg}`}
-                                     onClick={() => setIshaAngle(deg)}
-                                     className={`relative p-6 rounded-2xl border-2 text-left transition-all duration-300 ${isSelected ? 'border-indigo-400 bg-indigo-400/10 shadow-[0_0_16px_rgba(129,140,248,0.2)]' : 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10'}`}
-                                   >
-                                     {isSelected && (
-                                       <div className="absolute top-4 right-4 bg-indigo-400 text-mosque-navy rounded-full p-1">
-                                         <CheckCircle2 className="w-6 h-6" />
-                                       </div>
-                                     )}
-                                     <div className={`text-5xl font-bold mb-2 ${isSelected ? 'text-indigo-400' : 'text-white/60'}`}>{deg}°</div>
-                                     <div className={`text-xl font-bold mb-1 ${isSelected ? 'text-white' : 'text-white/70'}`}>
-                                       {deg === 15 ? 'ISNA / 15°' : 'MWL / 18°'}
-                                     </div>
-                                     <div className="text-white/40 text-lg leading-relaxed">{desc}</div>
-                                   </button>
-                                 );
-                               })}
-                             </div>
-                           </div>
-                         </div>
-                       </div>
+                        <div className="flex items-start gap-8 mb-8">
+                            <div className="p-5 bg-indigo-500/10 rounded-2xl text-indigo-400 shrink-0"><Clock className="w-10 h-10" /></div>
+                            <div>
+                                <h4 className="text-3xl font-bold text-white mb-2">Offset</h4>
+                                <p className="text-white/50 text-xl">Adjust calculated and iqamah times ±30 min for each prayer.</p>
+                            </div>
+                        </div>
+                        {/* Column headers */}
+                        <div className="grid grid-cols-3 gap-4 mb-4 px-2">
+                            <span className="text-white/40 font-bold text-lg uppercase tracking-widest">PRAYER</span>
+                            <span className="text-white/40 font-bold text-lg uppercase tracking-widest text-center">START</span>
+                            <span className="text-white/40 font-bold text-lg uppercase tracking-widest text-center">IQAMAH</span>
+                        </div>
+                        {/* Helper to render ±30 min offset dropdown */}
+                        {(() => {
+                            const offsetOpts = Array.from({ length: 61 }, (_, i) => i - 30);
+                            const renderOffsetSelect = (value: number, onChange: (v: number) => void) => (
+                                <select
+                                    value={value}
+                                    onChange={(e) => onChange(Number(e.target.value))}
+                                    className="w-full bg-black/30 border border-white/10 rounded-2xl px-4 h-16 text-xl text-white focus:border-mosque-gold focus:ring-1 focus:ring-mosque-gold outline-none transition-all cursor-pointer appearance-none"
+                                >
+                                    {offsetOpts.map(min => (
+                                        <option key={min} value={min} className="bg-mosque-navy text-white">
+                                            {min < 0 ? `−${Math.abs(min)} min` : min === 0 ? '0' : `+${min} min`}
+                                        </option>
+                                    ))}
+                                </select>
+                            );
+                            return (
+                                <div className="flex flex-col gap-4">
+                                    {/* FAJR */}
+                                    <div className="grid grid-cols-3 gap-4 items-center px-2">
+                                        <span className="text-white/70 font-bold text-xl uppercase tracking-widest">FAJR</span>
+                                        {renderOffsetSelect(fajrStartOffset, setFajrStartOffset)}
+                                        {renderOffsetSelect(fajrIqamahOffset, setFajrIqamahOffset)}
+                                    </div>
+                                    {/* DHUHR */}
+                                    <div className="grid grid-cols-3 gap-4 items-center px-2">
+                                        <span className="text-white/70 font-bold text-xl uppercase tracking-widest">DHUHR</span>
+                                        {renderOffsetSelect(dhuhrStartOffset, setDhuhrStartOffset)}
+                                        {renderOffsetSelect(dhuhrIqamahOffset, setDhuhrIqamahOffset)}
+                                    </div>
+                                    {/* ASR */}
+                                    <div className="grid grid-cols-3 gap-4 items-center px-2">
+                                        <span className="text-white/70 font-bold text-xl uppercase tracking-widest">ASR</span>
+                                        {renderOffsetSelect(asrStartOffset, setAsrStartOffset)}
+                                        {renderOffsetSelect(asrIqamahOffset, setAsrIqamahOffset)}
+                                    </div>
+                                    {/* MAGHRIB */}
+                                    <div className="grid grid-cols-3 gap-4 items-center px-2">
+                                        <span className="text-white/70 font-bold text-xl uppercase tracking-widest">MAGHRIB</span>
+                                        {renderOffsetSelect(sunsetOffset, setSunsetOffset)}
+                                        {renderOffsetSelect(maghribOffset, setMaghribOffset)}
+                                    </div>
+                                    {/* ISHA */}
+                                    <div className="grid grid-cols-3 gap-4 items-center px-2">
+                                        <span className="text-white/70 font-bold text-xl uppercase tracking-widest">ISHA</span>
+                                        {renderOffsetSelect(ishaStartOffset, setIshaStartOffset)}
+                                        {renderOffsetSelect(ishaIqamahOffset, setIshaIqamahOffset)}
+                                    </div>
+                                    {/* SUNRISE */}
+                                    <div className="grid grid-cols-3 gap-4 items-center px-2">
+                                        <span className="text-white/70 font-bold text-xl uppercase tracking-widest">SUNRISE</span>
+                                        {renderOffsetSelect(sunriseOffset, setSunriseOffset)}
+                                        <div>{/* no iqamah */}</div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                      </Card>
 
                      {/* Excel Schedule Editor — always visible */}
@@ -851,7 +806,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                            {(() => {
                                              const opts: React.ReactElement[] = [];
                                              for (let h = 0; h < 24; h++) {
-                                               for (let m = 0; m < 60; m += 5) {
+                                               for (let m = 0; m < 60; m += 1) {
                                                  const period = h < 12 ? 'AM' : 'PM';
                                                  const dh = h === 0 ? 12 : h > 12 ? h - 12 : h;
                                                  const dm = m.toString().padStart(2, '0');

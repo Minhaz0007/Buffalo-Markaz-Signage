@@ -170,6 +170,16 @@ const App: React.FC = () => {
   const [fajrAngle, setFajrAngle] = useState<15 | 18>(18);
   const [ishaAngle, setIshaAngle] = useState<15 | 18>(18);
 
+  // Per-prayer start/iqamah offsets (±30 min)
+  const [fajrStartOffset, setFajrStartOffset] = useState<number>(0);
+  const [fajrIqamahOffset, setFajrIqamahOffset] = useState<number>(0);
+  const [dhuhrStartOffset, setDhuhrStartOffset] = useState<number>(0);
+  const [dhuhrIqamahOffset, setDhuhrIqamahOffset] = useState<number>(0);
+  const [asrStartOffset, setAsrStartOffset] = useState<number>(0);
+  const [asrIqamahOffset, setAsrIqamahOffset] = useState<number>(0);
+  const [ishaStartOffset, setIshaStartOffset] = useState<number>(0);
+  const [ishaIqamahOffset, setIshaIqamahOffset] = useState<number>(0);
+
   // New Configs
   const [autoAlertSettings, setAutoAlertSettings] = useState<AutoAlertSettings>(DEFAULT_AUTO_ALERTS);
   const [mobileAlertSettings, setMobileAlertSettings] = useState<MobileSilentAlertSettings>(DEFAULT_MOBILE_SILENT_ALERT);
@@ -286,6 +296,14 @@ const App: React.FC = () => {
         if (dbGlobalSettings.hijriSettings) setHijriSettings(dbGlobalSettings.hijriSettings);
         if (dbGlobalSettings.fajrAngle) setFajrAngle(dbGlobalSettings.fajrAngle);
         if (dbGlobalSettings.ishaAngle) setIshaAngle(dbGlobalSettings.ishaAngle);
+        setFajrStartOffset(dbGlobalSettings.fajrStartOffset ?? 0);
+        setFajrIqamahOffset(dbGlobalSettings.fajrIqamahOffset ?? 0);
+        setDhuhrStartOffset(dbGlobalSettings.dhuhrStartOffset ?? 0);
+        setDhuhrIqamahOffset(dbGlobalSettings.dhuhrIqamahOffset ?? 0);
+        setAsrStartOffset(dbGlobalSettings.asrStartOffset ?? 0);
+        setAsrIqamahOffset(dbGlobalSettings.asrIqamahOffset ?? 0);
+        setIshaStartOffset(dbGlobalSettings.ishaStartOffset ?? 0);
+        setIshaIqamahOffset(dbGlobalSettings.ishaIqamahOffset ?? 0);
         console.log('✅ Loaded global settings from database');
       }
 
@@ -366,6 +384,14 @@ const App: React.FC = () => {
           if (data.hijriSettings) setHijriSettings(prev => JSON.stringify(prev) === JSON.stringify(data.hijriSettings) ? prev : data.hijriSettings);
           if (data.fajrAngle) setFajrAngle(data.fajrAngle);
           if (data.ishaAngle) setIshaAngle(data.ishaAngle);
+          setFajrStartOffset(data.fajrStartOffset ?? 0);
+          setFajrIqamahOffset(data.fajrIqamahOffset ?? 0);
+          setDhuhrStartOffset(data.dhuhrStartOffset ?? 0);
+          setDhuhrIqamahOffset(data.dhuhrIqamahOffset ?? 0);
+          setAsrStartOffset(data.asrStartOffset ?? 0);
+          setAsrIqamahOffset(data.asrIqamahOffset ?? 0);
+          setIshaStartOffset(data.ishaStartOffset ?? 0);
+          setIshaIqamahOffset(data.ishaIqamahOffset ?? 0);
         }
       })
       .subscribe();
@@ -450,8 +476,16 @@ const App: React.FC = () => {
       hijriSettings,
       fajrAngle,
       ishaAngle,
+      fajrStartOffset,
+      fajrIqamahOffset,
+      dhuhrStartOffset,
+      dhuhrIqamahOffset,
+      asrStartOffset,
+      asrIqamahOffset,
+      ishaStartOffset,
+      ishaIqamahOffset,
     });
-  }, [currentTheme, tickerBg, maghribOffset, sunriseOffset, sunsetOffset, autoAlertSettings, mobileAlertSettings, hijriSettings, fajrAngle, ishaAngle, isDataLoaded]);
+  }, [currentTheme, tickerBg, maghribOffset, sunriseOffset, sunsetOffset, autoAlertSettings, mobileAlertSettings, hijriSettings, fajrAngle, ishaAngle, fajrStartOffset, fajrIqamahOffset, dhuhrStartOffset, dhuhrIqamahOffset, asrStartOffset, asrIqamahOffset, ishaStartOffset, ishaIqamahOffset, isDataLoaded]);
 
   // Scaling Logic for Virtual Viewport (1920x1080)
   useEffect(() => {
@@ -494,12 +528,12 @@ const App: React.FC = () => {
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
     const tomorrowDateStr = toEasternDateStr(tomorrowDate);
 
-    const ydaySchedule = getScheduleForDate(yesterdayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrAngle, ishaAngle);
-    const tSchedule = getScheduleForDate(todayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrAngle, ishaAngle);
-    const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrAngle, ishaAngle);
+    const ydaySchedule = getScheduleForDate(yesterdayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrAngle, ishaAngle, fajrStartOffset, fajrIqamahOffset, dhuhrStartOffset, dhuhrIqamahOffset, asrStartOffset, asrIqamahOffset, ishaStartOffset, ishaIqamahOffset);
+    const tSchedule = getScheduleForDate(todayDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrAngle, ishaAngle, fajrStartOffset, fajrIqamahOffset, dhuhrStartOffset, dhuhrIqamahOffset, asrStartOffset, asrIqamahOffset, ishaStartOffset, ishaIqamahOffset);
+    const tmSchedule = getScheduleForDate(tomorrowDateStr, excelSchedule || {}, manualOverrides || [], maghribOffset, scheduleIndex, sunriseOffset, sunsetOffset, fajrAngle, ishaAngle, fajrStartOffset, fajrIqamahOffset, dhuhrStartOffset, dhuhrIqamahOffset, asrStartOffset, asrIqamahOffset, ishaStartOffset, ishaIqamahOffset);
 
     return { yesterdaySchedule: ydaySchedule, todaySchedule: tSchedule, tomorrowSchedule: tmSchedule };
-  }, [todayDateStr, excelSchedule, manualOverrides, maghribOffset, sunriseOffset, sunsetOffset, fajrAngle, ishaAngle, scheduleIndex]);
+  }, [todayDateStr, excelSchedule, manualOverrides, maghribOffset, sunriseOffset, sunsetOffset, fajrAngle, ishaAngle, scheduleIndex, fajrStartOffset, fajrIqamahOffset, dhuhrStartOffset, dhuhrIqamahOffset, asrStartOffset, asrIqamahOffset, ishaStartOffset, ishaIqamahOffset]);
 
   // Update Display State & System Alerts (Only when schedule changes)
   useEffect(() => {
@@ -944,6 +978,22 @@ const App: React.FC = () => {
           setFajrAngle={setFajrAngle}
           ishaAngle={ishaAngle}
           setIshaAngle={setIshaAngle}
+          fajrStartOffset={fajrStartOffset}
+          setFajrStartOffset={setFajrStartOffset}
+          fajrIqamahOffset={fajrIqamahOffset}
+          setFajrIqamahOffset={setFajrIqamahOffset}
+          dhuhrStartOffset={dhuhrStartOffset}
+          setDhuhrStartOffset={setDhuhrStartOffset}
+          dhuhrIqamahOffset={dhuhrIqamahOffset}
+          setDhuhrIqamahOffset={setDhuhrIqamahOffset}
+          asrStartOffset={asrStartOffset}
+          setAsrStartOffset={setAsrStartOffset}
+          asrIqamahOffset={asrIqamahOffset}
+          setAsrIqamahOffset={setAsrIqamahOffset}
+          ishaStartOffset={ishaStartOffset}
+          setIshaStartOffset={setIshaStartOffset}
+          ishaIqamahOffset={ishaIqamahOffset}
+          setIshaIqamahOffset={setIshaIqamahOffset}
           onSaveScheduleChanges={handleScheduleChange}
         />
 
