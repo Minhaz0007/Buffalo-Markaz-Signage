@@ -709,11 +709,6 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                           className={`transition-all duration-500 ${timeLineHeight} ${timeSize}`}
                           colorClassName={timeColor}
                         />
-                        {row.startOffset !== 0 && (
-                          <span className={`text-[1.4rem] font-sans leading-none mt-0.5 ${isActive ? 'text-mosque-navy/45' : 'text-white/35'}`}>
-                            {row.startOffset > 0 ? '+' : ''}{row.startOffset}m
-                          </span>
-                        )}
                     </div>
                     {/* Iqamah */}
                     <div className={`w-[25%] h-full flex flex-col items-center justify-center border-l ${borderClass} ${iqamahBgClass} py-1`}>
@@ -722,11 +717,6 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                           className={`transition-all duration-500 ${timeLineHeight} ${timeSize}`}
                           colorClassName={timeColor}
                         />
-                        {row.iqamahOffset !== 0 && (
-                          <span className={`text-[1.4rem] font-sans leading-none mt-0.5 ${isActive ? 'text-mosque-navy/45' : 'text-white/35'}`}>
-                            {row.iqamahOffset > 0 ? '+' : ''}{row.iqamahOffset}m
-                          </span>
-                        )}
                     </div>
                     {/* TM/I — Tomorrow's Iqamah (empty for Jumu'ah) */}
                     <div className={`w-[24%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
