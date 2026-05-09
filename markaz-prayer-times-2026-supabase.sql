@@ -14,9 +14,10 @@ ALTER TABLE excel_schedule
   ALTER COLUMN maghrib_iqamah DROP NOT NULL,
   ALTER COLUMN isha_start     DROP NOT NULL;
 
--- STEP 2: Clear existing 2026 data only (safe - keeps other years)
+-- STEP 2: Clear existing 2026 data and leap-year sentinel row
 DELETE FROM excel_schedule
-WHERE date >= '2026-01-01' AND date <= '2026-12-31';
+WHERE (date >= '2026-01-01' AND date <= '2026-12-31')
+   OR date = '0000-02-29';
 
 -- STEP 3: Insert all 365 days for 2026
 -- Columns: date,
@@ -399,7 +400,10 @@ INSERT INTO excel_schedule (
   ('2026-12-28', NULL, '6:45 AM', NULL, '1:30 PM', NULL, '3:45 PM', NULL, NULL, NULL, '7:30 PM', '1:30 PM'),
   ('2026-12-29', NULL, '6:45 AM', NULL, '1:30 PM', NULL, '3:45 PM', NULL, NULL, NULL, '7:30 PM', '1:30 PM'),
   ('2026-12-30', NULL, '6:45 AM', NULL, '1:30 PM', NULL, '3:45 PM', NULL, NULL, NULL, '7:30 PM', '1:30 PM'),
-  ('2026-12-31', NULL, '6:45 AM', NULL, '1:30 PM', NULL, '3:45 PM', NULL, NULL, NULL, '7:30 PM', '1:30 PM')
+  ('2026-12-31', NULL, '6:45 AM', NULL, '1:30 PM', NULL, '3:45 PM', NULL, NULL, NULL, '7:30 PM', '1:30 PM'),
+  -- Leap year sentinel: Feb 29 interpolated as midpoint of Feb 28 & Mar 1
+  -- Used automatically by the app for 2028, 2032, 2036, etc.
+  ('0000-02-29', NULL, '6:08 AM', NULL, '1:30 PM', NULL, '4:45 PM', NULL, NULL, NULL, '8:00 PM', '1:30 PM')
 ON CONFLICT (date) DO UPDATE SET
   fajr_start     = EXCLUDED.fajr_start,
   fajr_iqamah    = EXCLUDED.fajr_iqamah,
@@ -414,7 +418,11 @@ ON CONFLICT (date) DO UPDATE SET
   jumuah_iqamah  = EXCLUDED.jumuah_iqamah,
   updated_at     = NOW();
 
--- STEP 4: Verify - should return 365 rows, 2026-01-01 to 2026-12-31
+-- STEP 4: Verify - 2026 rows (365) + leap sentinel (1) = 366 total
+SELECT date, fajr_iqamah, dhuhr_iqamah, asr_iqamah, isha_iqamah, jumuah_iqamah
+FROM excel_schedule
+WHERE date = '0000-02-29'; -- Leap year Feb 29 sentinel
+
 SELECT
   COUNT(*)  AS total_days,
   MIN(date) AS first_date,

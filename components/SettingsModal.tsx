@@ -320,7 +320,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         const row = jsonData[i];
         if (!row[0]) continue;
         let dateKey = "";
-        if (typeof row[0] === 'number') {
+
+        // Detect leap year note row (e.g. "* LEAP-02-29: ...")
+        const isLeapRow = typeof row[0] === 'string' && /LEAP[- ]?02[- ]?29/i.test(row[0]);
+
+        if (isLeapRow) {
+          dateKey = "0000-02-29"; // sentinel key — scheduleIndex maps "02-29" for any leap year
+        } else if (typeof row[0] === 'number') {
              const dateObj = XLSX.SSF.parse_date_code(row[0]);
              if (dateObj) dateKey = `${dateObj.y}-${String(dateObj.m).padStart(2, '0')}-${String(dateObj.d).padStart(2, '0')}`;
         } else if (typeof row[0] === 'string') {
@@ -352,7 +358,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 jumuahIqamah: convertExcelTime(row[11], true),
               };
             }
-            count++;
+            if (!isLeapRow) count++; // don't count the leap sentinel in the day total
+        }
+      }
+
+      // If the file has no leap year row data, auto-interpolate Feb 29 as
+      // midpoint of Feb 28 + Mar 1. This ensures leap years (2028, 2032…) get
+      // correct iqamah times instead of falling back to auto-calculated times.
+      if (!newSchedule['0000-02-29']) {
+        const feb28 = Object.values(newSchedule).find(d => d.date.endsWith('-02-28'));
+        const mar01 = Object.values(newSchedule).find(d => d.date.endsWith('-03-01'));
+        if (feb28 && mar01) {
+          const midTime = (a: string, b: string): string => {
+            if (!a || !b) return a || b || '';
+            const toMin = (t: string) => {
+              const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+              if (!m) return 0;
+              let h = parseInt(m[1]); const min = parseInt(m[2]); const ap = m[3].toUpperCase();
+              if (ap === 'PM' && h !== 12) h += 12;
+              if (ap === 'AM' && h === 12) h = 0;
+              return h * 60 + min;
+            };
+            const fromMin = (total: number) => {
+              const h = Math.floor(total / 60) % 24; const mn = total % 60;
+              const ap = h >= 12 ? 'PM' : 'AM';
+              const dh = h === 0 ? 12 : h > 12 ? h - 12 : h;
+              return `${dh}:${mn.toString().padStart(2, '0')} ${ap}`;
+            };
+            return fromMin(Math.round((toMin(a) + toMin(b)) / 2));
+          };
+          newSchedule['0000-02-29'] = {
+            date: '0000-02-29',
+            fajr:    { start: midTime(feb28.fajr.start, mar01.fajr.start),     iqamah: midTime(feb28.fajr.iqamah, mar01.fajr.iqamah) },
+            dhuhr:   { start: midTime(feb28.dhuhr.start, mar01.dhuhr.start),   iqamah: midTime(feb28.dhuhr.iqamah, mar01.dhuhr.iqamah) },
+            asr:     { start: midTime(feb28.asr.start, mar01.asr.start),       iqamah: midTime(feb28.asr.iqamah, mar01.asr.iqamah) },
+            maghrib: { start: '', iqamah: '' },
+            isha:    { start: midTime(feb28.isha.start, mar01.isha.start),     iqamah: midTime(feb28.isha.iqamah, mar01.isha.iqamah) },
+            jumuahIqamah: midTime(feb28.jumuahIqamah || '', mar01.jumuahIqamah || ''),
+          };
         }
       }
       setExcelSchedule(newSchedule);
