@@ -685,7 +685,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     {/* MAGHRIB */}
                                     <div className="grid grid-cols-3 gap-4 items-center px-2">
                                         <span className="text-white/70 font-bold text-xl uppercase tracking-widest">MAGHRIB</span>
-                                        {renderOffsetSelect(sunsetOffset, setSunsetOffset)}
+                                        <div>{/* start = sunset offset below */}</div>
                                         {renderOffsetSelect(maghribOffset, setMaghribOffset)}
                                     </div>
                                     {/* ISHA */}
@@ -693,6 +693,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         <span className="text-white/70 font-bold text-xl uppercase tracking-widest">ISHA</span>
                                         {renderOffsetSelect(ishaStartOffset, setIshaStartOffset)}
                                         {renderOffsetSelect(ishaIqamahOffset, setIshaIqamahOffset)}
+                                    </div>
+                                    {/* SUNSET */}
+                                    <div className="grid grid-cols-3 gap-4 items-center px-2">
+                                        <span className="text-white/70 font-bold text-xl uppercase tracking-widest">SUNSET</span>
+                                        {renderOffsetSelect(sunsetOffset, setSunsetOffset)}
+                                        <div>{/* no iqamah */}</div>
                                     </div>
                                     {/* SUNRISE */}
                                     <div className="grid grid-cols-3 gap-4 items-center px-2">
