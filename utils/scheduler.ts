@@ -152,7 +152,15 @@ export const getScheduleForDate = (
   sunriseOffset: number = 0,
   sunsetOffset: number = 0,
   fajrAngle: 15 | 18 = 18,
-  ishaAngle: 15 | 18 = 18
+  ishaAngle: 15 | 18 = 18,
+  fajrStartOffset: number = 0,
+  fajrIqamahOffset: number = 0,
+  dhuhrStartOffset: number = 0,
+  dhuhrIqamahOffset: number = 0,
+  asrStartOffset: number = 0,
+  asrIqamahOffset: number = 0,
+  ishaStartOffset: number = 0,
+  ishaIqamahOffset: number = 0
 ): { prayers: DailyPrayers, jumuah: { start: string, iqamah: string } } => {
 
   /**
@@ -262,11 +270,6 @@ export const getScheduleForDate = (
 
   // ALWAYS set Jumu'ah times to match Dhuhr times (per user requirement)
   // This happens AFTER Excel data is applied but BEFORE manual overrides
-  // This ensures Jumu'ah always uses Dhuhr times on Fridays, even if Excel specifies different jumuahIqamah
-  // Manual overrides below can still override these if needed
-  newJumuah.start = ensureAmPm(newPrayers.dhuhr.start, true);
-  newJumuah.iqamah = ensureAmPm(newPrayers.dhuhr.iqamah, true);
-
   // 3. Apply Sunrise/Sunset Offsets and Maghrib Calculation
   // Sunrise offset adjusts the displayed sunrise time only (no prayer calculation effect).
   if (sunriseOffset !== 0) {
@@ -284,6 +287,22 @@ export const getScheduleForDate = (
     newPrayers.maghrib.start = adjustedSunset;
     newPrayers.maghrib.iqamah = addMinutesToTime(newPrayers.maghrib.start, maghribOffset);
   }
+
+  // 3b. Apply per-prayer start/iqamah offsets
+  if (fajrStartOffset) newPrayers.fajr.start = addMinutesToTime(newPrayers.fajr.start, fajrStartOffset);
+  if (fajrIqamahOffset) newPrayers.fajr.iqamah = addMinutesToTime(newPrayers.fajr.iqamah, fajrIqamahOffset);
+  if (dhuhrStartOffset) newPrayers.dhuhr.start = addMinutesToTime(newPrayers.dhuhr.start, dhuhrStartOffset);
+  if (dhuhrIqamahOffset) newPrayers.dhuhr.iqamah = addMinutesToTime(newPrayers.dhuhr.iqamah, dhuhrIqamahOffset);
+  if (asrStartOffset) newPrayers.asr.start = addMinutesToTime(newPrayers.asr.start, asrStartOffset);
+  if (asrIqamahOffset) newPrayers.asr.iqamah = addMinutesToTime(newPrayers.asr.iqamah, asrIqamahOffset);
+  if (ishaStartOffset) newPrayers.isha.start = addMinutesToTime(newPrayers.isha.start, ishaStartOffset);
+  if (ishaIqamahOffset) newPrayers.isha.iqamah = addMinutesToTime(newPrayers.isha.iqamah, ishaIqamahOffset);
+
+  // Set Jumu'ah times from Dhuhr AFTER applying dhuhr offsets
+  // This ensures Jumu'ah always uses Dhuhr times on Fridays, even if Excel specifies different jumuahIqamah
+  // Manual overrides below can still override these if needed
+  newJumuah.start = ensureAmPm(newPrayers.dhuhr.start, true);
+  newJumuah.iqamah = ensureAmPm(newPrayers.dhuhr.iqamah, true);
 
   // 4. Apply Manual Overrides (Highest Priority - Iqamah only)
   // NOTE: Maghrib is excluded - always uses sunset + offset calculation
