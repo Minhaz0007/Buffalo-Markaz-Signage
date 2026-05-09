@@ -282,6 +282,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       const jsonData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
       const newSchedule: Record<string, ExcelDaySchedule> = {};
       let count = 0;
+
+      // Detect format by inspecting header row (row 0)
+      // Markaz format: Date | Fajr Iqamah | Dhuhr Iqamah | Asr Iqamah | Isha Iqamah | Jumuah Iqamah (6 cols, iqamah-only)
+      // Full format:   Date | Fajr Start | Fajr Iqamah | Dhuhr Start | Dhuhr Iqamah | ... (12 cols, start+iqamah)
+      const headers: string[] = (jsonData[0] || []).map((h: any) => String(h || '').toLowerCase().trim());
+      const isMarkazFormat =
+        headers.length >= 2 &&
+        !headers.some(h => h.includes('start')) &&
+        headers.some(h => h.includes('fajr') && h.includes('iqamah'));
+
       for (let i = 1; i < jsonData.length; i++) {
         const row = jsonData[i];
         if (!row[0]) continue;
@@ -292,18 +302,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         } else if (typeof row[0] === 'string') {
              const d = new Date(row[0]);
              if (!isNaN(d.getTime())) dateKey = d.toISOString().split('T')[0];
-             else dateKey = row[0];
+             else if (/^\d{4}-\d{2}-\d{2}$/.test(row[0])) dateKey = row[0];
         }
         if (dateKey) {
-            newSchedule[dateKey] = {
+            if (isMarkazFormat) {
+              // Markaz format: only iqamah times; no start times or Maghrib in file
+              newSchedule[dateKey] = {
                 date: dateKey,
-                fajr: { start: convertExcelTime(row[1]), iqamah: convertExcelTime(row[2]) },
-                dhuhr: { start: convertExcelTime(row[3]), iqamah: convertExcelTime(row[4]) },
-                asr: { start: convertExcelTime(row[5]), iqamah: convertExcelTime(row[6]) },
-                maghrib: { start: convertExcelTime(row[7]), iqamah: convertExcelTime(row[8]) },
-                isha: { start: convertExcelTime(row[9]), iqamah: convertExcelTime(row[10]) },
-                jumuahIqamah: convertExcelTime(row[11], true) // Jumu'ah iqamah only (start uses Dhuhr)
-            };
+                fajr:    { start: '', iqamah: convertExcelTime(row[1]) },
+                dhuhr:   { start: '', iqamah: convertExcelTime(row[2]) },
+                asr:     { start: '', iqamah: convertExcelTime(row[3]) },
+                maghrib: { start: '', iqamah: '' },
+                isha:    { start: '', iqamah: convertExcelTime(row[4]) },
+                jumuahIqamah: convertExcelTime(row[5], true),
+              };
+            } else {
+              // Full format: start + iqamah for each prayer
+              newSchedule[dateKey] = {
+                date: dateKey,
+                fajr:    { start: convertExcelTime(row[1]),  iqamah: convertExcelTime(row[2]) },
+                dhuhr:   { start: convertExcelTime(row[3]),  iqamah: convertExcelTime(row[4]) },
+                asr:     { start: convertExcelTime(row[5]),  iqamah: convertExcelTime(row[6]) },
+                maghrib: { start: convertExcelTime(row[7]),  iqamah: convertExcelTime(row[8]) },
+                isha:    { start: convertExcelTime(row[9]),  iqamah: convertExcelTime(row[10]) },
+                jumuahIqamah: convertExcelTime(row[11], true),
+              };
+            }
             count++;
         }
       }
@@ -562,7 +586,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <div className="flex items-start justify-between mb-8">
                                 <div>
                                     <h4 className="text-3xl font-bold text-white mb-4">Excel Data Source</h4>
-                                    <p className="text-white/50 text-xl leading-relaxed max-w-lg">Import your annual <code>.xlsx</code> schedule. File must have columns for Date, Fajr Start, Fajr Iqamah, etc.</p>
+                                    <p className="text-white/50 text-xl leading-relaxed max-w-lg">Import your annual <code>.xlsx</code> schedule. Supports Markaz format (Date, Fajr Iqamah, Dhuhr Iqamah, Asr Iqamah, Isha Iqamah, Jumuah Iqamah) or full format with Start times.</p>
                                 </div>
                                 <div className={`px-6 py-3 rounded-xl font-mono text-xl border ${Object.keys(excelSchedule).length > 0 ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
                                     {Object.keys(excelSchedule).length} Days Loaded
