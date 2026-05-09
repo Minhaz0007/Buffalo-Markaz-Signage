@@ -371,6 +371,14 @@ export const saveGlobalSettingsToDatabase = async (settings: {
   hijriSettings: HijriSettings;
   fajrAngle: 15 | 18;
   ishaAngle: 15 | 18;
+  fajrStartOffset?: number;
+  fajrIqamahOffset?: number;
+  dhuhrStartOffset?: number;
+  dhuhrIqamahOffset?: number;
+  asrStartOffset?: number;
+  asrIqamahOffset?: number;
+  ishaStartOffset?: number;
+  ishaIqamahOffset?: number;
 }) => {
   if (!isSupabaseConfigured()) return { success: false };
 
@@ -403,6 +411,14 @@ export const saveGlobalSettingsToDatabase = async (settings: {
     hijri_month_length: settings.hijriSettings.monthLength,
     // Keep legacy column in sync for backward compatibility
     fajr_isha_angle: settings.fajrAngle === settings.ishaAngle ? settings.fajrAngle : 18,
+    fajr_start_offset: settings.fajrStartOffset ?? 0,
+    fajr_iqamah_offset: settings.fajrIqamahOffset ?? 0,
+    dhuhr_start_offset: settings.dhuhrStartOffset ?? 0,
+    dhuhr_iqamah_offset: settings.dhuhrIqamahOffset ?? 0,
+    asr_start_offset: settings.asrStartOffset ?? 0,
+    asr_iqamah_offset: settings.asrIqamahOffset ?? 0,
+    isha_start_offset: settings.ishaStartOffset ?? 0,
+    isha_iqamah_offset: settings.ishaIqamahOffset ?? 0,
   };
 
   try {
@@ -496,8 +512,19 @@ export const loadGlobalSettingsFromDatabase = async () => {
       monthLength: (data.hijri_month_length === 29 ? 29 : 30),
     };
 
+    const prayerOffsets = {
+      fajrStartOffset: data.fajr_start_offset ?? 0,
+      fajrIqamahOffset: data.fajr_iqamah_offset ?? 0,
+      dhuhrStartOffset: data.dhuhr_start_offset ?? 0,
+      dhuhrIqamahOffset: data.dhuhr_iqamah_offset ?? 0,
+      asrStartOffset: data.asr_start_offset ?? 0,
+      asrIqamahOffset: data.asr_iqamah_offset ?? 0,
+      ishaStartOffset: data.isha_start_offset ?? 0,
+      ishaIqamahOffset: data.isha_iqamah_offset ?? 0,
+    };
+
     console.log('✅ Loaded global settings from Supabase');
-    return { success: true, data: { ...settings, hijriSettings } };
+    return { success: true, data: { ...settings, hijriSettings, ...prayerOffsets } };
   } catch (error) {
     console.error('Error loading global settings from Supabase:', error);
     return { success: false, data: null };
