@@ -46,29 +46,36 @@ export const saveExcelScheduleToDatabase = async (schedule: Record<string, Excel
   }
 
   try {
-    // Convert schedule object to array of rows
-    const orNull = (v: string | undefined) => (v && v.trim() ? v.trim() : null);
+    // Convert schedule object to array of rows.
+    // Use empty string for NOT NULL columns (fajr–isha start/iqamah) so that
+    // Markaz-format imports (which omit start times) don't violate NOT NULL and
+    // cause a 400. Only jumuah_iqamah is nullable in the schema.
+    const orEmpty = (v: string | undefined) => (v && v.trim() ? v.trim() : '');
+    const orNull  = (v: string | undefined) => (v && v.trim() ? v.trim() : null);
     const rows = Object.values(schedule).map(day => ({
       date: day.date,
-      fajr_start: orNull(day.fajr.start),
-      fajr_iqamah: orNull(day.fajr.iqamah),
-      dhuhr_start: orNull(day.dhuhr.start),
-      dhuhr_iqamah: orNull(day.dhuhr.iqamah),
-      asr_start: orNull(day.asr.start),
-      asr_iqamah: orNull(day.asr.iqamah),
-      maghrib_start: orNull(day.maghrib.start),
-      maghrib_iqamah: orNull(day.maghrib.iqamah),
-      isha_start: orNull(day.isha.start),
-      isha_iqamah: orNull(day.isha.iqamah),
+      fajr_start: orEmpty(day.fajr.start),
+      fajr_iqamah: orEmpty(day.fajr.iqamah),
+      dhuhr_start: orEmpty(day.dhuhr.start),
+      dhuhr_iqamah: orEmpty(day.dhuhr.iqamah),
+      asr_start: orEmpty(day.asr.start),
+      asr_iqamah: orEmpty(day.asr.iqamah),
+      maghrib_start: orEmpty(day.maghrib.start),
+      maghrib_iqamah: orEmpty(day.maghrib.iqamah),
+      isha_start: orEmpty(day.isha.start),
+      isha_iqamah: orEmpty(day.isha.iqamah),
       jumuah_iqamah: orNull(day.jumuahIqamah),
     }));
 
-    // Batch upsert (insert or update on conflict)
-    const { error } = await supabase!
-      .from('excel_schedule')
-      .upsert(rows, { onConflict: 'date' });
-
-    if (error) throw error;
+    // Upsert in chunks to stay within Supabase's request size limits
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+      const chunk = rows.slice(i, i + CHUNK_SIZE);
+      const { error } = await supabase!
+        .from('excel_schedule')
+        .upsert(chunk, { onConflict: 'date' });
+      if (error) throw error;
+    }
 
     console.log(`✅ Saved ${rows.length} days to Supabase`);
     return { success: true };
