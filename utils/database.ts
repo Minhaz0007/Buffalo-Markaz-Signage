@@ -47,19 +47,20 @@ export const saveExcelScheduleToDatabase = async (schedule: Record<string, Excel
 
   try {
     // Convert schedule object to array of rows
+    const orNull = (v: string | undefined) => (v && v.trim() ? v.trim() : null);
     const rows = Object.values(schedule).map(day => ({
       date: day.date,
-      fajr_start: day.fajr.start,
-      fajr_iqamah: day.fajr.iqamah,
-      dhuhr_start: day.dhuhr.start,
-      dhuhr_iqamah: day.dhuhr.iqamah,
-      asr_start: day.asr.start,
-      asr_iqamah: day.asr.iqamah,
-      maghrib_start: day.maghrib.start,
-      maghrib_iqamah: day.maghrib.iqamah,
-      isha_start: day.isha.start,
-      isha_iqamah: day.isha.iqamah,
-      jumuah_iqamah: day.jumuahIqamah || null, // Only iqamah, start uses Dhuhr
+      fajr_start: orNull(day.fajr.start),
+      fajr_iqamah: orNull(day.fajr.iqamah),
+      dhuhr_start: orNull(day.dhuhr.start),
+      dhuhr_iqamah: orNull(day.dhuhr.iqamah),
+      asr_start: orNull(day.asr.start),
+      asr_iqamah: orNull(day.asr.iqamah),
+      maghrib_start: orNull(day.maghrib.start),
+      maghrib_iqamah: orNull(day.maghrib.iqamah),
+      isha_start: orNull(day.isha.start),
+      isha_iqamah: orNull(day.isha.iqamah),
+      jumuah_iqamah: orNull(day.jumuahIqamah),
     }));
 
     // Batch upsert (insert or update on conflict)
@@ -92,15 +93,16 @@ export const loadExcelScheduleFromDatabase = async (): Promise<{ success: boolea
 
     // Convert array to object keyed by date
     const schedule: Record<string, ExcelDaySchedule> = {};
+    const s = (v: string | null) => v ?? '';
     data?.forEach((row: any) => {
       schedule[row.date] = {
         date: row.date,
-        fajr: { start: row.fajr_start, iqamah: row.fajr_iqamah },
-        dhuhr: { start: row.dhuhr_start, iqamah: row.dhuhr_iqamah },
-        asr: { start: row.asr_start, iqamah: row.asr_iqamah },
-        maghrib: { start: row.maghrib_start, iqamah: row.maghrib_iqamah },
-        isha: { start: row.isha_start, iqamah: row.isha_iqamah },
-        jumuahIqamah: row.jumuah_iqamah, // Only iqamah, start uses Dhuhr
+        fajr:    { start: s(row.fajr_start),    iqamah: s(row.fajr_iqamah) },
+        dhuhr:   { start: s(row.dhuhr_start),   iqamah: s(row.dhuhr_iqamah) },
+        asr:     { start: s(row.asr_start),     iqamah: s(row.asr_iqamah) },
+        maghrib: { start: s(row.maghrib_start), iqamah: s(row.maghrib_iqamah) },
+        isha:    { start: s(row.isha_start),    iqamah: s(row.isha_iqamah) },
+        jumuahIqamah: s(row.jumuah_iqamah),
       };
     });
 
