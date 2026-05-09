@@ -916,6 +916,14 @@ const App: React.FC = () => {
                       sunsetOffset={sunsetOffset}
                       tickerBg={tickerBg}
                       hijriSettings={hijriSettings}
+                      fajrStartOffset={fajrStartOffset}
+                      fajrIqamahOffset={fajrIqamahOffset}
+                      dhuhrStartOffset={dhuhrStartOffset}
+                      dhuhrIqamahOffset={dhuhrIqamahOffset}
+                      asrStartOffset={asrStartOffset}
+                      asrIqamahOffset={asrIqamahOffset}
+                      ishaStartOffset={ishaStartOffset}
+                      ishaIqamahOffset={ishaIqamahOffset}
                       // Alert props for panel mode
                       isAlertActive={isMobileAlertActive || isPreviewAlert}
                       alertSettings={mobileAlertSettings}

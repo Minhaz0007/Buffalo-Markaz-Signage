@@ -840,6 +840,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                        const origEntry = originalScheduleSnapshot[date];
                                        const isAutoCalcRow = !(draftSchedule[date] || excelSchedule[date]);
 
+                                       // Auto-calc entry for this date — used as start-time fallback
+                                       // when Excel row has no start times (Markaz format)
+                                       const calcEntry = buildCalculatedEntry(date);
+
                                        // Inline time-select dropdown for editing
                                        const renderTimeSelect = (
                                          value: string,
@@ -873,16 +877,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                          prayerKey: 'fajr' | 'dhuhr' | 'asr' | 'isha',
                                          field: 'start' | 'iqamah',
                                          currentVal: string | undefined,
-                                         origVal: string | undefined
+                                         origVal: string | undefined,
+                                         autoFallback?: string
                                        ) => {
                                          const isEditing = editingCell?.date === date && editingCell?.prayer === prayerKey && editingCell?.field === field;
                                          const isModified = hasUnsavedEdits && origVal !== undefined && currentVal !== origVal;
                                          const cellKey = `${date}-${prayerKey}-${field}`;
+                                         // When no manual value is set, fall back to auto-calculated time for display
+                                         // and as the time-selector default (so the dropdown opens at a sensible value)
+                                         const displayVal = currentVal || autoFallback || '';
+                                         const isAutoFallback = !currentVal && !!autoFallback;
 
                                          if (isEditing) {
                                            return (
                                              <td key={cellKey} className="px-2 py-2">
-                                               {renderTimeSelect(currentVal || '', (v) => {
+                                               {renderTimeSelect(displayVal, (v) => {
                                                  if (field === 'start') updateExcelStart(date, prayerKey, v);
                                                  else updateExcelIqamah(date, prayerKey, v);
                                                })}
@@ -903,13 +912,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                    <span className="font-mono text-sm text-white/30 line-through leading-tight">{origVal}</span>
                                                  </div>
                                                ) : (
-                                                 <span className={`font-mono text-lg leading-tight group-hover:text-mosque-gold transition-colors ${isAutoCalcRow ? 'text-white/50 italic' : 'text-white'}`}>
-                                                   {currentVal || <span className="text-white/20">—</span>}
+                                                 <span className={`font-mono text-lg leading-tight group-hover:text-mosque-gold transition-colors ${isAutoCalcRow || isAutoFallback ? 'text-white/50 italic' : 'text-white'}`}>
+                                                   {displayVal || <span className="text-white/20">—</span>}
                                                  </span>
                                                )}
                                                <Pencil className="w-4 h-4 opacity-0 group-hover:opacity-50 shrink-0 transition-opacity text-mosque-gold ml-1" />
                                              </div>
-                                             {isAutoCalcRow && !isModified && (
+                                             {(isAutoCalcRow || isAutoFallback) && !isModified && (
                                                <div className="text-xs text-white/25 mt-0.5">auto</div>
                                              )}
                                            </td>
@@ -970,14 +979,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                <span className="text-white/40 text-base">{dayName}</span>
                                              </div>
                                            </td>
-                                           {renderFieldCell('fajr', 'start', entry.fajr?.start, origEntry?.fajr?.start)}
-                                           {renderFieldCell('fajr', 'iqamah', entry.fajr?.iqamah, origEntry?.fajr?.iqamah)}
-                                           {renderFieldCell('dhuhr', 'start', entry.dhuhr?.start, origEntry?.dhuhr?.start)}
-                                           {renderFieldCell('dhuhr', 'iqamah', entry.dhuhr?.iqamah, origEntry?.dhuhr?.iqamah)}
-                                           {renderFieldCell('asr', 'start', entry.asr?.start, origEntry?.asr?.start)}
-                                           {renderFieldCell('asr', 'iqamah', entry.asr?.iqamah, origEntry?.asr?.iqamah)}
-                                           {renderFieldCell('isha', 'start', entry.isha?.start, origEntry?.isha?.start)}
-                                           {renderFieldCell('isha', 'iqamah', entry.isha?.iqamah, origEntry?.isha?.iqamah)}
+                                           {renderFieldCell('fajr',  'start',  entry.fajr?.start,  origEntry?.fajr?.start,  calcEntry.fajr.start)}
+                                           {renderFieldCell('fajr',  'iqamah', entry.fajr?.iqamah, origEntry?.fajr?.iqamah)}
+                                           {renderFieldCell('dhuhr', 'start',  entry.dhuhr?.start, origEntry?.dhuhr?.start, calcEntry.dhuhr.start)}
+                                           {renderFieldCell('dhuhr', 'iqamah', entry.dhuhr?.iqamah,origEntry?.dhuhr?.iqamah)}
+                                           {renderFieldCell('asr',   'start',  entry.asr?.start,   origEntry?.asr?.start,   calcEntry.asr.start)}
+                                           {renderFieldCell('asr',   'iqamah', entry.asr?.iqamah,  origEntry?.asr?.iqamah)}
+                                           {renderFieldCell('isha',  'start',  entry.isha?.start,  origEntry?.isha?.start,  calcEntry.isha.start)}
+                                           {renderFieldCell('isha',  'iqamah', entry.isha?.iqamah, origEntry?.isha?.iqamah)}
                                            {renderJumuahCell()}
                                          </tr>
                                        );
