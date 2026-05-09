@@ -238,34 +238,24 @@ export const getScheduleForDate = (
   }
 
   // Apply the Excel data if found (either exact match or year-round match)
-  // NOTE: Maghrib is EXCLUDED from Excel - always calculated from sunset + offset
-  // NOTE: Start times are always auto-calculated from the selected angle so that
-  //       the Fajr/Isha angle selectors remain effective. Only iqamah times are
-  //       overridden here; start time edits in the schedule editor are stored for
-  //       reference but do not override the angle-based calculation on screen.
+  // NOTE: Maghrib is EXCLUDED from Excel — always calculated from sunset + offset
   // IMPORTANT: Apply ensureAmPm to all Excel times to ensure AM/PM formatting
   if (excelDataForDate) {
     const day = excelDataForDate;
 
-    // Apply Excel iqamah times only (start times always come from angle calculation)
-    if (day.fajr?.iqamah) {
-      newPrayers.fajr.iqamah = ensureAmPm(day.fajr.iqamah, false);
-    }
-    if (day.dhuhr?.iqamah) {
-      newPrayers.dhuhr.iqamah = ensureAmPm(day.dhuhr.iqamah, true);
-    }
-    if (day.asr?.iqamah) {
-      newPrayers.asr.iqamah = ensureAmPm(day.asr.iqamah, true);
-    }
-    // Maghrib iqamah is skipped (handled by offset below)
-    if (day.isha?.iqamah) {
-      newPrayers.isha.iqamah = ensureAmPm(day.isha.iqamah, true);
-    }
-
-    // Override Jumu'ah iqamah from Excel if available
-    if (day.jumuahIqamah) {
-       newJumuah.iqamah = ensureAmPm(day.jumuahIqamah, true);
-    }
+    // Apply Excel times. Start times are applied only when explicitly set (non-empty),
+    // so Markaz-format imports (iqamah-only) continue to use auto-calculated starts,
+    // while per-day edits from Edit Schedule Data can override specific days.
+    if (day.fajr?.start)  newPrayers.fajr.start  = ensureAmPm(day.fajr.start,  false);
+    if (day.fajr?.iqamah) newPrayers.fajr.iqamah = ensureAmPm(day.fajr.iqamah, false);
+    if (day.dhuhr?.start)  newPrayers.dhuhr.start  = ensureAmPm(day.dhuhr.start,  true);
+    if (day.dhuhr?.iqamah) newPrayers.dhuhr.iqamah = ensureAmPm(day.dhuhr.iqamah, true);
+    if (day.asr?.start)  newPrayers.asr.start  = ensureAmPm(day.asr.start,  true);
+    if (day.asr?.iqamah) newPrayers.asr.iqamah = ensureAmPm(day.asr.iqamah, true);
+    // Maghrib iqamah is skipped — always calculated from sunset + offset
+    if (day.isha?.start)  newPrayers.isha.start  = ensureAmPm(day.isha.start,  true);
+    if (day.isha?.iqamah) newPrayers.isha.iqamah = ensureAmPm(day.isha.iqamah, true);
+    if (day.jumuahIqamah) newJumuah.iqamah = ensureAmPm(day.jumuahIqamah, true);
   }
 
   // ALWAYS set Jumu'ah times to match Dhuhr times (per user requirement)

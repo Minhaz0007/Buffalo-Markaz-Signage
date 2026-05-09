@@ -22,6 +22,14 @@ interface ScreenPrayerTimesProps {
   sunsetOffset: number;
   tickerBg: 'white' | 'navy';
   hijriSettings: HijriSettings;
+  fajrStartOffset?: number;
+  fajrIqamahOffset?: number;
+  dhuhrStartOffset?: number;
+  dhuhrIqamahOffset?: number;
+  asrStartOffset?: number;
+  asrIqamahOffset?: number;
+  ishaStartOffset?: number;
+  ishaIqamahOffset?: number;
 
   // Alert Props
   isAlertActive: boolean;
@@ -321,6 +329,10 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     slidesConfig,
     excelSchedule, manualOverrides, maghribOffset, sunriseOffset, sunsetOffset,
     tickerBg, hijriSettings,
+    fajrStartOffset = 0, fajrIqamahOffset = 0,
+    dhuhrStartOffset = 0, dhuhrIqamahOffset = 0,
+    asrStartOffset = 0, asrIqamahOffset = 0,
+    ishaStartOffset = 0, ishaIqamahOffset = 0,
     isAlertActive, alertSettings, nextIqamahTime,
     scheduleIndex
 }) => {
@@ -518,13 +530,13 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
   }, []);
 
   const rows = useMemo(() => [
-    { name: 'Fajr',    start: prayers.fajr.start,    iqamah: prayers.fajr.iqamah,    tomorrowIqamah: tomorrowPrayers?.fajr?.iqamah },
-    { name: 'Dhuhr',   start: prayers.dhuhr.start,   iqamah: prayers.dhuhr.iqamah,   tomorrowIqamah: tomorrowPrayers?.dhuhr?.iqamah },
-    { name: 'Asr',     start: prayers.asr.start,     iqamah: prayers.asr.iqamah,     tomorrowIqamah: tomorrowPrayers?.asr?.iqamah },
-    { name: 'Maghrib', start: prayers.maghrib.start, iqamah: prayers.maghrib.iqamah, tomorrowIqamah: tomorrowPrayers?.maghrib?.iqamah },
-    { name: 'Isha',    start: prayers.isha.start,    iqamah: prayers.isha.iqamah,    tomorrowIqamah: tomorrowPrayers?.isha?.iqamah },
-    { name: "Jumu'ah", start: jumuah.start,           iqamah: jumuah.iqamah,          tomorrowIqamah: undefined, isJumuah: true },
-  ], [prayers, jumuah, tomorrowPrayers]);
+    { name: 'Fajr',    start: prayers.fajr.start,    iqamah: prayers.fajr.iqamah,    tomorrowIqamah: tomorrowPrayers?.fajr?.iqamah,    startOffset: fajrStartOffset,  iqamahOffset: fajrIqamahOffset },
+    { name: 'Dhuhr',   start: prayers.dhuhr.start,   iqamah: prayers.dhuhr.iqamah,   tomorrowIqamah: tomorrowPrayers?.dhuhr?.iqamah,   startOffset: dhuhrStartOffset, iqamahOffset: dhuhrIqamahOffset },
+    { name: 'Asr',     start: prayers.asr.start,     iqamah: prayers.asr.iqamah,     tomorrowIqamah: tomorrowPrayers?.asr?.iqamah,     startOffset: asrStartOffset,   iqamahOffset: asrIqamahOffset },
+    { name: 'Maghrib', start: prayers.maghrib.start, iqamah: prayers.maghrib.iqamah, tomorrowIqamah: tomorrowPrayers?.maghrib?.iqamah, startOffset: sunsetOffset,     iqamahOffset: maghribOffset },
+    { name: 'Isha',    start: prayers.isha.start,    iqamah: prayers.isha.iqamah,    tomorrowIqamah: tomorrowPrayers?.isha?.iqamah,    startOffset: ishaStartOffset,  iqamahOffset: ishaIqamahOffset },
+    { name: "Jumu'ah", start: jumuah.start,           iqamah: jumuah.iqamah,          tomorrowIqamah: undefined, isJumuah: true,        startOffset: dhuhrStartOffset, iqamahOffset: dhuhrIqamahOffset },
+  ], [prayers, jumuah, tomorrowPrayers, fajrStartOffset, fajrIqamahOffset, dhuhrStartOffset, dhuhrIqamahOffset, asrStartOffset, asrIqamahOffset, ishaStartOffset, ishaIqamahOffset, sunsetOffset, maghribOffset]);
 
   const getActiveRowIndex = useCallback(() => {
     const now = new Date();
@@ -691,20 +703,30 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
                         </span>
                     </div>
                     {/* Starts */}
-                    <div className={`w-[26%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
+                    <div className={`w-[26%] h-full flex flex-col items-center justify-center border-l ${borderClass} py-1`}>
                         <TimeDisplay
                           time={row.start}
                           className={`transition-all duration-500 ${timeLineHeight} ${timeSize}`}
                           colorClassName={timeColor}
                         />
+                        {row.startOffset !== 0 && (
+                          <span className={`text-[1.4rem] font-sans leading-none mt-0.5 ${isActive ? 'text-mosque-navy/45' : 'text-white/35'}`}>
+                            {row.startOffset > 0 ? '+' : ''}{row.startOffset}m
+                          </span>
+                        )}
                     </div>
                     {/* Iqamah */}
-                    <div className={`w-[25%] h-full flex items-center justify-center border-l ${borderClass} ${iqamahBgClass} py-1`}>
+                    <div className={`w-[25%] h-full flex flex-col items-center justify-center border-l ${borderClass} ${iqamahBgClass} py-1`}>
                         <TimeDisplay
                           time={row.iqamah || ''}
                           className={`transition-all duration-500 ${timeLineHeight} ${timeSize}`}
                           colorClassName={timeColor}
                         />
+                        {row.iqamahOffset !== 0 && (
+                          <span className={`text-[1.4rem] font-sans leading-none mt-0.5 ${isActive ? 'text-mosque-navy/45' : 'text-white/35'}`}>
+                            {row.iqamahOffset > 0 ? '+' : ''}{row.iqamahOffset}m
+                          </span>
+                        )}
                     </div>
                     {/* TM/I — Tomorrow's Iqamah (empty for Jumu'ah) */}
                     <div className={`w-[24%] h-full flex items-center justify-center border-l ${borderClass} py-1`}>
