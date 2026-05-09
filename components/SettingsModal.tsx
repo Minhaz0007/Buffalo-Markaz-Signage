@@ -320,13 +320,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         const row = jsonData[i];
         if (!row[0]) continue;
         let dateKey = "";
-
-        // Detect leap year note row (e.g. "* LEAP-02-29: ...")
-        const isLeapRow = typeof row[0] === 'string' && /LEAP[- ]?02[- ]?29/i.test(row[0]);
-
-        if (isLeapRow) {
-          dateKey = "0000-02-29"; // sentinel key — scheduleIndex maps "02-29" for any leap year
-        } else if (typeof row[0] === 'number') {
+        if (typeof row[0] === 'number') {
              const dateObj = XLSX.SSF.parse_date_code(row[0]);
              if (dateObj) dateKey = `${dateObj.y}-${String(dateObj.m).padStart(2, '0')}-${String(dateObj.d).padStart(2, '0')}`;
         } else if (typeof row[0] === 'string') {
@@ -358,44 +352,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 jumuahIqamah: convertExcelTime(row[11], true),
               };
             }
-            if (!isLeapRow) count++; // don't count the leap sentinel in the day total
-        }
-      }
-
-      // If the file has no leap year row data, auto-interpolate Feb 29 as
-      // midpoint of Feb 28 + Mar 1. This ensures leap years (2028, 2032…) get
-      // correct iqamah times instead of falling back to auto-calculated times.
-      if (!newSchedule['0000-02-29']) {
-        const feb28 = Object.values(newSchedule).find(d => d.date.endsWith('-02-28'));
-        const mar01 = Object.values(newSchedule).find(d => d.date.endsWith('-03-01'));
-        if (feb28 && mar01) {
-          const midTime = (a: string, b: string): string => {
-            if (!a || !b) return a || b || '';
-            const toMin = (t: string) => {
-              const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-              if (!m) return 0;
-              let h = parseInt(m[1]); const min = parseInt(m[2]); const ap = m[3].toUpperCase();
-              if (ap === 'PM' && h !== 12) h += 12;
-              if (ap === 'AM' && h === 12) h = 0;
-              return h * 60 + min;
-            };
-            const fromMin = (total: number) => {
-              const h = Math.floor(total / 60) % 24; const mn = total % 60;
-              const ap = h >= 12 ? 'PM' : 'AM';
-              const dh = h === 0 ? 12 : h > 12 ? h - 12 : h;
-              return `${dh}:${mn.toString().padStart(2, '0')} ${ap}`;
-            };
-            return fromMin(Math.round((toMin(a) + toMin(b)) / 2));
-          };
-          newSchedule['0000-02-29'] = {
-            date: '0000-02-29',
-            fajr:    { start: midTime(feb28.fajr.start, mar01.fajr.start),     iqamah: midTime(feb28.fajr.iqamah, mar01.fajr.iqamah) },
-            dhuhr:   { start: midTime(feb28.dhuhr.start, mar01.dhuhr.start),   iqamah: midTime(feb28.dhuhr.iqamah, mar01.dhuhr.iqamah) },
-            asr:     { start: midTime(feb28.asr.start, mar01.asr.start),       iqamah: midTime(feb28.asr.iqamah, mar01.asr.iqamah) },
-            maghrib: { start: '', iqamah: '' },
-            isha:    { start: midTime(feb28.isha.start, mar01.isha.start),     iqamah: midTime(feb28.isha.iqamah, mar01.isha.iqamah) },
-            jumuahIqamah: midTime(feb28.jumuahIqamah || '', mar01.jumuahIqamah || ''),
-          };
+            count++;
         }
       }
       setExcelSchedule(newSchedule);
@@ -840,10 +797,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                        const origEntry = originalScheduleSnapshot[date];
                                        const isAutoCalcRow = !(draftSchedule[date] || excelSchedule[date]);
 
-                                       // Auto-calc entry for this date — used as start-time fallback
-                                       // when Excel row has no start times (Markaz format)
-                                       const calcEntry = buildCalculatedEntry(date);
-
                                        // Inline time-select dropdown for editing
                                        const renderTimeSelect = (
                                          value: string,
@@ -877,21 +830,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                          prayerKey: 'fajr' | 'dhuhr' | 'asr' | 'isha',
                                          field: 'start' | 'iqamah',
                                          currentVal: string | undefined,
-                                         origVal: string | undefined,
-                                         autoFallback?: string
+                                         origVal: string | undefined
                                        ) => {
                                          const isEditing = editingCell?.date === date && editingCell?.prayer === prayerKey && editingCell?.field === field;
                                          const isModified = hasUnsavedEdits && origVal !== undefined && currentVal !== origVal;
                                          const cellKey = `${date}-${prayerKey}-${field}`;
-                                         // When no manual value is set, fall back to auto-calculated time for display
-                                         // and as the time-selector default (so the dropdown opens at a sensible value)
-                                         const displayVal = currentVal || autoFallback || '';
-                                         const isAutoFallback = !currentVal && !!autoFallback;
 
                                          if (isEditing) {
                                            return (
                                              <td key={cellKey} className="px-2 py-2">
-                                               {renderTimeSelect(displayVal, (v) => {
+                                               {renderTimeSelect(currentVal || '', (v) => {
                                                  if (field === 'start') updateExcelStart(date, prayerKey, v);
                                                  else updateExcelIqamah(date, prayerKey, v);
                                                })}
@@ -912,13 +860,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                    <span className="font-mono text-sm text-white/30 line-through leading-tight">{origVal}</span>
                                                  </div>
                                                ) : (
-                                                 <span className={`font-mono text-lg leading-tight group-hover:text-mosque-gold transition-colors ${isAutoCalcRow || isAutoFallback ? 'text-white/50 italic' : 'text-white'}`}>
-                                                   {displayVal || <span className="text-white/20">—</span>}
+                                                 <span className={`font-mono text-lg leading-tight group-hover:text-mosque-gold transition-colors ${isAutoCalcRow ? 'text-white/50 italic' : 'text-white'}`}>
+                                                   {currentVal || <span className="text-white/20">—</span>}
                                                  </span>
                                                )}
                                                <Pencil className="w-4 h-4 opacity-0 group-hover:opacity-50 shrink-0 transition-opacity text-mosque-gold ml-1" />
                                              </div>
-                                             {(isAutoCalcRow || isAutoFallback) && !isModified && (
+                                             {isAutoCalcRow && !isModified && (
                                                <div className="text-xs text-white/25 mt-0.5">auto</div>
                                              )}
                                            </td>
@@ -979,14 +927,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                <span className="text-white/40 text-base">{dayName}</span>
                                              </div>
                                            </td>
-                                           {renderFieldCell('fajr',  'start',  entry.fajr?.start,  origEntry?.fajr?.start,  calcEntry.fajr.start)}
-                                           {renderFieldCell('fajr',  'iqamah', entry.fajr?.iqamah, origEntry?.fajr?.iqamah)}
-                                           {renderFieldCell('dhuhr', 'start',  entry.dhuhr?.start, origEntry?.dhuhr?.start, calcEntry.dhuhr.start)}
-                                           {renderFieldCell('dhuhr', 'iqamah', entry.dhuhr?.iqamah,origEntry?.dhuhr?.iqamah)}
-                                           {renderFieldCell('asr',   'start',  entry.asr?.start,   origEntry?.asr?.start,   calcEntry.asr.start)}
-                                           {renderFieldCell('asr',   'iqamah', entry.asr?.iqamah,  origEntry?.asr?.iqamah)}
-                                           {renderFieldCell('isha',  'start',  entry.isha?.start,  origEntry?.isha?.start,  calcEntry.isha.start)}
-                                           {renderFieldCell('isha',  'iqamah', entry.isha?.iqamah, origEntry?.isha?.iqamah)}
+                                           {renderFieldCell('fajr', 'start', entry.fajr?.start, origEntry?.fajr?.start)}
+                                           {renderFieldCell('fajr', 'iqamah', entry.fajr?.iqamah, origEntry?.fajr?.iqamah)}
+                                           {renderFieldCell('dhuhr', 'start', entry.dhuhr?.start, origEntry?.dhuhr?.start)}
+                                           {renderFieldCell('dhuhr', 'iqamah', entry.dhuhr?.iqamah, origEntry?.dhuhr?.iqamah)}
+                                           {renderFieldCell('asr', 'start', entry.asr?.start, origEntry?.asr?.start)}
+                                           {renderFieldCell('asr', 'iqamah', entry.asr?.iqamah, origEntry?.asr?.iqamah)}
+                                           {renderFieldCell('isha', 'start', entry.isha?.start, origEntry?.isha?.start)}
+                                           {renderFieldCell('isha', 'iqamah', entry.isha?.iqamah, origEntry?.isha?.iqamah)}
                                            {renderJumuahCell()}
                                          </tr>
                                        );
