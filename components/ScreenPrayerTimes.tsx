@@ -5,7 +5,7 @@ import { MOSQUE_NAME } from '../constants';
 import { AnimatePresence, motion } from 'framer-motion';
 import { getScheduleForDate, ScheduleIndex } from '../utils/scheduler';
 import { MobileSilentAlert } from './MobileSilentAlert';
-import { getHijriDateFromSettings } from '../utils/hijriDate';
+import { getHijriDateFromSettings, getIslamicEffectiveDate } from '../utils/hijriDate';
 import { SeamlessTicker } from './SeamlessTicker';
 import { toEasternDateStr, toEasternMinutes, toEasternDayOfWeek, easternTimeStrToDate } from '../utils/easternTime';
 
@@ -494,9 +494,9 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
     setCurrentTime(now);
     calculateNextIqamah(now);
 
-    // Calculate Hijri date using Shariah Board NY convention
-    // (date changes at 1:00 AM EST/EDT, not at sunset)
-    setHijriDate(getHijriDateFromSettings(hijriSettings, now));
+    // Hijri date rolls over at today's sunset/Maghrib, not at midnight,
+    // per the Islamic calendar convention that a new day begins at Maghrib.
+    setHijriDate(getHijriDateFromSettings(hijriSettings, getIslamicEffectiveDate(now, prayers.sunset)));
   }, [calculateNextIqamah, prayers, jumuah, hijriSettings]);
 
   // Continuous clock update (independent of prayers changes)
@@ -506,13 +506,13 @@ export const ScreenPrayerTimes: React.FC<ScreenPrayerTimesProps> = ({
       setCurrentTime(now);
       calculateNextIqamah(now);
 
-      // Calculate Hijri date using Shariah Board NY convention
-      // (date changes at 1:00 AM EST/EDT, not at sunset)
-      setHijriDate(getHijriDateFromSettings(hijriSettings, now));
+      // Hijri date rolls over at today's sunset/Maghrib, not at midnight,
+      // per the Islamic calendar convention that a new day begins at Maghrib.
+      setHijriDate(getHijriDateFromSettings(hijriSettings, getIslamicEffectiveDate(now, prayers.sunset)));
 
     }, 1000);
     return () => clearInterval(timer);
-  }, [calculateNextIqamah, hijriSettings]);
+  }, [calculateNextIqamah, hijriSettings, prayers.sunset]);
 
   const formatDate = useCallback((date: Date) => {
     // Pin to Eastern timezone so the displayed date is always Buffalo local date,
