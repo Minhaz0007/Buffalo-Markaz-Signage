@@ -13,7 +13,7 @@
  */
 
 import { HijriSettings } from '../types';
-import { toEasternDateStr } from './easternTime';
+import { toEasternDateStr, easternTimeStrToDate, findEasternMidnightMs } from './easternTime';
 
 const BUFFALO_TIMEZONE = 'America/New_York';
 
@@ -33,6 +33,35 @@ function parseLocalDate(dateStr: string): number {
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
+
+/**
+ * Returns the "Islamic effective date" to use for Hijri calculations.
+ *
+ * The Islamic day begins at Maghrib (sunset), not at midnight, so once today's
+ * sunset has passed the Hijri date should already show tomorrow's date/day
+ * number even though the Gregorian calendar day hasn't turned over yet.
+ *
+ * @param now           - current instant
+ * @param sunsetTimeStr - today's sunset/Maghrib time, e.g. "8:15 PM" (Eastern
+ *                        wall-clock). Pass null/undefined if unavailable, in
+ *                        which case the effective date is just `now`.
+ */
+export function getIslamicEffectiveDate(now: Date, sunsetTimeStr?: string | null): Date {
+  if (!sunsetTimeStr) return now;
+
+  const sunset = easternTimeStrToDate(sunsetTimeStr, now);
+  if (!sunset || now.getTime() < sunset.getTime()) return now;
+
+  const todayStr = toEasternDateStr(now);
+  const [y, m, d] = todayStr.split('-').map(Number);
+  const tomorrow = new Date(Date.UTC(y, m - 1, d));
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+
+  // Anchor to noon Eastern on tomorrow's date so the Hijri formatters (which
+  // read the Eastern calendar day) are unambiguous regardless of DST.
+  return new Date(findEasternMidnightMs(tomorrowStr) + 12 * 60 * 60 * 1000);
+}
 
 /**
  * Returns the Hijri date string using the CHC anchor settings if configured,
