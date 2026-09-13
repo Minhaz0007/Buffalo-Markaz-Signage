@@ -13,7 +13,8 @@
  */
 
 import { HijriSettings } from '../types';
-import { toEasternDateStr } from './easternTime';
+import { toEasternDateStr, easternTimeStrToDate, findEasternMidnightMs } from './easternTime';
+import { calculatePrayerTimes } from './prayerCalculator';
 
 const BUFFALO_TIMEZONE = 'America/New_York';
 
@@ -32,6 +33,40 @@ function parseLocalDate(dateStr: string): number {
   return new Date(y, m - 1, d).getTime();
 }
 
+/**
+ * Returns the "Islamic effective date" to use for Hijri calculations.
+ *
+ * The Islamic day begins at Maghrib (sunset), not at midnight, so once today's
+ * sunset has passed, every Hijri calculation (anchor-mode and JS-fallback
+ * alike) should already use tomorrow's Gregorian date/day number even though
+ * the Gregorian calendar day hasn't turned over yet.
+ *
+ * Computed here (rather than passed in by callers) so every caller — the
+ * signage screen and the Settings preview alike — rolls over at exactly the
+ * same instant using the same sunset.
+ */
+function getIslamicEffectiveDate(now: Date): Date {
+  let sunsetTimeStr: string;
+  try {
+    sunsetTimeStr = calculatePrayerTimes(now).sunset;
+  } catch {
+    return now;
+  }
+
+  const sunset = easternTimeStrToDate(sunsetTimeStr, now);
+  if (!sunset || now.getTime() < sunset.getTime()) return now;
+
+  const todayStr = toEasternDateStr(now);
+  const [y, m, d] = todayStr.split('-').map(Number);
+  const tomorrow = new Date(Date.UTC(y, m - 1, d));
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+
+  // Anchor to noon Eastern on tomorrow's date so the Hijri formatters (which
+  // read the Eastern calendar day) are unambiguous regardless of DST.
+  return new Date(findEasternMidnightMs(tomorrowStr) + 12 * 60 * 60 * 1000);
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -46,14 +81,18 @@ export function getHijriDateFromSettings(
   settings: HijriSettings,
   date: Date = new Date()
 ): string {
+  const effectiveDate = getIslamicEffectiveDate(date);
+
   if (settings.monthStartGregorian && settings.monthName && settings.year) {
     try {
-      const todayStr = toEasternDateStr(date);
-      const daysDiff = Math.round(
-        (parseLocalDate(todayStr) - parseLocalDate(settings.monthStartGregorian)) /
+      const effectiveStr = toEasternDateStr(effectiveDate);
+      // monthStartGregorian is the Gregorian date whose sunset begins Day 1,
+      // so Day 1 doesn't "arrive" (in effective-date terms) until the day
+      // after it — no +1 offset needed here.
+      const dayNumber = Math.round(
+        (parseLocalDate(effectiveStr) - parseLocalDate(settings.monthStartGregorian)) /
         (24 * 60 * 60 * 1000)
       );
-      const dayNumber = daysDiff + 1; // 1-indexed
 
       if (dayNumber >= 1 && dayNumber <= settings.monthLength) {
         return `${dayNumber} ${settings.monthName.toUpperCase()} ${settings.year}`;
@@ -62,7 +101,7 @@ export function getHijriDateFromSettings(
       // fall through to JS calculation
     }
   }
-  return getHijriDate(date);
+  return getHijriDate(effectiveDate);
 }
 
 /**
@@ -75,12 +114,11 @@ export function getHijriAnchorStatus(
   if (!settings.monthStartGregorian || !settings.monthName || !settings.year) {
     return { dayNumber: 0, isActive: false, isExpired: false, isNotStarted: false };
   }
-  const todayStr = toEasternDateStr(date);
-  const daysDiff = Math.round(
-    (parseLocalDate(todayStr) - parseLocalDate(settings.monthStartGregorian)) /
+  const effectiveStr = toEasternDateStr(getIslamicEffectiveDate(date));
+  const dayNumber = Math.round(
+    (parseLocalDate(effectiveStr) - parseLocalDate(settings.monthStartGregorian)) /
     (24 * 60 * 60 * 1000)
   );
-  const dayNumber = daysDiff + 1;
   return {
     dayNumber,
     isActive: dayNumber >= 1 && dayNumber <= settings.monthLength,
