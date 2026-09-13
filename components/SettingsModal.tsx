@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { X, Settings as SettingsIcon, Upload, Calendar as CalendarIcon, Plus, Trash2, Edit2, AlertTriangle, LayoutDashboard, MessageSquare, Palette, CheckCircle2, Zap, Type, ChevronLeft, ChevronRight, Moon, Clock, Sparkles, Wind, PlayCircle, StopCircle, Layers, Lock, PhoneOff, Eye, Volume2, Save, Music, Monitor, LayoutTemplate, Info, Sun, Pencil } from 'lucide-react';
 import { Announcement, ExcelDaySchedule, ManualOverride, AnnouncementItem, SlideConfig, AnnouncementSlideConfig, AutoAlertSettings, MobileSilentAlertSettings, HijriSettings, HIJRI_MONTHS } from '../types';
-import { getHijriDateFromSettings, getHijriAnchorStatus } from '../utils/hijriDate';
+import { getHijriDateFromSettings, getHijriAnchorStatus, getIslamicEffectiveDate } from '../utils/hijriDate';
 import { toEasternDateStr } from '../utils/easternTime';
 import { ALERT_MESSAGES } from '../constants';
 import * as XLSX from 'xlsx';
 import { saveExcelScheduleToDatabase, clearExcelScheduleFromDatabase } from '../utils/database';
-import { ScheduleIndex } from '../utils/scheduler';
+import { ScheduleIndex, addMinutesToTime } from '../utils/scheduler';
 import { isSupabaseConfigured } from '../utils/supabase';
 import { calculatePrayerTimes } from '../utils/prayerCalculator';
 
@@ -1401,15 +1401,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 {/* --- HIJRI DATE TAB --- */}
                 {activeTab === 'hijri' && (() => {
-                  const status = getHijriAnchorStatus(hijriSettings, new Date());
+                  // The Islamic day rolls over at today's Maghrib/sunset, not at midnight.
+                  // Anchor calculations to the same "Islamic effective date" the live
+                  // screens use (utils/hijriDate.ts + ScreenPrayerTimes.tsx) so that
+                  // picking "Today is Day N" here matches what actually displays after
+                  // sunset instead of appearing to jump forward by one day.
+                  const todaysSunset = (() => {
+                    try {
+                      const raw = calculatePrayerTimes(new Date(), fajrAngle, ishaAngle).sunset;
+                      return sunsetOffset !== 0 ? addMinutesToTime(raw, sunsetOffset) : raw;
+                    } catch {
+                      return null;
+                    }
+                  })();
+                  const effectiveNow = getIslamicEffectiveDate(new Date(), todaysSunset);
+
+                  const status = getHijriAnchorStatus(hijriSettings, effectiveNow);
                   const liveDate = hijriSettings.monthName && hijriSettings.year && hijriSettings.monthStartGregorian
-                    ? getHijriDateFromSettings(hijriSettings, new Date())
+                    ? getHijriDateFromSettings(hijriSettings, effectiveNow)
                     : null;
 
                   // Compute today's Hijri day from the stored anchor
                   const computeCurrentDay = (): number => {
                     if (!hijriSettings.monthStartGregorian) return 1;
-                    const todayStr = toEasternDateStr(new Date());
+                    const todayStr = toEasternDateStr(effectiveNow);
                     const [sy, sm, sd] = hijriSettings.monthStartGregorian.split('-').map(Number);
                     const [ty, tm, td] = todayStr.split('-').map(Number);
                     const startMs = new Date(sy, sm - 1, sd).getTime();
@@ -1419,7 +1434,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   // Compute monthStartGregorian = today − (day − 1)
                   const anchorFromDay = (day: number): string => {
-                    const todayStr = toEasternDateStr(new Date());
+                    const todayStr = toEasternDateStr(effectiveNow);
                     const [ty, tm, td] = todayStr.split('-').map(Number);
                     const anchor = new Date(ty, tm - 1, td);
                     anchor.setDate(anchor.getDate() - (day - 1));
